@@ -1,0 +1,42 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+ColumnLimit: 100
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+DerivePointerAlignment: false
+
+SpaceBeforeParens: ControlStatements
+SpaceBeforeAssignmentOperators: true
+
+AccessModifierOffset: -4
+
+NamespaceIndentation: None
+
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+
+BinPackArguments: true
+BinPackParameters: true
+
+BreakBeforeBinaryOperators: None
+BreakConstructorInitializers: BeforeComma
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+
+Cpp11BracedListStyle: true
+
+Standard: c++17
