@@ -1,14 +1,11 @@
 #include "application/window.h"
+#include "application/window_data_macos.h"
 
-#include <AppKit/NSWindow.h>
+#import <AppKit/NSWindow.h>
 #include <memory>
 
 using namespace mosaic;
 using namespace vml;
-
-struct Window::Data {
-    NSWindow* native_window = nil;
-};
 
 Window::~Window() = default;
 

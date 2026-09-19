@@ -7,6 +7,10 @@ namespace mosaic {
 class Application;
 class Window;
 
+namespace internal {
+void run_one_frame(Application& app);
+}
+
 ///
 enum class RunLoopMode { Wait, Poll };
 
@@ -16,6 +20,7 @@ void run_application(Application& app);
 ///
 class Application {
     friend void mosaic::run_application(class Application&);
+    friend void internal::run_one_frame(Application&);
 
 public:
     virtual ~Application();
@@ -29,15 +34,27 @@ public:
     ///
     Window* add_window(std::unique_ptr<Window> window);
 
+    ///
+    Window* main_window() {
+        return const_cast<Window*>(static_cast<Application const&>(*this).main_window());
+    }
+
+    ///
+    Window const* main_window() const;
+
 protected:
     Application();
-
-    virtual void frame() {}
 
     ///
     void set_run_loop_mode(RunLoopMode mode);
 
 private:
+    // Customization points
+
+    virtual void frame() {}
+
+    // Internals
+
     struct Data;
     struct PlatformData;
 
@@ -45,8 +62,17 @@ private:
     static void destroy_platform_data(PlatformData*);
 
     void platform_init();
+    void platform_run();
 
-    void platform_poll_events();
+    Window* create_main_window();
+    void create_main_window_platform(Window* main_window);
+
+    void imgui_init(Window* main_window);
+    void imgui_init_platform(Window* main_window);
+    void imgui_begin_frame();
+    void imgui_begin_frame_platform();
+    void imgui_end_frame();
+    void imgui_end_frame_platform();
 
     void do_run();
 

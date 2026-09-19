@@ -1,15 +1,21 @@
+#include <imgui.h>
+#include <iostream>
 #include <mosaic/application/application.h>
 
 namespace {
 
 class ExampleApp : public mosaic::Application {
 public:
+private:
+    void frame() override {
+        ImGui::ShowDemoWindow();
+        std::cout << "Frame\n";
+    }
 };
 
 } // namespace
 
 int main() {
     ExampleApp app;
-    app.create_window({.position = {200, 200}, .size = {800, 600}});
     mosaic::run_application(app);
 }

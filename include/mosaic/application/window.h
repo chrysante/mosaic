@@ -18,6 +18,7 @@ public:
     ~Window();
 
 private:
+    friend class Application;
     friend std::unique_ptr<class Window> create_window(WindowDesc const&);
 
     Window(WindowDesc const& desc);

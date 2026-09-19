@@ -56,6 +56,7 @@ configure_file(
 # Dependencies
 include(FetchContent)
 
+# VML
 FetchContent_Declare(
     vml
     GIT_REPOSITORY https://github.com/chrysante/vml.git
@@ -63,6 +64,40 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(vml)
+
+# ImGui
+FetchContent_Declare(
+    ImGui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG 4212de7d5b651895ccfe728f4eef9595e1d8d38a
+)
+FetchContent_MakeAvailable(ImGui)
+add_library(ImGui STATIC)
+
+target_sources(ImGui PRIVATE
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+)
+
+if(MOSAIC_PLATFORM_MACOS)
+target_sources(ImGui PRIVATE
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_osx.mm
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_metal.mm
+)
+target_compile_options(ImGui PRIVATE
+    $<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>
+)
+endif()
+
+target_include_directories(ImGui 
+PUBLIC
+    ${imgui_SOURCE_DIR}
+PRIVATE 
+    ${imgui_SOURCE_DIR}/backends
+)
 
 # Library
 add_library(mosaic ${MOSAIC_LIBRARY_TYPE})
@@ -72,6 +107,7 @@ mosaic_enable_warnings(mosaic)
 target_link_libraries(mosaic
     PUBLIC
         vml
+        ImGui
 )
 
 target_sources(mosaic PRIVATE
@@ -82,10 +118,17 @@ target_sources(mosaic PRIVATE
 if(MOSAIC_PLATFORM_MACOS)
 target_link_libraries(mosaic PRIVATE
     "-framework AppKit"
+    "-framework Metal"
+    "-framework GameController"
+    "-framework QuartzCore"
+    "-framework CoreVideo"
 )
 target_sources(mosaic PRIVATE
     source/application/application_macos.mm
     source/application/window_macos.mm
+)
+target_compile_options(mosaic PRIVATE
+    $<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>
 )
 endif()
 
