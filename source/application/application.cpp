@@ -39,5 +39,6 @@ void Application::set_run_loop_mode(RunLoopMode mode) {
 void Application::do_run() {
     while (true) {
         platform_poll_events();
+        frame();
     }
 }

@@ -18,8 +18,7 @@ class Application {
     friend void mosaic::run_application(class Application&);
 
 public:
-    Application();
-    ~Application();
+    virtual ~Application();
 
     Application(Application const&) = delete;
     Application& operator=(Application const&) = delete;
@@ -29,6 +28,11 @@ public:
 
     ///
     Window* add_window(std::unique_ptr<Window> window);
+
+protected:
+    Application();
+
+    virtual void frame() {}
 
     ///
     void set_run_loop_mode(RunLoopMode mode);
