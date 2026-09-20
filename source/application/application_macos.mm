@@ -59,10 +59,16 @@ void Application::platform_run() {
 @end
 
 @implementation MetalView
-- (void)setFrameSize:(NSSize)size {
-    [super setFrameSize:size];
+
++ (Class)layerClass {
+    return [CAMetalLayer class];
+}
+
+- (void)layout {
+    [super layout];
     [self updateDrawableSize];
 }
+
 - (void)updateDrawableSize {
     CAMetalLayer* layer = (CAMetalLayer*)self.layer;
     CGFloat scale = self.window.backingScaleFactor;
@@ -70,6 +76,12 @@ void Application::platform_run() {
     layer.drawableSize =
         CGSizeMake(self.bounds.size.width * scale, self.bounds.size.height * scale);
 }
+
+- (void)viewDidChangeBackingProperties {
+    [super viewDidChangeBackingProperties];
+    [self updateDrawableSize];
+}
+
 @end
 
 void Application::create_main_window_platform(Window* window) {
@@ -82,7 +94,9 @@ void Application::create_main_window_platform(Window* window) {
     layer.framebufferOnly = YES;
     double scale = native_window.backingScaleFactor;
     layer.contentsScale = scale;
-
+    // Prevent Core Animation from scaling the last drawable to fit the view during live window
+    // resizing.
+    layer.contentsGravity = kCAGravityTopLeft;
     layer.drawableSize =
         CGSizeMake(view.bounds.size.width * scale, view.bounds.size.height * scale);
     view.wantsLayer = YES;
@@ -111,7 +125,7 @@ void Application::imgui_begin_frame_platform() {
     pass.colorAttachments[0].texture = m_platform_data->drawable.texture;
     pass.colorAttachments[0].loadAction = MTLLoadActionClear;
     pass.colorAttachments[0].storeAction = MTLStoreActionStore;
-    pass.colorAttachments[0].clearColor = MTLClearColorMake(0.1, 0.1, 0.1, 1.0);
+    pass.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0);
 
     m_platform_data->command_buffer = [m_platform_data->command_queue commandBuffer];
 
