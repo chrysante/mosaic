@@ -66,13 +66,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(vml)
 
 # ImGui
-FetchContent_Declare(
-    ImGui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG 4212de7d5b651895ccfe728f4eef9595e1d8d38a
-)
-FetchContent_MakeAvailable(ImGui)
 add_library(ImGui STATIC)
+
+set(imgui_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/imgui")
 
 target_sources(ImGui PRIVATE
     ${imgui_SOURCE_DIR}/imgui.cpp
