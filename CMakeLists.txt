@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.50)
 
 project(mosaic
     VERSION 0.1.0
-    LANGUAGES CXX
+    LANGUAGES CXX OBJCXX
 )
 
 # C++ standard
