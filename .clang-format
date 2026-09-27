@@ -4,7 +4,7 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 
-ColumnLimit: 100
+ColumnLimit: 80
 
 BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Empty
@@ -22,7 +22,7 @@ AccessModifierOffset: -4
 
 NamespaceIndentation: None
 
-IncludeBlocks: Regroup
+IncludeBlocks: Preserve
 SortIncludes: CaseSensitive
 
 AlwaysBreakAfterReturnType: None

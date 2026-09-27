@@ -1,0 +1,267 @@
+#pragma once
+
+#include <any>
+#include <cassert>
+#include <concepts>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <typeindex>
+#include <vector>
+
+#include <utl/hashtable.hpp>
+
+namespace mosaic {
+
+/// Used to identify registered listeners
+struct ListenerID {
+    int64_t index;
+    std::type_index type;
+
+    bool operator==(ListenerID const&) const = default;
+};
+
+class EventEmitter;
+class EventReceiver;
+
+/// Application event system for communicating facts between otherwise
+/// independent components.
+///
+/// The message system is intended primarily for events: messages that
+/// describe something that happened in the application and that unrelated
+/// components may be interested in, such as
+///
+///     ProjectOpened,
+///     AssetImported,
+///     DocumentSaved,
+///     SelectionChanged.
+///
+/// An event should describe a fact, rather than a particular object that
+/// should perform some work. The sender should not need to know which
+/// components are listening, and listeners should not need to know which
+/// component produced the event.
+///
+/// ## Architectural rule
+///
+/// Events describe facts; they do not provide dependencies.
+///
+/// Do not use the message system as a service locator or dependency injection
+/// mechanism. In particular, avoid messages such as
+///
+///     GetAssetManager,
+///     GetRenderer,
+///     GetWindow
+///
+/// or messages containing output pointers/references whose purpose is to
+/// retrieve an object from another component.
+///
+/// If a component requires another component or service in order to perform
+/// its work, that is a real dependency and should be expressed explicitly
+/// through construction, an application context, or another appropriate
+/// dependency mechanism.
+///
+/// Prefer:
+///
+///     struct ProjectOpened {
+///         std::filesystem::path root;
+///     };
+///
+/// over:
+///
+///     struct ProjectOpened {
+///         AssetManager* asset_manager;
+///     };
+///
+/// The first communicates an application-level fact. The second exposes the
+/// implementation that happened to produce that fact.
+///
+/// ## Events vs. commands
+///
+/// Events and commands are different concepts:
+///
+/// Event: "This happened."
+/// Command: "Please make this happen."
+///
+/// An event may have many listeners and the sender should not depend on any
+/// particular listener. A command is generally directed at a particular
+/// subsystem and should normally be expressed through an explicit interface
+/// or dependency rather than broadcast through this system.
+///
+/// ## Deferred tasks
+///
+/// Arbitrary callable objects can be useful for scheduling work for later
+/// execution, but they are not events. If the system provides a facility for
+/// dispatching a std::function<void()>, consider it a task/deferred-work
+/// mechanism rather than an application event.
+///
+/// In particular, do not use arbitrary callable messages as a replacement for
+/// ordinary function calls or structured application events.
+///
+/// ## Synchronous dispatch
+///
+/// Immediate dispatch executes listeners as part of the caller's call stack.
+/// Consequently, dispatching an event may invoke arbitrary application code
+/// and may introduce reentrancy. Adding a listener can therefore affect the
+/// behavior of an existing synchronous dispatch.
+///
+/// Use synchronous events when that behavior is intentional; use deferred
+/// dispatch when the notification should be processed later.
+///
+/// ## General guideline
+///
+/// Use this system when the relationship is naturally expressed as:
+///
+/// "Something happened, and whoever cares may react."
+///
+/// Use an explicit dependency when the relationship is:
+///
+/// "I need this particular object/service to do my job."
+///
+/// The message system is a decoupling mechanism, not a mechanism for making
+/// all dependencies invisible.
+class EventSystem : public std::enable_shared_from_this<EventSystem> {
+    template <typename> struct Tag {};
+
+public:
+    /// Takes private `Tag` class because object must be created through the
+    /// static `Create` function
+    EventSystem(Tag<void>);
+
+    /// Not copyable
+    EventSystem(EventSystem const&) = delete;
+
+    /// Creates an event system. Since emitters and receivers hold shared and
+    /// weak references to this class, this shall only exist in shared pointers
+    static std::shared_ptr<EventSystem> create();
+
+    /// Immediately calls all registered listeners that listen for the type of
+    /// \p message and returns
+    void publish(std::any message);
+
+    /// Stores \p message in an internal buffer. This function can be called
+    /// concurrently
+    void publish_queued(std::any message);
+
+    /// Registers \p listener for listening to any messages sent to this system
+    /// Call `unregister` with the returned ID to stop listening
+    template <typename T, std::invocable<T> F>
+    [[nodiscard]] ListenerID listen(F&& f) {
+        using U = std::decay_t<T>;
+        std::type_index type = typeid(U);
+        listener_sets[type][index] =
+            [f = std::forward<F>(f)](std::any const& message) {
+                std::invoke(f, std::any_cast<U const&>(message));
+            };
+        return ListenerID{index++, type};
+    }
+
+    /// \overload with automatic argument deduction
+    template <typename F> requires requires(F&& f) {
+        std::function{f};
+    }
+    [[nodiscard]] ListenerID listen(F&& f) {
+        using FunctionType = decltype(std::function{f});
+        return [&]<typename R, typename T>(Tag<std::function<R(T)>>) {
+            return listen<T>(std::forward<F>(f));
+        }(Tag<FunctionType>{});
+    }
+
+    /// Calls `publish()` with all messages in the internal buffer
+    void flush();
+
+    /// Stops the listener with \p ID from listening to this system
+    void unregister(ListenerID ID);
+
+    /// Creates an emitter that emits to this event system
+    EventEmitter make_emitter();
+
+    /// Creates an receiver that listens to this event system
+    EventReceiver make_receiver();
+
+private:
+    using TypedSet =
+        utl::hashmap<int64_t, std::function<void(std::any const&)>>;
+
+    utl::hashmap<std::type_index, TypedSet> listener_sets;
+    std::mutex buffer_mutex;
+    std::vector<std::any> buffer;
+    int64_t index = 0;
+    bool flushing = false;
+};
+
+/// Event sender
+class EventEmitter {
+public:
+    EventEmitter() = default;
+
+    explicit EventEmitter(std::shared_ptr<EventSystem> event_system)
+        : event_system(std::move(event_system)) {}
+
+    /// Dispatches a message. This function can be called concurrently
+    void publish(std::any message) const {
+        assert(event_system && "Cannot dispatch without an event system");
+        event_system->publish(std::move(message));
+    }
+
+    /// \overload
+    void publish_queued(std::any message) const {
+        assert(event_system && "Cannot dispatch without a message system");
+        event_system->publish_queued(std::move(message));
+    }
+
+private:
+    std::shared_ptr<EventSystem> event_system;
+};
+
+/// Event receiver used to listen to events in the application
+class EventReceiver {
+public:
+    EventReceiver() = default;
+
+    explicit EventReceiver(std::weak_ptr<EventSystem> EventSystem);
+
+    EventReceiver(EventReceiver&&) = default;
+    EventReceiver& operator=(EventReceiver&&) = default;
+
+    ~EventReceiver() {
+        unregister_all();
+    };
+
+    /// Listens to messages of type \p T by invoking \p listener whenever a
+    /// message of type \p T is sent. The listener is is unregistered when this
+    /// receiver is destroyed or when `unregisterAll()` is called
+    ///
+    /// \Warning This function is not thread safe. Ideally listeners are only
+    /// registered from the main thread
+    template <typename T, std::invocable<T> F> void listen(F&& listener) {
+        listenImpl([&](auto* msg) {
+            return msg->template listen<T>(std::forward<F>(listener));
+        });
+    }
+
+    /// \overload
+    template <typename F> void listen(F&& listener) {
+        listenImpl(
+            [&](auto* msg) { return msg->listen(std::forward<F>(listener)); });
+    }
+
+    ///
+    void unregister_all();
+
+private:
+    void listenImpl(auto callback) {
+        if (auto msg = event_system.lock())
+            registered_ids.push_back(callback(msg.get()));
+    }
+
+    std::weak_ptr<EventSystem> event_system;
+    std::vector<ListenerID> registered_ids;
+};
+
+} // namespace mosaic
+
+template <> struct std::hash<mosaic::ListenerID> {
+    size_t operator()(mosaic::ListenerID ID) const {
+        return utl::hash_combine(ID.index, ID.type);
+    }
+};

@@ -6,6 +6,9 @@ namespace mosaic {
 
 class Application;
 class Window;
+class EventSystem;
+class EventEmitter;
+class EventReceiver;
 
 namespace internal {
 void run_one_frame(Application& app);
@@ -36,11 +39,18 @@ public:
 
     ///
     Window* main_window() {
-        return const_cast<Window*>(static_cast<Application const&>(*this).main_window());
+        return const_cast<Window*>(
+            static_cast<Application const&>(*this).main_window());
     }
 
     ///
     Window const* main_window() const;
+
+    /// Creates an `EventEmitter` that emits to the applications event system
+    EventEmitter make_emitter();
+
+    /// Creates an `EventReceiver` that listens to the applications event system
+    EventReceiver make_receiver();
 
 protected:
     Application();

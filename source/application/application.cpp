@@ -1,11 +1,13 @@
 #include "application/application.h"
 
-#include "application/application_data.h"
-#include "application/window.h"
-
 #include <cassert>
-#include <imgui.h>
 #include <memory>
+
+#include <imgui.h>
+
+#include "application/application_data.h"
+#include "application/event_system.h"
+#include "application/window.h"
 
 using namespace mosaic;
 
@@ -16,6 +18,7 @@ void mosaic::run_application(Application& app) {
 Application::Application()
     : m_data(new Data{})
     , m_platform_data(create_platform_data()) {
+    m_data->event_system = EventSystem::create();
     platform_init();
     auto* main_window = create_main_window();
     imgui_init(main_window);
@@ -40,6 +43,14 @@ Window* Application::add_window(std::unique_ptr<Window> window) {
 Window const* Application::main_window() const {
     assert(!m_data->windows.empty());
     return m_data->windows.front().get();
+}
+
+EventEmitter Application::make_emitter() {
+    return m_data->event_system->make_emitter();
+}
+
+EventReceiver Application::make_receiver() {
+    return m_data->event_system->make_receiver();
 }
 
 void Application::set_run_loop_mode(RunLoopMode mode) {

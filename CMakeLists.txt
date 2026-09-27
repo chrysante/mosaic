@@ -62,8 +62,23 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/chrysante/vml.git
     GIT_TAG v0.0.4
 )
-
 FetchContent_MakeAvailable(vml)
+
+# UTL
+FetchContent_Declare(
+    utility
+    GIT_REPOSITORY https://github.com/chrysante/utility.git
+    GIT_TAG v0.1.2
+)
+FetchContent_MakeAvailable(utility)
+
+# termfmt
+FetchContent_Declare(
+    termfmt
+    GIT_REPOSITORY https://github.com/chrysante/termfmt.git
+    GIT_TAG 0.0.1
+)
+FetchContent_MakeAvailable(termfmt)
 
 # ImGui
 add_library(ImGui STATIC)
@@ -100,15 +115,24 @@ add_library(mosaic ${MOSAIC_LIBRARY_TYPE})
 
 mosaic_enable_warnings(mosaic)
 
+generate_export_header(mosaic
+    EXPORT_FILE_NAME
+        ${PROJECT_BINARY_DIR}/generated/mosaic/support/export.h
+)
+
 target_link_libraries(mosaic
     PUBLIC
         vml
+        utility
+        termfmt
         ImGui
 )
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
+    source/application/event_system.cpp
     source/application/window.cpp
+    source/support/logger.cpp
 )
 
 if(MOSAIC_PLATFORM_MACOS)
