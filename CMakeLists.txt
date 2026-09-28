@@ -35,6 +35,14 @@ function(mosaic_enable_warnings TARGET)
     endif()
 endfunction()
 
+function(mosaic_enable_tsan TARGET)
+    if(not MSVC)
+        target_compile_options(${TARGET} PRIVATE
+            -fsanitize=thread
+        )
+    endif()
+endfunction()
+
 # Platform
 set(MOSAIC_PLATFORM_WINDOWS 0)
 set(MOSAIC_PLATFORM_LINUX   0)
@@ -80,6 +88,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(termfmt)
 
+# json
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.12.0
+)
+FetchContent_MakeAvailable(json)
+
+# Catch2
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/catch2.git
+    GIT_TAG v3.16.0
+)
+FetchContent_MakeAvailable(Catch2)
+
 # ImGui
 add_library(ImGui STATIC)
 
@@ -124,14 +148,18 @@ target_link_libraries(mosaic
     PUBLIC
         vml
         utility
-        termfmt
         ImGui
+    PRIVATE
+        nlohmann_json::nlohmann_json
+        termfmt
 )
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
     source/application/event_system.cpp
+    source/application/thread_pool.cpp
     source/application/window.cpp
+    source/gui/font.cpp
     source/support/logger.cpp
 )
 
@@ -145,6 +173,7 @@ target_link_libraries(mosaic PRIVATE
 )
 target_sources(mosaic PRIVATE
     source/application/application_macos.mm
+    source/application/resource_util_macos.mm
     source/application/window_macos.mm
 )
 target_compile_options(mosaic PRIVATE
@@ -160,6 +189,16 @@ target_include_directories(mosaic
         ${PROJECT_SOURCE_DIR}/include/mosaic
         ${PROJECT_SOURCE_DIR}/source
 )
+
+# Tests
+add_executable(mosaic_test)
+mosaic_enable_warnings(mosaic_test)
+
+target_sources(mosaic_test PRIVATE
+    test/mosaic/application/thread_pool.t.cpp
+)
+
+target_link_libraries(mosaic_test PRIVATE mosaic Catch2::Catch2WithMain)
 
 # Example application
 option(MOSAIC_BUILD_EXAMPLES "Build examples" ON)
