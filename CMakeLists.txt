@@ -157,8 +157,10 @@ target_link_libraries(mosaic
 target_sources(mosaic PRIVATE
     source/application/application.cpp
     source/application/event_system.cpp
-    source/application/thread_pool.cpp
     source/application/window.cpp
+    source/dispatch/completion.cpp
+    source/dispatch/dispatcher.cpp
+    source/dispatch/thread_pool.cpp
     source/gui/font.cpp
     source/support/logger.cpp
 )
@@ -196,6 +198,7 @@ mosaic_enable_warnings(mosaic_test)
 
 target_sources(mosaic_test PRIVATE
     test/mosaic/application/thread_pool.t.cpp
+    test/mosaic/application/dispatcher.t.cpp
 )
 
 target_link_libraries(mosaic_test PRIVATE mosaic Catch2::Catch2WithMain)

@@ -58,6 +58,9 @@ public:
     /// Must not be called from a worker thread.
     void shutdown() noexcept;
 
+    /// The number of worker threads running in parallel
+    std::size_t worker_count() const;
+
 private:
     void enqueue_task(thread_pool_impl::Task* task);
 

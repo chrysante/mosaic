@@ -9,7 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
-#include <mosaic/application/thread_pool.h>
+#include <mosaic/dispatch/thread_pool.h>
 
 using namespace mosaic;
 using namespace std::chrono_literals;
@@ -412,11 +412,9 @@ TEST_CASE("ThreadPool shutdown waits for children submitted by running tasks",
     constexpr int children_per_parent = 100;
     ThreadPool pool(parent_count);
     std::atomic<int> children_completed{0};
-    std::latch parents_started(parent_count);
     std::latch release_parents(1);
     for (int i = 0; i < parent_count; ++i) {
         pool.submit([&] {
-            parents_started.count_down();
             release_parents.wait();
             for (int j = 0; j < children_per_parent; ++j) {
                 pool.submit([&] {
@@ -425,7 +423,6 @@ TEST_CASE("ThreadPool shutdown waits for children submitted by running tasks",
             }
         });
     }
-    parents_started.wait();
     std::thread shutdown_thread([&] { pool.shutdown(); });
     std::this_thread::sleep_for(1ms);
     release_parents.count_down();

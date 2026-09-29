@@ -1,4 +1,4 @@
-#include "application/thread_pool.h"
+#include "dispatch/thread_pool.h"
 
 #include <new>
 
@@ -265,6 +265,10 @@ void ThreadPool::shutdown() noexcept {
     for (std::thread& thread : m_threads)
         if (thread.joinable())
             thread.join();
+}
+
+std::size_t ThreadPool::worker_count() const {
+    return m_threads.size();
 }
 
 void ThreadPool::enqueue_task(Task* task) {
