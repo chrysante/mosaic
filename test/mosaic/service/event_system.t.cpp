@@ -6,9 +6,9 @@
 #include <thread>
 #include <vector>
 
-#include <mosaic/application/event_emitter.h>
-#include <mosaic/application/event_receiver.h>
-#include <mosaic/application/event_system.h>
+#include <mosaic/service/event_emitter.h>
+#include <mosaic/service/event_receiver.h>
+#include <mosaic/service/event_system.h>
 
 using namespace mosaic;
 

@@ -1,7 +1,7 @@
 #include "gui/font.h"
 
-#include "application/font_manager.h"
 #include "gui/ui_context.h"
+#include "service/font_manager.h"
 
 using namespace mosaic;
 
@@ -23,7 +23,6 @@ FontDesc FontDesc::mono_default() {
 
 ImFont* ui::font(FontDesc const& desc) {
     auto* ui_context = get_current_ui_context();
-    if (!ui_context)
-        return nullptr;
+    if (!ui_context) return nullptr;
     return ui_context->font_manager.get_font(desc);
 }

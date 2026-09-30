@@ -1,4 +1,4 @@
-#include "application/font_manager.h"
+#include "service/font_manager.h"
 
 #include <array>
 #include <fstream>
@@ -26,15 +26,12 @@ static std::string to_string(FontStyle s) {
 
 static std::string to_font_file_name(FontDesc const& font) {
     std::stringstream sstr;
-    if (font.style == FontStyle::monospaced)
-        sstr << "SFMono";
-    else
-        sstr << "SFPro";
+    if (font.style == FontStyle::monospaced) sstr << "SFMono";
+    else sstr << "SFPro";
     sstr << "-" << to_string(font.weight) << "-";
     if (font.style == FontStyle::monospaced)
         sstr << to_string(FontStyle::roman);
-    else
-        sstr << to_string(font.style);
+    else sstr << to_string(font.style);
     sstr << ".ttf";
     return std::move(sstr).str();
 }
@@ -86,8 +83,7 @@ static ImFont* load_font(FontDesc const& desc, ImFontAtlas& atlas,
 
 ImFont* FontManager::get_font(FontDesc const& desc) {
     auto [itr, inserted] = font_map.insert({desc, nullptr});
-    if (inserted)
-        itr->second = load_font(desc, *atlas, scale_factor);
+    if (inserted) itr->second = load_font(desc, *atlas, scale_factor);
     return itr->second;
 }
 
@@ -111,12 +107,10 @@ static IconData::StringType unicode_to_utf8(uint16_t code) {
 IconData FontManager::get_icon(IconFontDesc const& desc,
                                std::string_view name) {
     auto code_itr = all_icon_codes.find(name);
-    if (code_itr == all_icon_codes.end())
-        return {};
+    if (code_itr == all_icon_codes.end()) return {};
     auto code = code_itr->second;
     auto [font_itr, inserted] = icon_font_map.insert({desc, nullptr});
-    if (inserted)
-        font_itr->second = load_icon_font(desc, *atlas, scale_factor);
+    if (inserted) font_itr->second = load_icon_font(desc, *atlas, scale_factor);
     return {
         font_itr->second,
         unicode_to_utf8(code),

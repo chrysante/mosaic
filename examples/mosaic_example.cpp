@@ -3,10 +3,10 @@
 #include <imgui.h>
 
 #include <mosaic/application/application.h>
-#include <mosaic/application/event_receiver.h>
-#include <mosaic/application/font_manager.h>
 #include <mosaic/application/input_event.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/service/event_receiver.h>
+#include <mosaic/service/font_manager.h>
 
 using namespace mosaic;
 

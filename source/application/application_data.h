@@ -4,12 +4,12 @@
 #include <vector>
 
 #include "application/application.h"
-#include "application/event_receiver.h"
-#include "application/font_manager.h"
 #include "application/input.h"
-#include "dispatch/dispatcher.h"
-#include "dispatch/thread_pool.h"
 #include "gui/ui_context.h"
+#include "service/dispatcher.h"
+#include "service/event_receiver.h"
+#include "service/font_manager.h"
+#include "service/thread_pool.h"
 
 namespace mosaic {
 

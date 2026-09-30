@@ -1,8 +1,8 @@
-#include "application/event_emitter.h"
+#include "service/event_emitter.h"
 
 #include <cassert>
 
-#include "application/event_system.h"
+#include "service/event_system.h"
 
 using namespace mosaic;
 

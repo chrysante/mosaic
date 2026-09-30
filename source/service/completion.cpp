@@ -1,4 +1,4 @@
-#include "dispatch/completion.h"
+#include "service/completion.h"
 
 #include <exception>
 #include <memory>
@@ -29,8 +29,7 @@ CompletionStatePool::~CompletionStatePool() noexcept {
 CompletionState* CompletionStatePool::acquire(std::size_t remaining) noexcept {
     assert(remaining != 0);
     std::lock_guard lock(m_mutex);
-    if (m_free == nullptr)
-        allocate_page_locked();
+    if (m_free == nullptr) allocate_page_locked();
     FreeNode* node = m_free;
     m_free = node->next;
     auto* state = reinterpret_cast<CompletionState*>(node);

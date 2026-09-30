@@ -5,7 +5,7 @@
 #include <latch>
 #include <vector>
 
-#include <mosaic/dispatch/dispatcher.h>
+#include <mosaic/service/dispatcher.h>
 
 using namespace mosaic;
 

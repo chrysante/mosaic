@@ -9,7 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
-#include <mosaic/dispatch/thread_pool.h>
+#include <mosaic/service/thread_pool.h>
 
 using namespace mosaic;
 using namespace std::chrono_literals;
@@ -70,8 +70,7 @@ TEST_CASE("ThreadPool executes tasks", "[thread_pool]") {
         std::atomic<std::size_t> completed{0};
         for (std::size_t i = 0; i < task_count; ++i) {
             pool.submit([&, i] {
-                if (i % 10 == 0)
-                    std::this_thread::sleep_for(1ms);
+                if (i % 10 == 0) std::this_thread::sleep_for(1ms);
                 completed.fetch_add(1, std::memory_order_relaxed);
             });
         }
@@ -138,8 +137,7 @@ TEST_CASE("ThreadPool supports recursive task submission", "[thread_pool]") {
     submit_recursive = [&](int remaining) {
         pool.submit([&, remaining] {
             completed.fetch_add(1, std::memory_order_relaxed);
-            if (remaining > 0)
-                submit_recursive(remaining - 1);
+            if (remaining > 0) submit_recursive(remaining - 1);
         });
     };
     submit_recursive(depth);
@@ -155,8 +153,7 @@ TEST_CASE("ThreadPool waits for recursively submitted tasks", "[thread_pool]") {
     submit_recursive = [&](int remaining) {
         pool.submit([&, remaining] {
             completed.fetch_add(1, std::memory_order_relaxed);
-            if (remaining > 0)
-                submit_recursive(remaining - 1);
+            if (remaining > 0) submit_recursive(remaining - 1);
         });
     };
     submit_recursive(depth);
@@ -173,8 +170,7 @@ TEST_CASE("ThreadPool handles recursive task fan-out", "[thread_pool]") {
     submit_tree = [&](int remaining) {
         pool.submit([&, remaining] {
             completed.fetch_add(1, std::memory_order_relaxed);
-            if (remaining == 0)
-                return;
+            if (remaining == 0) return;
             for (int i = 0; i < fanout; ++i)
                 submit_tree(remaining - 1);
         });

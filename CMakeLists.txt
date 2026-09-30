@@ -165,16 +165,16 @@ target_link_libraries(mosaic
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
-    source/application/event_emitter.cpp
-    source/application/event_receiver.cpp
-    source/application/event_system.cpp
-    source/application/font_manager.cpp
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
-    source/dispatch/completion.cpp
-    source/dispatch/dispatcher.cpp
-    source/dispatch/thread_pool.cpp
+    source/service/completion.cpp
+    source/service/dispatcher.cpp
+    source/service/event_emitter.cpp
+    source/service/event_receiver.cpp
+    source/service/event_system.cpp
+    source/service/font_manager.cpp
+    source/service/thread_pool.cpp
     source/gui/font.cpp
     source/gui/ui_context.cpp
     source/gui/toolbar.cpp
@@ -227,9 +227,9 @@ add_executable(mosaic_test)
 mosaic_enable_warnings(mosaic_test)
 
 target_sources(mosaic_test PRIVATE
-    test/mosaic/application/event_system.t.cpp
-    test/mosaic/application/thread_pool.t.cpp
-    test/mosaic/application/dispatcher.t.cpp
+    test/mosaic/service/event_system.t.cpp
+    test/mosaic/service/thread_pool.t.cpp
+    test/mosaic/service/dispatcher.t.cpp
 )
 
 target_link_libraries(mosaic_test PRIVATE mosaic Catch2::Catch2WithMain)

@@ -9,8 +9,8 @@
 #include <utl/hashtable.hpp>
 #include <utl/type_erased_object_storage.hpp>
 
-#include <mosaic/application/event_emitter.h>
-#include <mosaic/application/event_receiver.h>
+#include <mosaic/service/event_emitter.h>
+#include <mosaic/service/event_receiver.h>
 
 namespace mosaic {
 

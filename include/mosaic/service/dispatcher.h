@@ -9,8 +9,8 @@
 #include <type_traits>
 #include <utility>
 
-#include <mosaic/dispatch/completion.h>
-#include <mosaic/dispatch/thread_pool.h>
+#include <mosaic/service/completion.h>
+#include <mosaic/service/thread_pool.h>
 #include <mosaic/support/export.h>
 
 namespace mosaic {
@@ -59,8 +59,7 @@ public:
         // A fire-and-forget task has nowhere to report rejection.
         // The intended use is before shutdown, so treat this as a programming
         // error rather than silently losing work.
-        if (!m_pool.submit(std::forward<F>(function)))
-            std::terminate();
+        if (!m_pool.submit(std::forward<F>(function))) std::terminate();
     }
 
     /// Submit work and obtain a completion object.
@@ -135,8 +134,7 @@ public:
     template <std::invocable<std::size_t> F>
     void parallel_for(std::size_t count, F&& function,
                       ParallelOptions options = {}) noexcept {
-        if (count == 0)
-            return;
+        if (count == 0) return;
         std::size_t const chunks = calculate_chunk_count(count, options);
         using Function = std::decay_t<F>;
         submit_parallel_chunks(count, chunks,
@@ -148,8 +146,7 @@ public:
     template <std::invocable<std::size_t> F>
     Completion parallel_for_waitable(std::size_t count, F&& function,
                                      ParallelOptions options = {}) {
-        if (count == 0)
-            return {};
+        if (count == 0) return {};
         std::size_t const chunks = calculate_chunk_count(count, options);
         CompletionStateHandle completion = acquire_completion(chunks);
         using Function = std::decay_t<F>;
@@ -214,8 +211,7 @@ private:
         assert(worker_count > 0);
         std::size_t target_chunks =
             worker_count * options.target_chunks_per_worker;
-        if (target_chunks == 0)
-            target_chunks = worker_count;
+        if (target_chunks == 0) target_chunks = worker_count;
         return std::min(count, target_chunks);
     }
 
@@ -236,8 +232,7 @@ private:
                         std::invoke(fn, i);
                     std::invoke(on_complete);
                 });
-            if (!accepted)
-                std::terminate();
+            if (!accepted) std::terminate();
         }
     }
 

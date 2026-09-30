@@ -1,6 +1,6 @@
-#include "application/event_receiver.h"
+#include "service/event_receiver.h"
 
-#include "application/event_system.h"
+#include "service/event_system.h"
 
 using namespace mosaic;
 

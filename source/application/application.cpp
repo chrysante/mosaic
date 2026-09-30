@@ -6,11 +6,11 @@
 #include <imgui.h>
 
 #include "application/application_data.h"
-#include "application/event_system.h"
 #include "application/input.h"
 #include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
+#include "service/event_system.h"
 
 using namespace mosaic;
 

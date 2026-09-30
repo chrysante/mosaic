@@ -1,4 +1,4 @@
-#include "dispatch/thread_pool.h"
+#include "service/thread_pool.h"
 
 #include <new>
 
@@ -93,8 +93,7 @@ void WorkStealingDeque::push(Task* task) {
 
 Task* WorkStealingDeque::pop() {
     std::int64_t bottom = m_bottom.value.load(std::memory_order_relaxed);
-    if (bottom == 0)
-        return nullptr;
+    if (bottom == 0) return nullptr;
     --bottom;
     Buffer* buffer = m_buffer;
     m_bottom.value.store(bottom, std::memory_order_relaxed);
@@ -121,8 +120,7 @@ Task* WorkStealingDeque::steal() {
     std::int64_t top = m_top.value.load(std::memory_order_acquire);
     std::atomic_thread_fence(std::memory_order_seq_cst);
     std::int64_t const bottom = m_bottom.value.load(std::memory_order_acquire);
-    if (top >= bottom)
-        return nullptr;
+    if (top >= bottom) return nullptr;
     Buffer* buffer = m_array.load(std::memory_order_acquire);
     Task* task =
         buffer->m_slots[static_cast<std::size_t>(top) & buffer->m_mask].load(
@@ -183,8 +181,7 @@ ThreadPool::ThreadPool()
     : ThreadPool(std::thread::hardware_concurrency()) {}
 
 ThreadPool::ThreadPool(std::size_t thread_count) {
-    if (thread_count == 0)
-        thread_count = 1;
+    if (thread_count == 0) thread_count = 1;
     m_workers.reserve(thread_count);
     for (std::size_t i = 0; i < thread_count; ++i)
         m_workers.push_back(std::make_unique<Worker>(
@@ -198,8 +195,7 @@ ThreadPool::ThreadPool(std::size_t thread_count) {
         m_wake_generation.fetch_add(1, std::memory_order_release);
         m_wake_generation.notify_all();
         for (std::thread& thread : m_threads)
-            if (thread.joinable())
-                thread.join();
+            if (thread.joinable()) thread.join();
         throw;
     }
 }
@@ -211,8 +207,7 @@ ThreadPool::~ThreadPool() noexcept {
 bool ThreadPool::submit(std::function<void()> task) noexcept {
     bool const is_worker = current_pool == this;
     if (!is_worker)
-        if (!begin_submit())
-            return false;
+        if (!begin_submit()) return false;
     auto owned_task = new Task(std::move(task));
     m_pending_tasks.fetch_add(1, std::memory_order_acq_rel);
     try {
@@ -222,30 +217,25 @@ bool ThreadPool::submit(std::function<void()> task) noexcept {
     } catch (...) {
         m_pending_tasks.fetch_sub(1, std::memory_order_acq_rel);
         m_pending_tasks.notify_all();
-        if (!is_worker)
-            end_submit();
+        if (!is_worker) end_submit();
         delete owned_task;
         return false;
     }
-    if (!is_worker)
-        end_submit();
+    if (!is_worker) end_submit();
     return true;
 }
 
 void ThreadPool::shutdown() noexcept {
-    if (is_worker_thread())
-        std::terminate();
+    if (is_worker_thread()) std::terminate();
     std::lock_guard<std::mutex> lock(m_shutdown_mutex);
-    if (m_stop.load(std::memory_order_acquire))
-        return;
+    if (m_stop.load(std::memory_order_acquire)) return;
     // Stop accepting new submissions from outside the pool.
     m_lifecycle.fetch_and(~std::uint64_t{1}, std::memory_order_acq_rel);
     // Wait for external submit() calls that had already started when shutdown
     // began.
     while (true) {
         std::uint64_t const state = m_lifecycle.load(std::memory_order_acquire);
-        if ((state & ~std::uint64_t{1}) == 0)
-            break;
+        if ((state & ~std::uint64_t{1}) == 0) break;
         m_lifecycle.wait(state, std::memory_order_acquire);
     }
     // Workers are still running here.
@@ -254,8 +244,7 @@ void ThreadPool::shutdown() noexcept {
     while (true) {
         std::size_t const pending =
             m_pending_tasks.load(std::memory_order_acquire);
-        if (pending == 0)
-            break;
+        if (pending == 0) break;
         m_pending_tasks.wait(pending, std::memory_order_acquire);
     }
     // There is no work left and no external submitter can introduce more work.
@@ -263,8 +252,7 @@ void ThreadPool::shutdown() noexcept {
     m_wake_generation.fetch_add(1, std::memory_order_release);
     m_wake_generation.notify_all();
     for (std::thread& thread : m_threads)
-        if (thread.joinable())
-            thread.join();
+        if (thread.joinable()) thread.join();
 }
 
 std::size_t ThreadPool::worker_count() const {
@@ -288,8 +276,7 @@ void ThreadPool::enqueue_task(Task* task) {
 bool ThreadPool::begin_submit() {
     std::uint64_t state = m_lifecycle.load(std::memory_order_acquire);
     while (true) {
-        if ((state & 1) == 0)
-            return false;
+        if ((state & 1) == 0) return false;
         std::uint64_t const next = state + 2;
         if (m_lifecycle.compare_exchange_weak(state, next,
                                               std::memory_order_acquire,
@@ -303,16 +290,14 @@ void ThreadPool::end_submit() noexcept {
         m_lifecycle.fetch_sub(2, std::memory_order_release);
     // If shutdown has started, wake the shutdown waiter
     // whenever the active-submitter count changes.
-    if ((previous & 1) == 0)
-        m_lifecycle.notify_all();
+    if ((previous & 1) == 0) m_lifecycle.notify_all();
 }
 
 static void drain_inbox(Worker& worker, std::vector<Task*>& batch) {
     batch.clear();
     {
         std::lock_guard<std::mutex> lock(worker.inbox_mutex);
-        if (worker.inbox.empty())
-            return;
+        if (worker.inbox.empty()) return;
         batch.swap(worker.inbox);
     }
     for (Task* task : batch)
@@ -347,8 +332,7 @@ void ThreadPool::worker_loop(std::size_t worker_index) {
             run_task(task);
             continue;
         }
-        if (m_stop.load(std::memory_order_acquire))
-            break;
+        if (m_stop.load(std::memory_order_acquire)) break;
         m_wake_generation.wait(generation, std::memory_order_acquire);
     }
     while (true) {
@@ -375,8 +359,7 @@ static std::uint64_t shuffle_random_state(std::uint64_t state) {
 
 Task* ThreadPool::steal_task(std::size_t worker_index) {
     std::size_t const worker_count = m_workers.size();
-    if (worker_count <= 1)
-        return nullptr;
+    if (worker_count <= 1) return nullptr;
     Worker& worker = *m_workers[worker_index];
     // xorshift64
     std::uint64_t x = shuffle_random_state(worker.random_state);
@@ -386,10 +369,8 @@ Task* ThreadPool::steal_task(std::size_t worker_index) {
     // This avoids pathological synchronized stealing.
     for (std::size_t i = 0; i < worker_count; ++i) {
         std::size_t const index = (victim + i) % worker_count;
-        if (index == worker_index)
-            continue;
-        if (Task* task = m_workers[index]->deque.steal())
-            return task;
+        if (index == worker_index) continue;
+        if (Task* task = m_workers[index]->deque.steal()) return task;
     }
     return nullptr;
 }
