@@ -8,6 +8,7 @@
 #include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
+#include "application/window_data_macos.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -460,10 +461,8 @@ static NSEvent* handle_event(NSEvent* event) {
         g_callback_map.invoke_all(make_key_event(event), event);
         break;
     case NSEventTypeApplicationDefined:
-#if 0
-        if ((CocoaEventType)event.subtype == CocoaEventType::WindowShallZoom) 
+        if ((CocoaEventType)event.subtype == CocoaEventType::window_shall_zoom)
             [event.window zoom:nil];
-#endif
         break;
     case NSEventTypeFlagsChanged: {
         // Just notify our app that something happened

@@ -6,8 +6,8 @@
 
 namespace mosaic {
 
-struct Window::Data {
-    NSWindow* native_window = nil;
-};
+enum class CocoaEventType : short { window_shall_zoom };
+
+struct Window::Data { NSWindow* native_window = nil; };
 
 } // namespace mosaic

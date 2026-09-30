@@ -1,6 +1,7 @@
 #include "application/application.h"
 
 #include <cassert>
+#include <functional>
 #include <memory>
 
 #include <imgui.h>
@@ -28,11 +29,7 @@ Application::Application()
     : m_data(new Data())
     , m_platform_data(create_platform_data()) {
     m_data->input_callback_id = register_global_input_callback(
-        [this](InputEvent event, void* /* native_event */) {
-            input_update(m_data->input, event);
-            m_data->command_palette.on_input(event);
-            m_data->event_system->publish(event);
-        });
+        std::bind_front(&Application::on_input, this));
     platform_init();
     auto* main_window = create_main_window();
     imgui_init(main_window);
@@ -130,4 +127,12 @@ void internal::run_one_frame(Application& app) {
 
 void Application::do_run() {
     platform_run();
+}
+
+void Application::on_input(InputEvent event, void* native_event) {
+    input_update(m_data->input, event);
+    for (auto& window : m_data->windows)
+        window->on_input(event, native_event);
+    m_data->command_palette.on_input(event);
+    m_data->event_system->publish(event);
 }

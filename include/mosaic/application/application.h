@@ -11,6 +11,7 @@ class EventEmitter;
 class EventReceiver;
 class FontManager;
 class Input;
+class InputEvent;
 class WorkDispatcher;
 class Window;
 
@@ -99,6 +100,8 @@ private:
     void imgui_end_frame_platform();
 
     void do_run();
+
+    void on_input(InputEvent event, void* native_event);
 
     Data* m_data;
     PlatformData* m_platform_data;

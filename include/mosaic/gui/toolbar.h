@@ -44,7 +44,7 @@ public:
     ToolbarItem(ToolbarItem&&) = default;
     virtual ~ToolbarItem() = default;
 
-    /// \Returns a unique id.
+    /// \returns a unique id.
     /// This is simply the index of the item in the toolbar
     int id() const {
         return m_id;
@@ -55,13 +55,13 @@ public:
         return m_width;
     }
 
-    /// \Returns `true` is this item is enabled. Disabled items are not
+    /// \returns `true` is this item is enabled. Disabled items are not
     /// displayed
     bool is_enabled() const {
         return do_is_enabled();
     }
 
-    ///  \Returns an optional tooltip string for this item
+    ///  \returns an optional tooltip string for this item
     char const* get_tooltip() const {
         return do_get_tooltip();
     }
@@ -350,16 +350,16 @@ public:
         (add_item(std::move(items)), ...);
     }
 
-    /// \Returns the acccumulated width of all items including padding but
+    /// \returns the acccumulated width of all items including padding but
     /// ignoring all spacers. This is used by the dockspace for the triple
     /// toolbar layout
     float get_width_without_spacers() const;
 
     /// Displays the toolbar. Will fill available width unless parameter
-    // \p width is provided
+    /// \p width is provided
     void display(std::optional<float> width = std::nullopt) noexcept;
 
-    /// \Returns the actual height of the toolbar including padding
+    /// \returns the actual height of the toolbar including padding
     float get_height() const;
 
     ///
