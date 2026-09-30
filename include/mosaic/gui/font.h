@@ -1,10 +1,12 @@
 #pragma once
 
+#include <concepts>
 #include <type_traits>
 
 #include <imgui.h>
 #include <utl/hash.hpp>
 #include <utl/overload.hpp>
+#include <utl/scope_guard.hpp>
 
 namespace mosaic {
 
@@ -126,6 +128,29 @@ ImFont* font(FontDesc const& desc);
 /// Convenience overload
 ImFont* font(FontParameterType auto... params) {
     return ui::font(FontDesc::ui_default(params...));
+}
+
+///
+IconData icon_data(IconFontDesc const& desc, std::string_view name);
+
+decltype(auto) with_font(ImFont* font, std::invocable auto&& block) {
+    ImGui::PushFont(font);
+    utl::scope_guard pop = [] { ImGui::PopFont(); };
+    return block();
+}
+
+decltype(auto) with_font(FontDesc const& desc, std::invocable auto&& block) {
+    return with_font(ui::font(desc), block);
+}
+
+decltype(auto) with_font(FontWeight w, FontStyle s,
+                         std::invocable auto&& block) {
+    FontDesc desc{
+        .size = FontSize::medium,
+        .weight = w,
+        .style = s,
+    };
+    return with_font(desc, block);
 }
 
 } // namespace ui

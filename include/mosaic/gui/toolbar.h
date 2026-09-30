@@ -12,6 +12,8 @@
 
 namespace mosaic {
 
+class Command;
+
 ///
 enum class ToolbarFlags { none = 0, no_decoration = 1 << 0 };
 
@@ -135,14 +137,14 @@ public:
     }
 
     Derived& button_flags(int flags) {
-        m_buttonFlags |= flags;
+        m_button_flags |= flags;
         return this->as_derived();
     }
 
 protected:
     void do_action() const;
 
-    int m_buttonFlags = 0;
+    int m_button_flags = 0;
 
 private:
     std::function<void()> m_action;
