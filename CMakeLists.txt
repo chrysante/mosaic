@@ -227,6 +227,7 @@ add_executable(mosaic_test)
 mosaic_enable_warnings(mosaic_test)
 
 target_sources(mosaic_test PRIVATE
+    test/mosaic/application/event_system.t.cpp
     test/mosaic/application/thread_pool.t.cpp
     test/mosaic/application/dispatcher.t.cpp
 )
