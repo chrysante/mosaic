@@ -10,7 +10,7 @@ BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLambdasOnASingleLine: All
-AllowShortLoopsOnASingleLine: True
+AllowShortLoopsOnASingleLine: False
 AllowShortNamespacesOnASingleLine: True
 AllowShortRecordOnASingleLine: Always
 

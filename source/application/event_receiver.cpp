@@ -5,13 +5,18 @@
 using namespace mosaic;
 
 EventReceiver::EventReceiver(std::weak_ptr<EventSystem> event_system)
-    : event_system(std::move(event_system)) {}
+    : event_system_weak(std::move(event_system)) {}
+
+void EventReceiver::do_listen(EventSystem& event_system,
+                              std::type_index type_index,
+                              std::function<void(std::any&)> f) {
+    registered_ids.push_back(event_system.listen(type_index, std::move(f)));
+}
 
 void EventReceiver::unregister_all() {
-    auto msg = event_system.lock();
-    if (!msg)
-        return;
+    auto event_system = event_system_weak.lock();
+    if (!event_system) return;
     for (auto& id : registered_ids)
-        msg->unregister(id);
+        event_system->unregister(id);
     registered_ids.clear();
 }

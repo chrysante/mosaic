@@ -26,8 +26,7 @@ void EventSystem::publish_queued(std::any message) {
 
 void EventSystem::flush() {
     /// Guard this here to prevent feedback loops
-    if (flushing)
-        return;
+    if (flushing) return;
     flushing = true;
     auto messages = [this] {
         std::lock_guard lock(buffer_mutex);
@@ -42,6 +41,13 @@ void EventSystem::flush() {
         }
     }
     flushing = false;
+}
+
+ListenerID EventSystem::listen(std::type_index type_index,
+                               std::function<void(std::any&)> f) {
+    auto local_index = index++;
+    listener_sets[type_index][local_index] = std::move(f);
+    return ListenerID{local_index, type_index};
 }
 
 void EventSystem::unregister(ListenerID id) {

@@ -1,6 +1,10 @@
 #pragma once
 
+#include <any>
+#include <concepts>
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <typeindex>
 #include <vector>
 
@@ -20,10 +24,12 @@ struct ListenerID {
 
 /// Event receiver used to listen to events in the application
 class EventReceiver {
+    template <typename> struct Tag {};
+
 public:
     EventReceiver() = default;
 
-    explicit EventReceiver(std::weak_ptr<EventSystem> EventSystem);
+    explicit EventReceiver(std::weak_ptr<EventSystem> event_system);
 
     EventReceiver(EventReceiver&&) = default;
     EventReceiver& operator=(EventReceiver&&) = default;
@@ -36,30 +42,34 @@ public:
     /// message of type \p T is sent. The listener is is unregistered when this
     /// receiver is destroyed or when `unregisterAll()` is called
     ///
-    /// \Warning This function is not thread safe. Ideally listeners are only
+    /// \warning This function is not thread safe. Ideally listeners are only
     /// registered from the main thread
     template <typename T, std::invocable<T> F> void listen(F&& listener) {
-        listenImpl([&](auto* msg) {
-            return msg->template listen<T>(std::forward<F>(listener));
-        });
+        auto event_system = event_system_weak.lock();
+        if (!event_system) return;
+        using U = std::remove_cvref_t<T>;
+        do_listen(*event_system, typeid(U),
+                  [listener = std::forward<F>(listener)](std::any& message) {
+                      std::invoke(listener, std::any_cast<U&>(message));
+                  });
     }
 
     /// \overload
     template <typename F> void listen(F&& listener) {
-        listenImpl(
-            [&](auto* msg) { return msg->listen(std::forward<F>(listener)); });
+        using FunctionType = decltype(std::function{listener});
+        [&]<typename R, typename T>(Tag<std::function<R(T)>>) {
+            listen<T>(std::forward<F>(listener));
+        }(Tag<FunctionType>{});
     }
 
     ///
     void unregister_all();
 
 private:
-    void listenImpl(auto callback) {
-        if (auto msg = event_system.lock())
-            registered_ids.push_back(callback(msg.get()));
-    }
+    void do_listen(EventSystem&, std::type_index,
+                   std::function<void(std::any&)>);
 
-    std::weak_ptr<EventSystem> event_system;
+    std::weak_ptr<EventSystem> event_system_weak;
     std::vector<ListenerID> registered_ids;
 };
 

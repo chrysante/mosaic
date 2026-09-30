@@ -4,7 +4,6 @@
 
 #include <mosaic/application/application.h>
 #include <mosaic/application/event_receiver.h>
-#include <mosaic/application/event_system.h>
 #include <mosaic/application/font_manager.h>
 #include <mosaic/application/input_event.h>
 #include <mosaic/gui/font.h>
@@ -20,7 +19,6 @@ public:
         event_receiver.listen([this](InputEvent const& e) {
             e.handle<InputEventMask::key_down>([this](KeyEvent event) {
                 text = std::to_string((int)event.key);
-                // return true;
             });
         });
     }

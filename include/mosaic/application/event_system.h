@@ -2,7 +2,6 @@
 
 #include <any>
 #include <cassert>
-#include <concepts>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -138,27 +137,8 @@ public:
 
     /// Registers \p listener for listening to any messages sent to this system
     /// Call `unregister` with the returned ID to stop listening
-    template <typename T, std::invocable<T> F>
-    [[nodiscard]] ListenerID listen(F&& f) {
-        using U = std::decay_t<T>;
-        std::type_index type = typeid(U);
-        listener_sets[type][index] =
-            [f = std::forward<F>(f)](std::any const& message) {
-                std::invoke(f, std::any_cast<U const&>(message));
-            };
-        return ListenerID{index++, type};
-    }
-
-    /// \overload with automatic argument deduction
-    template <typename F> requires requires(F&& f) {
-        std::function{f};
-    }
-    [[nodiscard]] ListenerID listen(F&& f) {
-        using FunctionType = decltype(std::function{f});
-        return [&]<typename R, typename T>(Tag<std::function<R(T)>>) {
-            return listen<T>(std::forward<F>(f));
-        }(Tag<FunctionType>{});
-    }
+    [[nodiscard]] ListenerID listen(std::type_index type_index,
+                                    std::function<void(std::any&)> f);
 
     /// Calls `publish()` with all messages in the internal buffer
     void flush();
@@ -173,8 +153,7 @@ public:
     EventReceiver make_receiver();
 
 private:
-    using TypedSet =
-        utl::hashmap<int64_t, std::function<void(std::any const&)>>;
+    using TypedSet = utl::hashmap<int64_t, std::function<void(std::any&)>>;
 
     utl::hashmap<std::type_index, TypedSet> listener_sets;
     std::mutex buffer_mutex;
