@@ -5,13 +5,14 @@
 namespace mosaic {
 
 class Application;
-class Window;
+class CommandPalette;
 class EventSystem;
 class EventEmitter;
 class EventReceiver;
-class WorkDispatcher;
 class FontManager;
 class Input;
+class WorkDispatcher;
+class Window;
 
 namespace internal { void run_one_frame(Application& app); }
 
@@ -61,6 +62,9 @@ public:
 
     /// \returns the applications input manager
     Input& input();
+
+    /// \returns the applications main command palette
+    CommandPalette& command_palette();
 
 protected:
     Application();

@@ -175,6 +175,7 @@ target_sources(mosaic PRIVATE
     source/service/event_system.cpp
     source/service/font_manager.cpp
     source/service/thread_pool.cpp
+    source/gui/command_palette.cpp
     source/gui/font.cpp
     source/gui/ui_context.cpp
     source/gui/toolbar.cpp

@@ -5,6 +5,7 @@
 
 #include "application/application.h"
 #include "application/input.h"
+#include "gui/command_palette.h"
 #include "gui/ui_context.h"
 #include "service/dispatcher.h"
 #include "service/event_receiver.h"
@@ -26,6 +27,7 @@ struct Application::Data {
     UIContext ui_context;
     Input input;
     int input_callback_id = 0;
+    CommandPalette command_palette;
 };
 
 } // namespace mosaic

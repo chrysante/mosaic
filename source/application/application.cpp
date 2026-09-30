@@ -28,8 +28,9 @@ Application::Application()
     : m_data(new Data())
     , m_platform_data(create_platform_data()) {
     m_data->input_callback_id = register_global_input_callback(
-        [this](InputEvent const& event, void* /* native_event */) {
+        [this](InputEvent event, void* /* native_event */) {
             input_update(m_data->input, event);
+            m_data->command_palette.on_input(event);
             m_data->event_system->publish(event);
         });
     platform_init();
@@ -77,6 +78,10 @@ FontManager& Application::font_manager() {
 
 Input& Application::input() {
     return m_data->input;
+}
+
+CommandPalette& Application::command_palette() {
+    return m_data->command_palette;
 }
 
 void Application::set_run_loop_mode(RunLoopMode mode) {

@@ -3,7 +3,9 @@
 #include <imgui.h>
 
 #include <mosaic/application/application.h>
+#include <mosaic/application/input.h>
 #include <mosaic/application/input_event.h>
+#include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/font.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
@@ -16,11 +18,15 @@ class ExampleApp : public Application {
 public:
     ExampleApp()
         : event_receiver(make_receiver()) {
-        event_receiver.listen([this](InputEvent const& e) {
+        event_receiver.listen([this](InputEvent& e) {
             e.handle<InputEventMask::key_down>([this](KeyEvent event) {
                 text = std::to_string((int)event.key);
             });
         });
+        command_palette().add(
+            {.name = "My Command",
+             .key_comb = {.key = Key::K, .mod_flags = ModFlags::control},
+             .command = [this] { text = "did run command"; }});
     }
 
 private:
