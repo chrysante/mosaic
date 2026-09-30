@@ -9,8 +9,8 @@ EventReceiver::EventReceiver(std::weak_ptr<EventSystem> event_system)
 
 void EventReceiver::do_listen(EventSystem& event_system,
                               std::type_index type_index,
-                              std::function<void(std::any&)> f) {
-    registered_ids.push_back(event_system.listen(type_index, std::move(f)));
+                              std::function<void(void*)> f) {
+    registered_ids.push_back(event_system.do_listen(type_index, std::move(f)));
 }
 
 void EventReceiver::unregister_all() {

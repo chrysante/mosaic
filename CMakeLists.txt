@@ -72,11 +72,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(vml)
 
-# UTL
+# utility
 FetchContent_Declare(
     utility
     GIT_REPOSITORY https://github.com/chrysante/utility.git
-    GIT_TAG v0.1.2
+    GIT_TAG v1.1.1
 )
 FetchContent_MakeAvailable(utility)
 

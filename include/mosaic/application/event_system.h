@@ -1,6 +1,5 @@
 #pragma once
 
-#include <any>
 #include <cassert>
 #include <functional>
 #include <memory>
@@ -8,6 +7,7 @@
 #include <vector>
 
 #include <utl/hashtable.hpp>
+#include <utl/type_erased_object_storage.hpp>
 
 #include <mosaic/application/event_emitter.h>
 #include <mosaic/application/event_receiver.h>
@@ -116,6 +116,8 @@ class EventSystem : public std::enable_shared_from_this<EventSystem> {
     template <typename> struct Tag {};
 
 public:
+    using Event = utl::type_erased_object_storage;
+
     /// Takes private `Tag` class because object must be created through the
     /// static `Create` function
     EventSystem(Tag<void>);
@@ -129,16 +131,15 @@ public:
 
     /// Immediately calls all registered listeners that listen for the type of
     /// \p message and returns
-    void publish(std::any message);
+    /// Dispatches an event. This function can be called concurrently
+    template <typename T> void publish(T&& event) {
+        using U = std::remove_cvref_t<T>;
+        do_publish(typeid(U), (void*)&event);
+    }
 
-    /// Stores \p message in an internal buffer. This function can be called
+    /// Stores \p event in an internal buffer. This function can be called
     /// concurrently
-    void publish_queued(std::any message);
-
-    /// Registers \p listener for listening to any messages sent to this system
-    /// Call `unregister` with the returned ID to stop listening
-    [[nodiscard]] ListenerID listen(std::type_index type_index,
-                                    std::function<void(std::any&)> f);
+    void publish_queued(Event event);
 
     /// Calls `publish()` with all messages in the internal buffer
     void flush();
@@ -153,11 +154,21 @@ public:
     EventReceiver make_receiver();
 
 private:
-    using TypedSet = utl::hashmap<int64_t, std::function<void(std::any&)>>;
+    friend class EventEmitter;
+    friend class EventReceiver;
+
+    using TypedSet = utl::hashmap<int64_t, std::function<void(void*)>>;
+
+    void do_publish(std::type_index, void*);
+
+    /// Registers \p listener for listening to any messages sent to this system
+    /// Call `unregister` with the returned ID to stop listening
+    [[nodiscard]] ListenerID do_listen(std::type_index type_index,
+                                       std::function<void(void*)> f);
 
     utl::hashmap<std::type_index, TypedSet> listener_sets;
     std::mutex buffer_mutex;
-    std::vector<std::any> buffer;
+    std::vector<Event> buffer;
     int64_t index = 0;
     bool flushing = false;
 };

@@ -13,28 +13,28 @@ std::shared_ptr<EventSystem> EventSystem::create() {
     return std::make_shared<EventSystem>(Tag<void>{});
 }
 
-void EventSystem::publish(std::any message) {
-    auto& set = listener_sets[std::type_index(message.type())];
+void EventSystem::do_publish(std::type_index type_index, void* event) {
+    auto& set = listener_sets[type_index];
     for (auto& [index, listener] : set)
-        listener(message);
+        listener(event);
 }
 
-void EventSystem::publish_queued(std::any message) {
+void EventSystem::publish_queued(Event event) {
     std::lock_guard lock(buffer_mutex);
-    buffer.push_back(std::move(message));
+    buffer.push_back(std::move(event));
 }
 
 void EventSystem::flush() {
     /// Guard this here to prevent feedback loops
     if (flushing) return;
     flushing = true;
-    auto messages = [this] {
+    auto events = [this] {
         std::lock_guard lock(buffer_mutex);
         return std::move(buffer);
     }();
-    for (auto& msg : messages) {
+    for (auto& event : events) {
         try {
-            publish(std::move(msg));
+            do_publish(event.type(), event.data());
         } catch (std::exception const& e) {
             Logger::error("Dispatched message failed with expection: ",
                           e.what());
@@ -43,8 +43,8 @@ void EventSystem::flush() {
     flushing = false;
 }
 
-ListenerID EventSystem::listen(std::type_index type_index,
-                               std::function<void(std::any&)> f) {
+ListenerID EventSystem::do_listen(std::type_index type_index,
+                                  std::function<void(void*)> f) {
     auto local_index = index++;
     listener_sets[type_index][local_index] = std::move(f);
     return ListenerID{local_index, type_index};

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <any>
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -47,10 +46,10 @@ public:
     template <typename T, std::invocable<T> F> void listen(F&& listener) {
         auto event_system = event_system_weak.lock();
         if (!event_system) return;
-        using U = std::remove_cvref_t<T>;
-        do_listen(*event_system, typeid(U),
-                  [listener = std::forward<F>(listener)](std::any& message) {
-                      std::invoke(listener, std::any_cast<U&>(message));
+        using U = std::remove_reference_t<T>;
+        do_listen(*event_system, typeid(std::remove_cv_t<U>),
+                  [listener = std::forward<F>(listener)](void* message) {
+                      std::invoke(listener, *static_cast<U*>(message));
                   });
     }
 
@@ -66,8 +65,7 @@ public:
     void unregister_all();
 
 private:
-    void do_listen(EventSystem&, std::type_index,
-                   std::function<void(std::any&)>);
+    void do_listen(EventSystem&, std::type_index, std::function<void(void*)>);
 
     std::weak_ptr<EventSystem> event_system_weak;
     std::vector<ListenerID> registered_ids;
