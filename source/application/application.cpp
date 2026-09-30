@@ -7,6 +7,9 @@
 
 #include "application/application_data.h"
 #include "application/event_system.h"
+#include "application/input.h"
+#include "application/input_event.h"
+#include "application/input_internal.h"
 #include "application/window.h"
 
 using namespace mosaic;
@@ -24,12 +27,18 @@ Application::Data::Data()
 Application::Application()
     : m_data(new Data())
     , m_platform_data(create_platform_data()) {
+    m_data->input_callback_id = register_global_input_callback(
+        [this](InputEvent const& event, void* /* native_event */) {
+            input_update(m_data->input, event);
+            m_data->event_system->publish(event);
+        });
     platform_init();
     auto* main_window = create_main_window();
     imgui_init(main_window);
 }
 
 Application::~Application() {
+    unregister_global_input_callback(m_data->input_callback_id);
     destroy_platform_data(m_platform_data);
     delete m_data;
 }
@@ -64,6 +73,10 @@ WorkDispatcher& Application::dispatcher() {
 
 FontManager& Application::font_manager() {
     return m_data->font_manager;
+}
+
+Input& Application::input() {
+    return m_data->input;
 }
 
 void Application::set_run_loop_mode(RunLoopMode mode) {

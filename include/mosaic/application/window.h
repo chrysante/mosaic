@@ -17,6 +17,15 @@ public:
 
     ~Window();
 
+    /// \returns the window title
+    std::string title() const;
+
+    /// \returns the window's position on the monitor
+    vml::int2 position() const;
+
+    /// \returns the window's size
+    vml::int2 size() const;
+
 private:
     friend class Application;
     friend std::unique_ptr<class Window> create_window(WindowDesc const&);

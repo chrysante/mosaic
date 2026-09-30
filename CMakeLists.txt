@@ -104,6 +104,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
+# magic_enum
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+    GIT_TAG v0.9.8
+)
+FetchContent_MakeAvailable(magic_enum)
+
 # ImGui
 add_library(ImGui STATIC)
 
@@ -149,6 +157,7 @@ target_link_libraries(mosaic
         vml
         utility
         ImGui
+        magic_enum
     PRIVATE
         nlohmann_json::nlohmann_json
         termfmt
@@ -160,12 +169,15 @@ target_sources(mosaic PRIVATE
     source/application/event_receiver.cpp
     source/application/event_system.cpp
     source/application/font_manager.cpp
+    source/application/input.cpp
+    source/application/input_event.cpp
     source/application/window.cpp
     source/dispatch/completion.cpp
     source/dispatch/dispatcher.cpp
     source/dispatch/thread_pool.cpp
     source/gui/font.cpp
     source/gui/ui_context.cpp
+    source/gui/toolbar.cpp
     source/support/logger.cpp
 )
 
@@ -179,6 +191,7 @@ target_link_libraries(mosaic PRIVATE
 )
 target_sources(mosaic PRIVATE
     source/application/application_macos.mm
+    source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
 )

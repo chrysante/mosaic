@@ -11,10 +11,9 @@ class EventEmitter;
 class EventReceiver;
 class WorkDispatcher;
 class FontManager;
+class Input;
 
-namespace internal {
-void run_one_frame(Application& app);
-}
+namespace internal { void run_one_frame(Application& app); }
 
 ///
 enum class RunLoopMode { Wait, Poll };
@@ -54,11 +53,14 @@ public:
     /// Creates an `EventReceiver` that listens to the applications event system
     EventReceiver make_receiver();
 
-    /// \Returns the applications central work dispatcher
+    /// \returns the applications central work dispatcher
     WorkDispatcher& dispatcher();
 
-    /// \Returns the applications font manager
+    /// \returns the applications font manager
     FontManager& font_manager();
+
+    /// \returns the applications input manager
+    Input& input();
 
 protected:
     Application();

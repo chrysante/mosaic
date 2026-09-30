@@ -6,6 +6,7 @@
 #include "application/application.h"
 #include "application/event_receiver.h"
 #include "application/font_manager.h"
+#include "application/input.h"
 #include "dispatch/dispatcher.h"
 #include "dispatch/thread_pool.h"
 #include "gui/ui_context.h"
@@ -23,6 +24,8 @@ struct Application::Data {
     WorkDispatcher dispatcher;
     FontManager font_manager;
     UIContext ui_context;
+    Input input;
+    int input_callback_id = 0;
 };
 
 } // namespace mosaic
