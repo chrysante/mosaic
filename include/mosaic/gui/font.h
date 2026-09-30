@@ -1,17 +1,13 @@
 #pragma once
 
 #include <string>
-#include <string_view>
 #include <type_traits>
 
 #include <imgui.h>
 #include <utl/hash.hpp>
-#include <utl/hashtable.hpp>
 #include <utl/overload.hpp>
 
 namespace mosaic {
-
-class Application;
 
 enum class FontSize { medium = 17, Large = 34 };
 
@@ -58,7 +54,7 @@ struct FontDesc {
     FontWeight weight = FontWeight::regular;
     FontStyle style = FontStyle::roman;
 
-    /// \Returns the font descriptor used for most UI elements
+    /// \returns the font descriptor used for most UI elements
     static FontDesc ui_default();
 
     /// \overload
@@ -66,25 +62,28 @@ struct FontDesc {
         return ui_default().apply(args...);
     }
 
-    ///
+    /// \returns the font descriptor for the default monospaced font
     static FontDesc mono_default();
 
-    ///
+    /// Modifies the size value of this font descriptor
     FontDesc& set_size(FontSize size) {
         this->size = size;
         return *this;
     }
 
+    /// Modifies the wheight value of this font descriptor
     FontDesc& set_weight(FontWeight weight) {
         this->weight = weight;
         return *this;
     }
 
+    /// Modifies the style value of this font descriptor
     FontDesc& set_style(FontStyle style) {
         this->style = style;
         return *this;
     }
 
+    /// Modifies this font descriptor by setting the given arguments
     FontDesc& apply(FontParameterType auto... args) {
         utl::overload apply = {
             [&](FontSize size) { set_size(size); },
@@ -106,6 +105,32 @@ struct IconFontDesc {
     bool operator==(IconFontDesc const& rhs) const = default;
 };
 
+/// Result structure of `FontManager::get_icon(...)`
+struct IconData {
+    using StringType = std::array<char, 16>;
+
+    /// The font that encodes the icon
+    ImFont* font;
+
+    /// The string that represents the icon
+    StringType utf8_rep{};
+};
+
+namespace ui {
+
+/// Tries to return the font described by \p desc
+/// If the font is not available, it will be loaded in the background. In
+/// this case another font is returned and the requested font will be
+/// returned by the next call to `get` as soon as the font is available
+ImFont* font(FontDesc const& desc);
+
+/// Convenience overload
+ImFont* font(FontParameterType auto... params) {
+    return ui::font(FontDesc::ui_default(params...));
+}
+
+} // namespace ui
+
 } // namespace mosaic
 
 template <> struct std::hash<mosaic::FontDesc> {
@@ -119,80 +144,3 @@ template <> struct std::hash<mosaic::IconFontDesc> {
         return std::hash<mosaic::IconSize>{}(desc.size);
     }
 };
-
-namespace mosaic {
-
-/// Result structure of `FontManager::get(IconFontDesc desc, std::string name)`
-struct IconData {
-    /// The font that encodes the icon
-    ImFont* font;
-
-    /// The string that represents the icon
-    std::string utf8_rep;
-};
-
-///
-class FontManager {
-public:
-    explicit FontManager(float scale_factor);
-
-    ~FontManager();
-
-    ///
-    static void set_global_instance(std::unique_ptr<FontManager> fontManager);
-
-    ///
-    static FontManager* get_global_instance();
-
-    /// Tries to return the font described by \p desc
-    /// If the font is not available, it will be loaded in the background. In
-    /// this case another font is returned and the requested font will be
-    /// returned by the next call to `get` as soon as the font is available
-    static ImFont* get(FontDesc const& font);
-
-    /// Convenience overload
-    static ImFont* get(FontParameterType auto... params) {
-        return get(FontDesc::ui_default(params...));
-    }
-
-    ///
-    static IconData get(IconFontDesc const& font, std::string icon_name);
-
-    ///  \Returns the ImGui font atlas
-    ImFontAtlas* get_atlas() {
-        return imgui_data.atlas;
-    }
-
-    struct Impl;
-
-private:
-    using FontKey = std::variant<FontDesc, IconFontDesc>;
-
-    struct ImGuiData {
-        ImFontAtlas* atlas = nullptr;
-        utl::hashmap<FontKey, ImFont*> map;
-    };
-
-    ImFont* get_impl(FontKey const& key);
-
-    std::string get_unicode_str_impl(IconSize size, std::string_view name);
-
-    void reload_async();
-    void start_reload_thread();
-    void complete_reloading_sync(ImGuiData data);
-
-    /// Maps CSS icon names to unicode representation. This lists all icons
-    /// available in the resource files
-    utl::hashmap<std::string, uint16_t> all_icon_codes;
-    utl::hashmap<IconSize, utl::hashset<uint16_t>> glyph_map;
-    ImGuiData imgui_data;
-    float scale_factor = 1;
-    bool have_signaled_reload = false;
-    bool is_reloading = false;
-};
-
-struct ReloadedFontAtlasEvent {
-    // FontManager* fontManager;
-};
-
-} // namespace mosaic

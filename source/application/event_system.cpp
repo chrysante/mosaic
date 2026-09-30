@@ -2,6 +2,9 @@
 
 #include "support/logger.h"
 
+#include "application/event_emitter.h"
+#include "application/event_receiver.h"
+
 using namespace mosaic;
 
 EventSystem::EventSystem(Tag<void>) {}
@@ -56,16 +59,4 @@ EventEmitter EventSystem::make_emitter() {
 
 EventReceiver EventSystem::make_receiver() {
     return EventReceiver(shared_from_this());
-}
-
-EventReceiver::EventReceiver(std::weak_ptr<EventSystem> event_system)
-    : event_system(std::move(event_system)) {}
-
-void EventReceiver::unregister_all() {
-    auto msg = event_system.lock();
-    if (!msg)
-        return;
-    for (auto& id : registered_ids)
-        msg->unregister(id);
-    registered_ids.clear();
 }

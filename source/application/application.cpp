@@ -15,10 +15,15 @@ void mosaic::run_application(Application& app) {
     app.do_run();
 }
 
+Application::Data::Data()
+    : event_system(EventSystem::create())
+    , event_receiver(event_system->make_receiver())
+    , dispatcher(thread_pool)
+    , ui_context{.font_manager = font_manager} {}
+
 Application::Application()
-    : m_data(new Data{})
+    : m_data(new Data())
     , m_platform_data(create_platform_data()) {
-    m_data->event_system = EventSystem::create();
     platform_init();
     auto* main_window = create_main_window();
     imgui_init(main_window);
@@ -53,6 +58,14 @@ EventReceiver Application::make_receiver() {
     return m_data->event_system->make_receiver();
 }
 
+WorkDispatcher& Application::dispatcher() {
+    return m_data->dispatcher;
+}
+
+FontManager& Application::font_manager() {
+    return m_data->font_manager;
+}
+
 void Application::set_run_loop_mode(RunLoopMode mode) {
     m_data->run_loop_mode = mode;
 }
@@ -68,9 +81,13 @@ void Application::imgui_init(Window* main_window) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    auto& fm = font_manager();
+    fm.set_font_atlas(io.Fonts);
+    io.UserData = &m_data->ui_context;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.FontDefault = fm.get_font(FontDesc::ui_default());
     ImGui::StyleColorsDark();
     imgui_init_platform(main_window);
 }

@@ -156,12 +156,16 @@ target_link_libraries(mosaic
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
+    source/application/event_emitter.cpp
+    source/application/event_receiver.cpp
     source/application/event_system.cpp
+    source/application/font_manager.cpp
     source/application/window.cpp
     source/dispatch/completion.cpp
     source/dispatch/dispatcher.cpp
     source/dispatch/thread_pool.cpp
     source/gui/font.cpp
+    source/gui/ui_context.cpp
     source/support/logger.cpp
 )
 
@@ -185,12 +189,25 @@ endif()
 
 target_include_directories(mosaic
     PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_BINARY_DIR}/generated
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/generated
     PRIVATE 
-        ${PROJECT_SOURCE_DIR}/include/mosaic
-        ${PROJECT_SOURCE_DIR}/source
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/mosaic
+        ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
+
+function(mosaic_configure_app target_name)
+    if(NOT TARGET ${target_name})
+        message(FATAL_ERROR "mosaic_configure_app: '${target_name}' is not a target")
+    endif()
+
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/resource"
+            "$<TARGET_FILE_DIR:${target_name}>/resource"
+        COMMENT "Copying resources for ${target_name}"
+    )
+endfunction()
 
 # Tests
 add_executable(mosaic_test)
@@ -209,8 +226,8 @@ option(MOSAIC_BUILD_EXAMPLES "Build examples" ON)
 if(MOSAIC_BUILD_EXAMPLES)
 
 add_executable(mosaic_example)
-
 mosaic_enable_warnings(mosaic_example)
+mosaic_configure_app(mosaic_example)
 
 target_sources(mosaic_example PRIVATE
     examples/mosaic_example.cpp
