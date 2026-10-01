@@ -6,13 +6,9 @@ namespace mosaic {
 
 class Application;
 class CommandPalette;
-class EventSystem;
-class EventEmitter;
-class EventReceiver;
-class FontManager;
 class Input;
 class InputEvent;
-class WorkDispatcher;
+class ServiceContext;
 class Window;
 
 namespace internal { void run_one_frame(Application& app); }
@@ -49,17 +45,8 @@ public:
     ///
     Window const* main_window() const;
 
-    /// Creates an `EventEmitter` that emits to the applications event system
-    EventEmitter make_emitter();
-
-    /// Creates an `EventReceiver` that listens to the applications event system
-    EventReceiver make_receiver();
-
-    /// \returns the applications central work dispatcher
-    WorkDispatcher& dispatcher();
-
-    /// \returns the applications font manager
-    FontManager& font_manager();
+    /// \returns the applications service context
+    ServiceContext& service_context();
 
     /// \returns the applications input manager
     Input& input();
@@ -102,6 +89,8 @@ private:
     void do_run();
 
     void on_input(InputEvent event, void* native_event);
+
+    void do_frame();
 
     Data* m_data;
     PlatformData* m_platform_data;

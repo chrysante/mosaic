@@ -46,6 +46,9 @@ public:
     ///
     void zoom();
 
+    ///
+    void set_focused();
+
 private:
     friend class Application;
     friend std::unique_ptr<class Window> create_window(WindowDesc const&);

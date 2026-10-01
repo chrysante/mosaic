@@ -11,19 +11,17 @@
 #include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
-#include "service/event_system.h"
+#include "service/event_system.h" // IWYU pragma: keep
+#include "service/service_context.h"
 
 using namespace mosaic;
 
-void mosaic::run_application(Application& app) {
-    app.do_run();
-}
+void mosaic::run_application(Application& app) { app.do_run(); }
 
 Application::Data::Data()
-    : event_system(EventSystem::create())
-    , event_receiver(event_system->make_receiver())
-    , dispatcher(thread_pool)
-    , ui_context{.font_manager = font_manager} {}
+    : event_receiver(service_context.make_event_receiver())
+    , ui_context{.font_manager = service_context.font_manager()}
+    , view_manager(service_context) {}
 
 Application::Application()
     : m_data(new Data())
@@ -57,25 +55,11 @@ Window const* Application::main_window() const {
     return m_data->windows.front().get();
 }
 
-EventEmitter Application::make_emitter() {
-    return m_data->event_system->make_emitter();
+ServiceContext& Application::service_context() {
+    return m_data->service_context;
 }
 
-EventReceiver Application::make_receiver() {
-    return m_data->event_system->make_receiver();
-}
-
-WorkDispatcher& Application::dispatcher() {
-    return m_data->dispatcher;
-}
-
-FontManager& Application::font_manager() {
-    return m_data->font_manager;
-}
-
-Input& Application::input() {
-    return m_data->input;
-}
+Input& Application::input() { return m_data->input; }
 
 CommandPalette& Application::command_palette() {
     return m_data->command_palette;
@@ -96,7 +80,7 @@ void Application::imgui_init(Window* main_window) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    auto& fm = font_manager();
+    auto& fm = service_context().font_manager();
     fm.set_font_atlas(io.Fonts);
     io.UserData = &m_data->ui_context;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -121,18 +105,21 @@ void Application::imgui_end_frame() {
 
 void internal::run_one_frame(Application& app) {
     app.imgui_begin_frame();
-    app.frame();
+    app.do_frame();
     app.imgui_end_frame();
 }
 
-void Application::do_run() {
-    platform_run();
-}
+void Application::do_run() { platform_run(); }
 
 void Application::on_input(InputEvent event, void* native_event) {
     input_update(m_data->input, event);
     for (auto& window : m_data->windows)
         window->on_input(event, native_event);
     m_data->command_palette.on_input(event);
-    m_data->event_system->publish(event);
+    m_data->service_context.m_event_system->publish(event);
+}
+
+void Application::do_frame() {
+    frame();
+    m_data->view_manager.display();
 }

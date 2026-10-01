@@ -11,6 +11,8 @@ struct WindowStyle {
 
     /// If set to `true` the title bar will be larger
     bool has_toolbar_area = false;
+
+    bool operator==(WindowStyle const&) const = default;
 };
 
 /// Constructor arguments for a window

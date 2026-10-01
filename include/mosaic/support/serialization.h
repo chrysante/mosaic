@@ -1,0 +1,1057 @@
+#pragma once
+
+#ifndef MOSAIC_NO_SERIALIZATION
+
+#include <filesystem>
+#include <type_traits>
+
+#include <magic_enum/magic_enum.hpp>
+#include <utl/common.hpp>
+#include <utl/uuid.hpp>
+#include <vml/vml.hpp>
+#include <yaml-cpp/yaml.h>
+
+#include <mosaic/support/enum.h>
+
+// =============================================================================
+// vml types
+// =============================================================================
+
+template <typename T> struct YAML::convert<vml::complex<T>> {
+    static Node encode(vml::complex<T> const& z) {
+        return convert<vml::vector<T, 2>>::encode(z);
+    }
+
+    static bool decode(Node const& node, vml::complex<T>& z) {
+        return convert<vml::vector<T, 2>>::decode(node, z);
+    }
+};
+
+template <typename T> struct YAML::convert<vml::quaternion<T>> {
+    static Node encode(vml::quaternion<T> const& z) {
+        return convert<vml::vector<T, 4>>::encode(z);
+    }
+
+    static bool decode(Node const& node, vml::quaternion<T>& z) {
+        return convert<vml::vector<T, 4>>::decode(node, z);
+    }
+};
+
+template <typename T, std::size_t Size, vml::vector_options O>
+struct YAML::convert<vml::vector<T, Size, O>> {
+    static Node encode(vml::vector<T, Size, O> const& v) {
+        Node node;
+        for (auto i : v) {
+            node.push_back(i);
+        }
+        return node;
+    }
+
+    static bool decode(Node const& node, vml::vector<T, Size, O>& v) {
+        if (!node.IsSequence() || node.size() != Size) {
+            return false;
+        }
+
+        UTL_WITH_INDEX_SEQUENCE((I, Size), { v = {node[I].as<T>()...}; });
+        return true;
+    }
+};
+
+template <typename T, std::size_t Rows, std::size_t Columns,
+          vml::vector_options O>
+struct YAML::convert<vml::matrix<T, Rows, Columns, O>> {
+    static Node encode(vml::matrix<T, Rows, Columns, O> const& m) {
+        Node node;
+        for (auto i : m) {
+            node.push_back(i);
+        }
+        return node;
+    }
+
+    static bool decode(Node const& node, vml::matrix<T, Rows, Columns, O>& m) {
+        if (!node.IsSequence() || node.size() != Rows * Columns) {
+            return false;
+        }
+        UTL_WITH_INDEX_SEQUENCE((I, Rows * Columns),
+                                { m = {node[I].as<T>()...}; });
+        return true;
+    }
+};
+
+// =============================================================================
+// Other types
+// =============================================================================
+
+template <> struct YAML::convert<utl::uuid> {
+    static Node encode(utl::uuid const& id) {
+        Node node;
+        node = id.to_string();
+        return node;
+    }
+
+    static bool decode(Node const& node, utl::uuid& id) {
+        id = utl::uuid::from_string(node.as<std::string>());
+        return true;
+    }
+};
+
+template <> struct YAML::convert<std::filesystem::path> {
+    static Node encode(std::filesystem::path const& path) {
+        Node node;
+        node = path.string();
+        return node;
+    }
+
+    static bool decode(Node const& node, std::filesystem::path& path) {
+        std::string s;
+        if (YAML::convert<std::string>::decode(node, s)) {
+            path = std::move(s);
+            return true;
+        }
+        return false;
+    }
+};
+
+template <typename E> requires(std::is_enum_v<E>) struct YAML::convert<E> {
+    static Node encode(E e) {
+        Node node;
+        node = magic_enum::enum_name(e);
+        return node;
+    }
+
+    static bool decode(Node const& node, E& e) {
+        if (auto value = magic_enum::enum_cast<E>(node.as<std::string>())) {
+            e = *value;
+            return true;
+        }
+        return false;
+    }
+};
+
+template <typename E, typename T>
+struct YAML::convert<mosaic::EnumArray<E, T>> {
+    static Node encode(mosaic::EnumArray<E, T> const& array) {
+        Node node;
+        for (auto value : magic_enum::enum_values<E>()) {
+            node[magic_enum::enum_name(value)] = array[value];
+        }
+        return node;
+    }
+
+    static bool decode(Node const& node, mosaic::EnumArray<E, T>& array) {
+        for (auto value : magic_enum::enum_values<E>()) {
+            array[value] =
+                node[magic_enum::enum_name(value)].template as<T>(T{});
+        }
+        return false;
+    }
+};
+
+// =============================================================================
+// Struct field serializers
+// =============================================================================
+
+#define _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                \
+    static Node encode([[maybe_unused]] Type const& t) {                       \
+        Node _node;
+
+#define _MOSAIC_TEXT_SERIALIZE_FIELD(FieldName) _node[#FieldName] = t.FieldName
+
+#define _MOSAIC_TEXT_SERIALIZE_FUNC_END()                                      \
+    return _node;                                                              \
+    }
+
+/// MARK: Deserialize Fields
+#define _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                              \
+    static bool decode([[maybe_unused]] Node const& _node,                     \
+                       [[maybe_unused]] Type& t) {                             \
+        try {
+
+#define _MOSAIC_TEXT_DESERIALIZE_FIELD(FieldName)                              \
+    do {                                                                       \
+        using __Type = std::remove_cvref_t<decltype(t.FieldName)>;             \
+        if constexpr (std::is_default_constructible_v<__Type>) {               \
+            t.FieldName = _node[#FieldName].as<__Type>(__Type{});              \
+        } else {                                                               \
+            t.FieldName = _node[#FieldName].as<__Type>();                      \
+        }                                                                      \
+    } while (0);
+
+#define _MOSAIC_TEXT_DESERIALIZE_FUNC_END()                                    \
+    return true;                                                               \
+    }                                                                          \
+    catch (InvalidNode const&) {                                               \
+        return false;                                                          \
+    }                                                                          \
+    }
+
+/// MARK: Arities
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER(...)                                  \
+    UTL_VFUNC(_MOSAIC_REGISTER_TEXT_SERIALIZER_, __VA_ARGS__)
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_1(Type)                               \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_2(Type, _0)                           \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_3(Type, _0, _1)                       \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_4(Type, _0, _1, _2)                   \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_5(Type, _0, _1, _2, _3)               \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_6(Type, _0, _1, _2, _3, _4)           \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_7(Type, _0, _1, _2, _3, _4, _5)       \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_8(Type, _0, _1, _2, _3, _4, _5, _6)   \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_9(Type, _0, _1, _2, _3, _4, _5, _6,   \
+                                           _7)                                 \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_10(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8)                            \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_11(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9)                        \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_12(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10)                   \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_13(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11)              \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_14(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12)         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_15(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13)    \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_16(                                   \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14)     \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_17(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15)                          \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_18(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15, _16)                     \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_19(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15, _16, _17)                \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_20(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15, _16, _17, _18)           \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_21(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15, _16, _17, _18, _19)      \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_19);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_22(Type, _0, _1, _2, _3, _4, _5, _6,  \
+                                            _7, _8, _9, _10, _11, _12, _13,    \
+                                            _14, _15, _16, _17, _18, _19, _20) \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_19);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_20);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_23(                                   \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21)                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_19);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_20);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_21);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_24(                                   \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21, _22)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_19);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_20);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_21);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_22);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_25(                                   \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21, _22, _23)                               \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_BEGIN(Type)                                    \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_0);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_1);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_2);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_3);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_4);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_5);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_6);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_7);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_8);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_9);                                          \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_10);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_11);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_12);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_13);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_14);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_15);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_16);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_17);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_18);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_19);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_20);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_21);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_22);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FIELD(_23);                                         \
+    _MOSAIC_TEXT_SERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER(...)                                \
+    UTL_VFUNC(_MOSAIC_REGISTER_TEXT_DESERIALIZER_, __VA_ARGS__)
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_1(Type)                             \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_2(Type, _0)                         \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_3(Type, _0, _1)                     \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_4(Type, _0, _1, _2)                 \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_5(Type, _0, _1, _2, _3)             \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_6(Type, _0, _1, _2, _3, _4)         \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_7(Type, _0, _1, _2, _3, _4, _5)     \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_8(Type, _0, _1, _2, _3, _4, _5, _6) \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_9(Type, _0, _1, _2, _3, _4, _5, _6, \
+                                             _7)                               \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_10(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8)                      \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_11(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9)                  \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_12(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10)             \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_13(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11)        \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_14(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11, _12)   \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_15(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13)          \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_16(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14)     \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_17(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11, _12,   \
+                                              _13, _14, _15)                   \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_18(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11, _12,   \
+                                              _13, _14, _15, _16)              \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_19(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11, _12,   \
+                                              _13, _14, _15, _16, _17)         \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_20(Type, _0, _1, _2, _3, _4, _5,    \
+                                              _6, _7, _8, _9, _10, _11, _12,   \
+                                              _13, _14, _15, _16, _17, _18)    \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_21(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19)                                                   \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_19);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_22(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20)                                              \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_19);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_20);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_23(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21)                                         \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_19);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_20);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_21);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_24(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21, _22)                                    \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_19);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_20);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_21);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_22);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_DESERIALIZER_25(                                 \
+    Type, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14,     \
+    _15, _16, _17, _18, _19, _20, _21, _22, _23)                               \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_BEGIN(Type)                                  \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_0);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_1);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_2);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_3);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_4);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_5);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_6);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_7);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_8);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_9);                                        \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_10);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_11);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_12);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_13);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_14);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_15);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_16);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_17);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_18);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_19);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_20);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_21);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_22);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FIELD(_23);                                       \
+    _MOSAIC_TEXT_DESERIALIZE_FUNC_END()
+
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_BEGIN(Type)                           \
+    template <> struct YAML::convert<Type> {
+#define _MOSAIC_REGISTER_TEXT_SERIALIZER_END() }
+
+#define MOSAIC_MAKE_TEXT_SERIALIZER(Type, ...)                                 \
+    _MOSAIC_REGISTER_TEXT_SERIALIZER_BEGIN(Type)                               \
+    _MOSAIC_REGISTER_TEXT_SERIALIZER(Type __VA_OPT__(, ) __VA_ARGS__)          \
+    _MOSAIC_REGISTER_TEXT_DESERIALIZER(Type __VA_OPT__(, ) __VA_ARGS__)        \
+    _MOSAIC_REGISTER_TEXT_SERIALIZER_END()
+
+#endif // MOSAIC_NO_SERIALIZATION

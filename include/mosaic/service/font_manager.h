@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -32,13 +34,14 @@ public:
     }
 
     ///
-    void set_font_atlas(ImFontAtlas* a) {
-        atlas = a;
-    }
+    void set_font_atlas(ImFontAtlas* a) { atlas = a; }
 
     ///
-    void set_scale_factor(float scale) {
-        scale_factor = scale;
+    void set_scale_factor(float scale) { scale_factor = scale; }
+
+    ///
+    utl::hashmap<std::string, uint16_t> const& get_all_icon_codes() const {
+        return all_icon_codes;
     }
 
 private:

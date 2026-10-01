@@ -16,17 +16,19 @@ Window::~Window() = default;
 
 Window::Window(WindowDesc const& desc)
     : m_data(std::make_unique<Data>()) {
-    NSRect frame =
-        NSMakeRect(desc.position.x, desc.position.y, desc.size.x, desc.size.y);
-    NSWindow* window = m_data->native_window =
-        [[NSWindow alloc] initWithContentRect:frame
-                                    styleMask:(NSWindowStyleMaskTitled |
-                                               NSWindowStyleMaskClosable |
-                                               NSWindowStyleMaskResizable)
-                                      backing:NSBackingStoreBuffered
-                                        defer:NO];
-    [window makeKeyAndOrderFront:nil];
-    set_style(desc.style);
+    @autoreleasepool {
+        NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
+                                  desc.size.y);
+        NSWindow* window = m_data->native_window =
+            [[NSWindow alloc] initWithContentRect:frame
+                                        styleMask:(NSWindowStyleMaskTitled |
+                                                   NSWindowStyleMaskClosable |
+                                                   NSWindowStyleMaskResizable)
+                                          backing:NSBackingStoreBuffered
+                                            defer:NO];
+        [window makeKeyAndOrderFront:nil];
+        set_style(desc.style);
+    }
 }
 
 static std::string ns_string_to_std_string(NSString* str) {
@@ -62,18 +64,28 @@ vml::AABB<float, 2> Window::title_buttons_area() const {
 }
 
 void Window::zoom() {
-    NSWindow* window = m_data->native_window;
-    NSEvent* event =
-        [NSEvent otherEventWithType:NSEventTypeApplicationDefined
-                           location:NSMakePoint(0, 0)
-                      modifierFlags:0
-                          timestamp:0
-                       windowNumber:window.windowNumber
-                            context:nil
-                            subtype:(short)CocoaEventType::window_shall_zoom
-                              data1:0
-                              data2:0];
-    [NSApp postEvent:event atStart:YES];
+    @autoreleasepool {
+        NSWindow* window = m_data->native_window;
+        NSEvent* event =
+            [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+                               location:NSMakePoint(0, 0)
+                          modifierFlags:0
+                              timestamp:0
+                           windowNumber:window.windowNumber
+                                context:nil
+                                subtype:(short)CocoaEventType::window_shall_zoom
+                                  data1:0
+                                  data2:0];
+        [NSApp postEvent:event atStart:YES];
+    }
+}
+
+void Window::set_focused() {
+    @autoreleasepool {
+        NSWindow* window = m_data->native_window;
+        [NSApp activateIgnoringOtherApps:YES];
+        [window makeKeyAndOrderFront:nil];
+    }
 }
 
 static bool is_in_toolbar(Window& window, NSEvent* event) {
@@ -82,24 +94,26 @@ static bool is_in_toolbar(Window& window, NSEvent* event) {
 }
 
 void Window::on_input(InputEvent&, void* native_event) {
-    NSEvent* ns_event = (__bridge NSEvent*)native_event;
-    auto* ns_window = m_data->native_window;
-    if (ns_event.window != ns_window) return;
-    if (ns_event.type == NSEventTypeLeftMouseDown && movable &&
-        is_in_toolbar(*this, ns_event)) {
-        switch (ns_event.clickCount) {
-        case 1:
-            moving = true;
-            [ns_window performWindowDragWithEvent:ns_event];
-            break;
-        case 2:
-            zoom();
-            break;
-        default:
-            break;
+    @autoreleasepool {
+        NSEvent* ns_event = (__bridge NSEvent*)native_event;
+        auto* ns_window = m_data->native_window;
+        if (ns_event.window != ns_window) return;
+        if (ns_event.type == NSEventTypeLeftMouseDown && movable &&
+            is_in_toolbar(*this, ns_event)) {
+            switch (ns_event.clickCount) {
+            case 1:
+                moving = true;
+                [ns_window performWindowDragWithEvent:ns_event];
+                break;
+            case 2:
+                zoom();
+                break;
+            default:
+                break;
+            }
         }
+        if (ns_event.type == NSEventTypeLeftMouseUp) moving = false;
     }
-    if (ns_event.type == NSEventTypeLeftMouseUp) moving = false;
 }
 
 void Window::apply_style() {

@@ -2,6 +2,7 @@
 #include <string>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <mosaic/application/application.h>
 #include <mosaic/application/input.h>
@@ -9,17 +10,37 @@
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/view.h>
+#include <mosaic/gui/view_manager.h>
+#include <mosaic/gui/view_registry.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
+#include <mosaic/service/service_context.h>
 
 using namespace mosaic;
 
-namespace {
+class ExampleView : public View {
+public:
+    ExampleView()
+        : View() {
+        // clang-format off
+            set_toolbar({
+                ToolbarIconButton("link")
+                    .on_click([] {})
+            });
+        // clang-format on
+    }
+
+private:
+};
+
+MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
 
 class ExampleApp : public Application {
 public:
     ExampleApp()
-        : event_receiver(make_receiver()) {
+        : event_receiver(service_context().make_event_receiver())
+        , event_emitter(service_context().make_event_emitter()) {
         event_receiver.listen([this](InputEvent& e) {
             e.handle<InputEventMask::key_down>([this](KeyEvent event) {
                 text = std::to_string((int)event.key);
@@ -41,7 +62,12 @@ public:
         });
         dockspace.set_right_toolbar({
             ToolbarIconButton("bell")
-                .on_click([this] { text = "Clicked toolbar button"; })
+                .on_click([this] { 
+                    text = "Clicked toolbar button"; 
+                    event_emitter.publish(ViewManager::OpenCommand{
+                        .name = "ExampleView"
+                    });
+                })
         });
         // clang-format on
         main_window()->set_style({.has_toolbar_area = true});
@@ -60,7 +86,7 @@ private:
         ImGui::Button("My Button");
         ImGui::PopFont();
 
-        auto& fm = font_manager();
+        auto& fm = service_context().font_manager();
         auto icon = fm.get_icon(IconSize::_24, "plus-circled");
 
         ImGui::PushFont(icon.font);
@@ -70,14 +96,52 @@ private:
         ImGui::Text("%s", text.c_str());
 
         ImGui::End();
+
+        display_icon_viewer();
+    }
+
+    void display_icon_viewer() {
+        ImGui::Begin("Icon Viewer");
+        auto const& all_icons =
+            service_context().font_manager().get_all_icon_codes();
+        constexpr int columns = 6;
+        constexpr float cell_height = 72.0f;
+        if (ImGui::BeginTable("Icons", columns,
+                              ImGuiTableFlags_SizingStretchSame |
+                                  ImGuiTableFlags_BordersInnerV |
+                                  ImGuiTableFlags_BordersInnerH |
+                                  ImGuiTableFlags_PadOuterX)) {
+            for (auto const& [name, code] : all_icons) {
+                ImGui::TableNextColumn();
+                auto icon_data = ui::icon_data({IconSize::_24}, name);
+                float cell_width = ImGui::GetContentRegionAvail().x;
+                float start_x = ImGui::GetCursorPosX();
+                // Icon
+                float icon_width = 24.0f;
+                ImGui::SetCursorPosX(start_x +
+                                     (cell_width - icon_width) * 0.5f);
+                ui::with_font(icon_data.font, [&] {
+                    ImGui::TextEx(icon_data.utf8_rep.data());
+                });
+                // Name
+                ImGui::SetCursorPosX(start_x);
+                ImGui::SetNextItemWidth(cell_width);
+                ImGui::TextWrapped("%s", name.c_str());
+                // Give each cell a consistent minimum height.
+                float remaining = cell_height - (ImGui::GetCursorPosY() -
+                                                 ImGui::GetCursorPosY());
+                (void)remaining;
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
     }
 
     Dockspace dockspace;
     EventReceiver event_receiver;
+    EventEmitter event_emitter;
     std::string text;
 };
-
-} // namespace
 
 int main() {
     ExampleApp app;

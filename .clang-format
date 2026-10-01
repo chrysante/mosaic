@@ -7,7 +7,7 @@ UseTab: Never
 ColumnLimit: 80
 
 BreakBeforeBraces: Attach
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: False

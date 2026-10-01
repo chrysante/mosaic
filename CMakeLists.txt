@@ -112,6 +112,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
+# yaml-cpp
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG yaml-cpp-0.9.0
+)
+FetchContent_MakeAvailable(yaml-cpp)
+
 # ImGui
 add_library(ImGui STATIC)
 
@@ -158,6 +166,7 @@ target_link_libraries(mosaic
         utility
         ImGui
         magic_enum
+        yaml-cpp::yaml-cpp
     PRIVATE
         nlohmann_json::nlohmann_json
         termfmt
@@ -174,12 +183,16 @@ target_sources(mosaic PRIVATE
     source/service/event_receiver.cpp
     source/service/event_system.cpp
     source/service/font_manager.cpp
+    source/service/service_context.cpp
     source/service/thread_pool.cpp
     source/gui/command_palette.cpp
     source/gui/dockspace.cpp
     source/gui/font.cpp
     source/gui/ui_context.cpp
     source/gui/toolbar.cpp
+    source/gui/view.cpp
+    source/gui/view_manager.cpp
+    source/gui/view_registry.cpp
     source/support/logger.cpp
 )
 

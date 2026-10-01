@@ -12,6 +12,7 @@ std::unique_ptr<class Window> mosaic::create_window(WindowDesc const& desc) {
 }
 
 void Window::set_style(WindowStyle const& style) {
+    if (m_style == style) return;
     m_style = style;
     apply_style();
 }
