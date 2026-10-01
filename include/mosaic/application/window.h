@@ -39,15 +39,16 @@ public:
     void set_style(WindowStyle const& style);
 
     ///
-    void set_movable(bool value) {
-        movable = value;
-    }
+    void set_movable(bool value) { movable = value; }
 
     ///
     void zoom();
 
     ///
     void set_focused();
+
+    ///
+    void* native_handle();
 
 private:
     friend class Application;

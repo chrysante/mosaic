@@ -75,6 +75,7 @@ private:
 
     void platform_init();
     void platform_run();
+    void platform_shutdown();
 
     Window* create_main_window();
     void create_main_window_platform(Window* main_window);

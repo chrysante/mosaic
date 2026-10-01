@@ -88,6 +88,8 @@ void Window::set_focused() {
     }
 }
 
+void* Window::native_handle() { return (__bridge void*)m_data->native_window; }
+
 static bool is_in_toolbar(Window& window, NSEvent* event) {
     return event.window.frame.size.height - event.locationInWindow.y <=
            window.titlebar_height();

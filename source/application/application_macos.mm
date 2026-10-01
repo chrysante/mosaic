@@ -3,11 +3,11 @@
 #include "application/application_data_macos.h"
 #include "application/window.h"
 #include "application/window_data_macos.h"
+#include "imgui/imgui_impl_mosaic_macos.h"
 
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #include <backends/imgui_impl_metal.h>
-#include <backends/imgui_impl_osx.h>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -18,9 +18,7 @@ Application::PlatformData* Application::create_platform_data() {
     return new PlatformData{};
 }
 
-void Application::destroy_platform_data(PlatformData* data) {
-    delete data;
-}
+void Application::destroy_platform_data(PlatformData* data) { delete data; }
 
 void Application::platform_init() {
     @autoreleasepool {
@@ -57,6 +55,8 @@ void Application::platform_run() {
 
     [m_platform_data->app run];
 }
+
+void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
 
 @interface MetalView : NSView
 @end
@@ -110,7 +110,7 @@ void Application::create_main_window_platform(Window* window) {
 }
 
 void Application::imgui_init_platform(Window* main_window) {
-    ImGui_ImplOSX_Init(main_window->m_data->native_window.contentView);
+    ImGui_Impl_Mosaic_MacOS_Init(*main_window);
     ImGui_ImplMetal_Init(m_platform_data->device);
 }
 
@@ -136,7 +136,7 @@ void Application::imgui_begin_frame_platform() {
         [m_platform_data->command_queue commandBuffer];
 
     ImGui_ImplMetal_NewFrame(pass);
-    ImGui_ImplOSX_NewFrame(native_window.contentView);
+    ImGui_Impl_Mosaic_MacOS_NewFrame(*main_window());
 
     m_platform_data->encoder = [m_platform_data->command_buffer
         renderCommandEncoderWithDescriptor:pass];

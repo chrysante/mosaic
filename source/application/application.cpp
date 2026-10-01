@@ -34,6 +34,7 @@ Application::Application()
 }
 
 Application::~Application() {
+    platform_shutdown();
     unregister_global_input_callback(m_data->input_callback_id);
     destroy_platform_data(m_platform_data);
     delete m_data;

@@ -135,7 +135,6 @@ target_sources(ImGui PRIVATE
 
 if(MOSAIC_PLATFORM_MACOS)
 target_sources(ImGui PRIVATE
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_osx.mm
     ${imgui_SOURCE_DIR}/backends/imgui_impl_metal.mm
 )
 target_compile_options(ImGui PRIVATE
@@ -177,14 +176,6 @@ target_sources(mosaic PRIVATE
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
-    source/service/completion.cpp
-    source/service/dispatcher.cpp
-    source/service/event_emitter.cpp
-    source/service/event_receiver.cpp
-    source/service/event_system.cpp
-    source/service/font_manager.cpp
-    source/service/service_context.cpp
-    source/service/thread_pool.cpp
     source/gui/command_palette.cpp
     source/gui/dockspace.cpp
     source/gui/font.cpp
@@ -193,6 +184,15 @@ target_sources(mosaic PRIVATE
     source/gui/view.cpp
     source/gui/view_manager.cpp
     source/gui/view_registry.cpp
+    source/imgui/imgui_impl_mosaic_macos.mm
+    source/service/completion.cpp
+    source/service/dispatcher.cpp
+    source/service/event_emitter.cpp
+    source/service/event_receiver.cpp
+    source/service/event_system.cpp
+    source/service/font_manager.cpp
+    source/service/service_context.cpp
+    source/service/thread_pool.cpp
     source/support/logger.cpp
 )
 
