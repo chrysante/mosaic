@@ -209,7 +209,8 @@ void View::display_toolbar() {
         posx += compute_left_inset(window());
         float titlebar_height = window().titlebar_height();
         m_toolbar->set_height(titlebar_height - 2 * padding.y);
-        window().set_movable(!ImGui::IsAnyItemHovered());
+        internal::set_window_titlebar_controls_hovered(
+            window(), !ImGui::IsAnyItemHovered());
     }
     ImGui::SetCursorPosX(posx);
     float posy = ImGui::GetCursorPosY();

@@ -14,7 +14,13 @@ namespace mosaic {
 class InputEvent;
 class Window;
 
-namespace internal { struct WindowImpl; }
+namespace internal {
+
+struct WindowImpl;
+
+void set_window_titlebar_controls_hovered(Window& window, bool value);
+
+} // namespace internal
 
 ///
 std::unique_ptr<Window> create_window(WindowDesc const& desc);
@@ -47,9 +53,6 @@ public:
     void set_style(WindowStyle const& style);
 
     ///
-    void set_movable(bool value) { movable = value; }
-
-    ///
     void zoom();
 
     ///
@@ -65,6 +68,8 @@ private:
     friend class Application;
     friend struct internal::WindowImpl;
     friend std::unique_ptr<class Window> create_window(WindowDesc const&);
+    friend void internal::set_window_titlebar_controls_hovered(Window& window,
+                                                               bool value);
 
     Window(WindowDesc const& desc);
 
@@ -77,8 +82,7 @@ private:
     std::unique_ptr<Data> m_data;
     std::vector<std::unique_ptr<WindowDelegate>> m_delegates;
     WindowStyle m_style;
-    bool movable = false;
-    bool moving = false;
+    bool m_titlebar_controls_hovered = false;
 };
 
 } // namespace mosaic

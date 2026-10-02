@@ -111,9 +111,7 @@ void Dockspace::main_window() {
     ImGui::PopStyleVar(6);
 }
 
-static float2 get_position() {
-    return (float2)ImGui::GetMainViewport()->Pos;
-}
+static float2 get_position() { return (float2)ImGui::GetMainViewport()->Pos; }
 
 /// Calls `ImGui::Begin` with every possible interaction and decoration disabled
 [[nodiscard]] static bool begin_toolbar_window(char const* id, float2 position,
@@ -190,8 +188,8 @@ static void titlebar_behaviour(Window& window, float toolbar_height) {
     ImGui::InvisibleButton("Main_Toolbar_Background_Button",
                            {width, toolbar_height});
     ImGui::EndDisabled();
-    window.set_movable(GImGui->LastItemData.ID ==
-                       GImGui->HoveredIdPreviousFrame);
+    internal::set_window_titlebar_controls_hovered(window,
+                                                   !ImGui::IsAnyItemHovered());
 }
 
 static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,

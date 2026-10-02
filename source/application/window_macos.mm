@@ -179,7 +179,7 @@ void Window::set_focused() {
 
 void* Window::native_handle() { return (__bridge void*)m_data->native_window; }
 
-static bool is_in_toolbar(Window& window, NSEvent* event) {
+static bool is_in_titlebar(Window& window, NSEvent* event) {
     return event.window.frame.size.height - event.locationInWindow.y <=
            window.titlebar_height();
 }
@@ -189,11 +189,10 @@ void Window::on_input(InputEvent&, void* native_event) {
         NSEvent* ns_event = (__bridge NSEvent*)native_event;
         auto* ns_window = m_data->native_window;
         if (ns_event.window != ns_window) return;
-        if (ns_event.type == NSEventTypeLeftMouseDown && movable &&
-            is_in_toolbar(*this, ns_event)) {
+        if (ns_event.type == NSEventTypeLeftMouseDown &&
+            !m_titlebar_controls_hovered && is_in_titlebar(*this, ns_event)) {
             switch (ns_event.clickCount) {
             case 1:
-                moving = true;
                 [ns_window performWindowDragWithEvent:ns_event];
                 break;
             case 2:
@@ -203,7 +202,6 @@ void Window::on_input(InputEvent&, void* native_event) {
                 break;
             }
         }
-        if (ns_event.type == NSEventTypeLeftMouseUp) moving = false;
     }
 }
 
