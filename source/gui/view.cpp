@@ -160,7 +160,7 @@ void View::do_frame() {
         m_data.window = (Window*)viewport->PlatformHandle;
 #endif
         if (m_data.window && GImGui->CurrentViewport->Window == imgui_window)
-            m_data.window->set_style({.has_toolbar_area = !!m_toolbar});
+            m_data.window->set_style({.large_titlebar = !!m_toolbar});
         if (m_data.window) {
             display_toolbar();
             display();

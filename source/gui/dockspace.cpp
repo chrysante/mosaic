@@ -38,6 +38,7 @@ static void with_window_size_constraints(vml::float2 min_size, auto&& block) {
 
 void Dockspace::display(Window* window) {
     if (!window) return;
+    window->set_style({.full_size_content = true, .large_titlebar = true});
     main_window();
     float height = window->titlebar_height();
     for (auto& toolbar : toolbars)

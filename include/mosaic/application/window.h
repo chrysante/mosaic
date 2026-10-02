@@ -20,10 +20,10 @@ struct WindowImpl;
 
 void set_window_titlebar_controls_hovered(Window& window, bool value);
 
-} // namespace internal
-
-///
+/// This is internal because all windows must be created through the application
 std::unique_ptr<Window> create_window(WindowDesc const& desc);
+
+} // namespace internal
 
 ///
 class MOSAIC_EXPORT Window {
@@ -67,7 +67,8 @@ public:
 private:
     friend class Application;
     friend struct internal::WindowImpl;
-    friend std::unique_ptr<class Window> create_window(WindowDesc const&);
+    friend std::unique_ptr<class Window>
+    internal::create_window(WindowDesc const&);
     friend void internal::set_window_titlebar_controls_hovered(Window& window,
                                                                bool value);
 

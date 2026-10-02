@@ -70,7 +70,6 @@ public:
                 })
         });
         // clang-format on
-        main_window()->set_style({.has_toolbar_area = true});
     }
 
 private:

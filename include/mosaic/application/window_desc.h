@@ -1,32 +1,61 @@
 #pragma once
 
+#include "utl/common.hpp"
+#include <utl/utility.hpp>
 #include <vml/vml.hpp>
 
 namespace mosaic {
 
-struct WindowStyle {
-    /// If set to `true` the window will be created without a titlebar and
-    /// without window buttons
-    bool no_decoration = false;
+enum class WindowDecoration {
+    normal,
+    none,
+};
 
-    /// If set to `true` the title bar will be larger
-    bool has_toolbar_area = false;
+enum class WindowCapability : unsigned {
+    none = 0,
+    resizable = 1 << 0,
+    closable = 1 << 1,
+    minimizable = 1 << 2,
+    zoomable = 1 << 3,
+};
+
+UTL_ENUM_OPERATORS(WindowCapability)
+
+struct WindowStyle {
+    WindowDecoration decoration = WindowDecoration::normal;
+
+    WindowCapability capabilities =
+        WindowCapability::resizable | WindowCapability::closable |
+        WindowCapability::minimizable | WindowCapability::zoomable;
+
+    /// Allows the content view to extend into the title bar.
+    bool full_size_content = false;
+
+    /// Use the larger/unified title-bar appearance.
+    bool large_titlebar = false;
 
     bool operator==(WindowStyle const&) const = default;
 };
 
-/// Constructor arguments for a window
 struct WindowDesc {
-    /// The initial position of the window
+    /// Initial position of the window.
     vml::int2 position;
 
-    /// The initial size of the window
+    /// Initial size of the window.
     vml::int2 size;
 
-    /// If set to `true` the window will be created focused
+    /// Initial window title.
+    std::string title;
+
+    /// Whether the window is initially visible.
+    bool visible = true;
+
+    /// Whether the window should initially become key/focused.
     bool focused = true;
 
-    ///
+    /// Whether the window should stay above normal windows.
+    bool topmost = false;
+
     WindowStyle style;
 };
 

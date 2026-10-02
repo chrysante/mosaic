@@ -1,5 +1,6 @@
 #include "application/application.h"
 
+#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <memory>
@@ -41,14 +42,19 @@ Application::~Application() {
 }
 
 Window* Application::create_window(WindowDesc const& desc) {
-    auto window = mosaic::create_window(desc);
-    return add_window(std::move(window));
-}
-
-Window* Application::add_window(std::unique_ptr<Window> window) {
+    auto window = internal::create_window(desc);
     auto* result = window.get();
     m_data->windows.push_back(std::move(window));
     return result;
+}
+
+void Application::destroy_window(Window* window) {
+    service_context().dispatcher().on_main_thread([this, window] {
+        auto itr = std::ranges::find_if(
+            m_data->windows, [&](auto& ptr) { return ptr.get() == window; });
+        assert(itr != m_data->windows.end());
+        m_data->windows.erase(itr);
+    });
 }
 
 Window const* Application::main_window() const {
@@ -120,7 +126,20 @@ void Application::on_input(InputEvent event, void* native_event) {
     m_data->service_context.m_event_system->publish(event);
 }
 
+struct Application::DebugUtils {
+    static void display_debug_utils(Application& app) {
+        ImGui::Begin("Application Debug Utils");
+        ImGui::Text("Windows:");
+        for (auto& window : app.m_data->windows) {
+            ImGui::Text("%p", (void*)window.get());
+        }
+        ImGui::End();
+    }
+};
+
 void Application::do_frame() {
+    m_data->service_context.m_dispatcher.process_main_thread_tasks();
     frame();
     m_data->view_manager.display();
+    DebugUtils::display_debug_utils(*this);
 }

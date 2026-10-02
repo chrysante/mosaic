@@ -109,8 +109,8 @@ void Application::create_main_window_platform(Window* window) {
     [view updateDrawableSize];
 }
 
-void Application::imgui_init_platform(Window* main_window) {
-    ImGui_Impl_Mosaic_MacOS_Init(*main_window);
+void Application::imgui_init_platform(Window* /* main_window */) {
+    ImGui_Impl_Mosaic_MacOS_Init(*this);
     ImGui_ImplMetal_Init(m_platform_data->device);
 }
 

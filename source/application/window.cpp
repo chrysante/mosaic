@@ -11,9 +11,8 @@ void internal::set_window_titlebar_controls_hovered(Window& window,
     window.m_titlebar_controls_hovered = value;
 }
 
-std::unique_ptr<class Window> mosaic::create_window(WindowDesc const& desc) {
-    auto* window = new Window(desc);
-    return std::unique_ptr<Window>(window);
+std::unique_ptr<class Window> internal::create_window(WindowDesc const& desc) {
+    return std::unique_ptr<Window>(new Window(desc));
 }
 
 void Window::set_style(WindowStyle const& style) {

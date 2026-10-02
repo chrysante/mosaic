@@ -1,4 +1,5 @@
 #include "application/window.h"
+#include "application/window_desc.h"
 
 #include <memory>
 
@@ -98,16 +99,33 @@ using internal::WindowImpl;
 
 Window::~Window() = default;
 
+static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
+    NSWindowStyleMask style_mask = 0;
+    if (style.decoration == WindowDecoration::none) {
+        style_mask |= NSWindowStyleMaskBorderless;
+    } else {
+        style_mask |= NSWindowStyleMaskTitled;
+        if (test(style.capabilities & WindowCapability::resizable))
+            style_mask |= NSWindowStyleMaskResizable;
+        if (test(style.capabilities & WindowCapability::closable))
+            style_mask |= NSWindowStyleMaskClosable;
+        if (test(style.capabilities & WindowCapability::minimizable))
+            style_mask |= NSWindowStyleMaskMiniaturizable;
+        if (style.large_titlebar)
+            style_mask |= NSWindowStyleMaskFullSizeContentView;
+    }
+    return style_mask;
+}
+
 Window::Window(WindowDesc const& desc)
     : m_data(std::make_unique<Data>()) {
     @autoreleasepool {
         NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
                                   desc.size.y);
+        auto style_mask = to_ns_style_mask(desc.style);
         NSWindow* window =
             [[NSWindow alloc] initWithContentRect:frame
-                                        styleMask:(NSWindowStyleMaskTitled |
-                                                   NSWindowStyleMaskClosable |
-                                                   NSWindowStyleMaskResizable)
+                                        styleMask:style_mask
                                           backing:NSBackingStoreBuffered
                                             defer:NO];
         m_data->native_window = window;
@@ -115,7 +133,10 @@ Window::Window(WindowDesc const& desc)
         delegate.window = this;
         m_data->delegate = delegate;
         window.delegate = delegate;
-        [window makeKeyAndOrderFront:nil];
+        if (desc.visible) {
+            if (desc.focused) [window makeKeyAndOrderFront:nil];
+            else [window orderFront:nil];
+        }
         set_style(desc.style);
     }
 }
@@ -208,15 +229,17 @@ void Window::on_input(InputEvent&, void* native_event) {
 void Window::apply_style() {
     @autoreleasepool {
         NSWindow* window = m_data->native_window;
+        window.styleMask = to_ns_style_mask(m_style);
+        NSButton* zoom_button =
+            [window standardWindowButton:NSWindowZoomButton];
+        zoom_button.enabled =
+            test(m_style.capabilities & WindowCapability::zoomable);
         window.movable = false;
-        if (m_style.no_decoration) {
-            window.styleMask |= NSWindowStyleMaskBorderless;
-            window.styleMask &= ~NSWindowStyleMaskTitled;
-        } else {
-            window.styleMask |= NSWindowStyleMaskFullSizeContentView;
-            window.titlebarAppearsTransparent = true;
+        if (m_style.full_size_content) {
+            window.titlebarAppearsTransparent = YES;
+            window.titleVisibility = NSWindowTitleHidden;
         }
-        if (m_style.has_toolbar_area) {
+        if (m_style.large_titlebar) {
             window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
             window.toolbar = [[NSToolbar alloc] init];
         }

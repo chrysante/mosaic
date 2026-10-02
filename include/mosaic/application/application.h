@@ -34,7 +34,7 @@ public:
     Window* create_window(WindowDesc const& desc);
 
     ///
-    Window* add_window(std::unique_ptr<Window> window);
+    void destroy_window(Window* window);
 
     ///
     Window* main_window() {
@@ -69,6 +69,7 @@ private:
 
     struct Data;
     struct PlatformData;
+    struct DebugUtils;
 
     static PlatformData* create_platform_data();
     static void destroy_platform_data(PlatformData*);
