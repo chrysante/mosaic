@@ -8,6 +8,7 @@
 #include <imgui.h>
 
 #include "application/application_data.h"
+#include "application/application_debugger.h"
 #include "application/input.h"
 #include "application/input_event.h"
 #include "application/input_internal.h"
@@ -26,12 +27,28 @@ Application::Data::Data()
 
 Application::Application()
     : m_data(new Data())
-    , m_platform_data(create_platform_data()) {
+    , m_platform_data(create_platform_data())
+#ifndef NDEBUG
+    , m_debugger(std::make_unique<Debugger>(this))
+#endif
+{
     m_data->input_callback_id = register_global_input_callback(
         std::bind_front(&Application::on_input, this));
     platform_init();
     auto* main_window = create_main_window();
     imgui_init(main_window);
+#ifndef NDEBUG
+    // clang-format off
+    command_palette().add({
+        .name = "Toggle Debugger",
+        .key_comb = {
+            .key = Key::D, 
+            .mod_flags = ModFlags::shift | ModFlags::control
+        },
+        .command = [d = m_debugger.get()] { d->toggle_open(); }
+    });
+    // clang-format on
+#endif
 }
 
 Application::~Application() {
@@ -127,92 +144,11 @@ void Application::on_input(InputEvent event, void* native_event) {
     m_data->service_context.m_event_system->publish(event);
 }
 
-struct Application::DebugUtils {
-    static void display_debug_utils(Application& app) {
-        ImGui::SetNextWindowSize(ImVec2(900.0f, 600.0f),
-                                 ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Application Debug Utils")) {
-            ImGui::End();
-            return;
-        }
-        auto const& windows = app.m_data->windows;
-        ImGui::Text("Windows");
-        ImGui::SameLine();
-        ImGui::TextDisabled("(%zu)", windows.size());
-        ImGui::Separator();
-        if (ImGui::BeginTable("Windows", 8,
-                              ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                  ImGuiTableFlags_Resizable |
-                                  ImGuiTableFlags_SizingStretchProp |
-                                  ImGuiTableFlags_ScrollY)) {
-            ImGui::TableSetupColumn("Window");
-            ImGui::TableSetupColumn("Position");
-            ImGui::TableSetupColumn("Size");
-            ImGui::TableSetupColumn("Moving");
-            ImGui::TableSetupColumn("Resizing");
-            ImGui::TableSetupColumn("Viewport");
-            ImGui::TableSetupColumn("Viewport Pos");
-            ImGui::TableSetupColumn("Visible");
-            ImGui::TableHeadersRow();
-            for (auto& window : windows) {
-                const auto position = window->position();
-                const auto size = window->size();
-                // -------------------------------------------------------------
-                // Main row
-                // -------------------------------------------------------------
-                ImGui::TableNextRow();
-                // Window
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", window->title().c_str());
-                ImGui::TextDisabled("%p", static_cast<void*>(window.get()));
-                // Position
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%d, %d", position.x, position.y);
-                // Size
-                ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%d x %d", size.x, size.y);
-                // Moving
-                ImGui::TableSetColumnIndex(3);
-                if (window->is_live_moving())
-                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.5f, 1.0f),
-                                       "MOVING");
-                else ImGui::TextDisabled("no");
-                // Resizing
-                ImGui::TableSetColumnIndex(4);
-                if (window->is_live_resizing())
-                    ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f),
-                                       "RESIZING");
-                else ImGui::TextDisabled("no");
-                // ImGui viewport
-                ImGui::TableSetColumnIndex(5);
-                ImGuiViewport* viewport = nullptr;
-                // Adapt this lookup to however your application associates
-                // Window with its ImGui viewport.
-                //
-                // For example:
-                // viewport = window->imgui_viewport();
-                if (viewport) ImGui::Text("%08X", viewport->ID);
-                else ImGui::TextDisabled("none");
-                // Viewport position
-                ImGui::TableSetColumnIndex(6);
-                if (viewport)
-                    ImGui::Text("%.0f, %.0f", viewport->Pos.x, viewport->Pos.y);
-                else ImGui::TextDisabled("-");
-                // Visible
-                ImGui::TableSetColumnIndex(7);
-                // There isn't a visibility accessor in Window, so leave this
-                // out unless you want to add one to the Window interface.
-                ImGui::TextDisabled("-");
-            }
-            ImGui::EndTable();
-        }
-        ImGui::End();
-    }
-};
-
 void Application::do_frame() {
     m_data->service_context.m_dispatcher.process_main_thread_tasks();
     frame();
     m_data->view_manager.display();
-    DebugUtils::display_debug_utils(*this);
+#ifndef NDEBUG
+    m_debugger->display();
+#endif
 }

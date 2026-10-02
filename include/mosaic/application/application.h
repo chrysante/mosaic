@@ -69,7 +69,6 @@ private:
 
     struct Data;
     struct PlatformData;
-    struct DebugUtils;
 
     static PlatformData* create_platform_data();
     static void destroy_platform_data(PlatformData*);
@@ -96,6 +95,11 @@ private:
 
     Data* m_data;
     PlatformData* m_platform_data;
+
+#ifndef NDEBUG
+    class Debugger;
+    std::unique_ptr<Debugger> m_debugger;
+#endif
 };
 
 } // namespace mosaic

@@ -170,6 +170,7 @@ target_link_libraries(mosaic
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
+    source/application/application_debugger.cpp
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
