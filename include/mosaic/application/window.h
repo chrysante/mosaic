@@ -1,18 +1,26 @@
 #pragma once
 
 #include <memory>
-#include <mosaic/application/window_desc.h>
+#include <vector>
+
 #include <vml/vml.hpp>
+
+#include <mosaic/application/window_delegate.h>
+#include <mosaic/application/window_desc.h>
+#include <mosaic/support/export.h>
 
 namespace mosaic {
 
 class InputEvent;
+class Window;
+
+namespace internal { struct WindowImpl; }
 
 ///
-std::unique_ptr<class Window> create_window(WindowDesc const& desc);
+std::unique_ptr<Window> create_window(WindowDesc const& desc);
 
 ///
-class Window {
+class MOSAIC_EXPORT Window {
 public:
     Window(Window const&) = delete;
     Window& operator=(Window const&) = delete;
@@ -50,8 +58,12 @@ public:
     ///
     void* native_handle();
 
+    ///
+    void add_delegate(std::unique_ptr<WindowDelegate> delegate);
+
 private:
     friend class Application;
+    friend struct internal::WindowImpl;
     friend std::unique_ptr<class Window> create_window(WindowDesc const&);
 
     Window(WindowDesc const& desc);
@@ -61,7 +73,9 @@ private:
     void apply_style();
 
     struct Data;
+
     std::unique_ptr<Data> m_data;
+    std::vector<std::unique_ptr<WindowDelegate>> m_delegates;
     WindowStyle m_style;
     bool movable = false;
     bool moving = false;

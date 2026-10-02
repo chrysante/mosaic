@@ -12,6 +12,90 @@
 using namespace mosaic;
 using namespace vml;
 
+struct internal::WindowImpl {
+    static void for_each_delegate(Window& window, auto action) {
+        for (auto& delegate : window.m_delegates)
+            action(*delegate);
+    }
+};
+
+using internal::WindowImpl;
+
+// =============================================================================
+// WindowDelegateProxy
+// =============================================================================
+
+@implementation WindowDelegateProxy
+
+- (BOOL)windowShouldClose:(NSWindow*)window {
+    if (!_window) return YES;
+    bool allow = true;
+    WindowImpl::for_each_delegate(*_window, [&](WindowDelegate& delegate) {
+        allow &= delegate.should_close();
+    });
+    return allow;
+}
+
+- (void)windowWillMove:(NSNotification*)notification {
+    if (!_window) return;
+    WindowImpl::for_each_delegate(
+        *_window, [](WindowDelegate& delegate) { delegate.on_move_start(); });
+}
+
+- (void)windowDidMove:(NSNotification*)notification {
+    if (!_window) return;
+    NSWindow* ns_window = notification.object;
+    if (ns_window != (__bridge NSWindow*)_window->native_handle()) return;
+    vml::int2 position = (vml::int2)ns_window.frame.origin;
+    WindowImpl::for_each_delegate(
+        *_window,
+        [position](WindowDelegate& delegate) { delegate.on_move(position); });
+}
+
+- (void)windowDidResize:(NSNotification*)notification {
+    if (!_window) return;
+    NSWindow* ns_window = notification.object;
+    if (ns_window != (__bridge NSWindow*)_window->native_handle()) return;
+    NSSize size = ns_window.frame.size;
+    vml::int2 new_size{(int)size.width, (int)size.height};
+    WindowImpl::for_each_delegate(
+        *_window,
+        [new_size](WindowDelegate& delegate) { delegate.on_resize(new_size); });
+}
+
+- (void)windowDidBecomeKey:(NSNotification*)notification {
+    if (!_window) return;
+    WindowImpl::for_each_delegate(
+        *_window, [](WindowDelegate& delegate) { delegate.on_focus(); });
+}
+
+- (void)windowDidResignKey:(NSNotification*)notification {
+    if (!_window) return;
+    WindowImpl::for_each_delegate(
+        *_window, [](WindowDelegate& delegate) { delegate.on_focus_loss(); });
+}
+
+- (void)windowDidChangeBackingProperties:(NSNotification*)notification {
+    if (!_window) return;
+    NSWindow* window = notification.object;
+    CGFloat scale = window.backingScaleFactor;
+    WindowImpl::for_each_delegate(*_window, [scale](WindowDelegate& delegate) {
+        delegate.on_content_scale_change(scale);
+    });
+}
+
+- (void)windowWillClose:(NSNotification*)notification {
+    if (!_window) return;
+    WindowImpl::for_each_delegate(
+        *_window, [](WindowDelegate& delegate) { delegate.on_destroy(); });
+}
+
+@end
+
+// =============================================================================
+// Window implementation
+// =============================================================================
+
 Window::~Window() = default;
 
 Window::Window(WindowDesc const& desc)
@@ -19,13 +103,18 @@ Window::Window(WindowDesc const& desc)
     @autoreleasepool {
         NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
                                   desc.size.y);
-        NSWindow* window = m_data->native_window =
+        NSWindow* window =
             [[NSWindow alloc] initWithContentRect:frame
                                         styleMask:(NSWindowStyleMaskTitled |
                                                    NSWindowStyleMaskClosable |
                                                    NSWindowStyleMaskResizable)
                                           backing:NSBackingStoreBuffered
                                             defer:NO];
+        m_data->native_window = window;
+        WindowDelegateProxy* delegate = [[WindowDelegateProxy alloc] init];
+        delegate.window = this;
+        m_data->delegate = delegate;
+        window.delegate = delegate;
         [window makeKeyAndOrderFront:nil];
         set_style(desc.style);
     }
@@ -119,17 +208,19 @@ void Window::on_input(InputEvent&, void* native_event) {
 }
 
 void Window::apply_style() {
-    NSWindow* window = m_data->native_window;
-    window.movable = false;
-    if (m_style.no_decoration) {
-        window.styleMask |= NSWindowStyleMaskBorderless;
-        window.styleMask &= ~NSWindowStyleMaskTitled;
-    } else {
-        window.styleMask |= NSWindowStyleMaskFullSizeContentView;
-        window.titlebarAppearsTransparent = true;
-    }
-    if (m_style.has_toolbar_area) {
-        window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
-        window.toolbar = [[NSToolbar alloc] init];
+    @autoreleasepool {
+        NSWindow* window = m_data->native_window;
+        window.movable = false;
+        if (m_style.no_decoration) {
+            window.styleMask |= NSWindowStyleMaskBorderless;
+            window.styleMask &= ~NSWindowStyleMaskTitled;
+        } else {
+            window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+            window.titlebarAppearsTransparent = true;
+        }
+        if (m_style.has_toolbar_area) {
+            window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
+            window.toolbar = [[NSToolbar alloc] init];
+        }
     }
 }

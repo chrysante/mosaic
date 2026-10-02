@@ -16,3 +16,8 @@ void Window::set_style(WindowStyle const& style) {
     m_style = style;
     apply_style();
 }
+
+void Window::add_delegate(std::unique_ptr<WindowDelegate> delegate) {
+    delegate->m_window = this;
+    m_delegates.push_back(std::move(delegate));
+}
