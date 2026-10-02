@@ -158,6 +158,12 @@ vml::int2 Window::size() const {
     return {(int)size.width, (int)size.height};
 }
 
+bool Window::is_live_resizing() const {
+    return m_data->native_window.inLiveResize;
+}
+
+bool Window::is_live_moving() const { return m_data->is_live_moving; }
+
 float Window::titlebar_height() const {
     NSWindow* window = m_data->native_window;
     return (float)window.contentView.safeAreaInsets.top;
@@ -215,6 +221,7 @@ void Window::on_input(InputEvent&, void* native_event) {
             switch (ns_event.clickCount) {
             case 1:
                 [ns_window performWindowDragWithEvent:ns_event];
+                m_data->is_live_moving = true;
                 break;
             case 2:
                 zoom();
@@ -223,6 +230,8 @@ void Window::on_input(InputEvent&, void* native_event) {
                 break;
             }
         }
+        if (ns_event.type == NSEventTypeLeftMouseUp)
+            m_data->is_live_moving = false;
     }
 }
 

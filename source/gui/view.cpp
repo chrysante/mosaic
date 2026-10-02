@@ -97,6 +97,23 @@ static bool is_docked(ImGuiWindow* window) {
     return window && window->DockIsActive;
 }
 
+struct View::Impl {
+    static void set_view_closing(View* view) { view->m_data.open = false; }
+};
+
+static utl::hashmap<ImGuiWindow*, View*> g_imgui_window_view_map;
+
+namespace mosaic::internal {
+
+void set_view_closing(ImGuiViewport* viewport) {
+    auto* imgui_window = ((ImGuiViewportP*)viewport)->Window;
+    auto itr = g_imgui_window_view_map.find(imgui_window);
+    if (itr != g_imgui_window_view_map.end())
+        View::Impl::set_view_closing(itr->second);
+}
+
+} // namespace mosaic::internal
+
 void View::do_frame() {
     auto* imgui_window = (ImGuiWindow*)m_data.imgui_window;
     ImGuiWindowFlags flags = m_data.next_frame_flags;
@@ -147,6 +164,7 @@ void View::do_frame() {
 #if 0
     imgui_window->UserPointer = this;
 #endif
+    g_imgui_window_view_map[imgui_window] = this;
     m_data.imgui_window = imgui_window;
     m_data.is_focused =
         ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
@@ -211,7 +229,7 @@ void View::display_toolbar() {
         float titlebar_height = window().titlebar_height();
         m_toolbar->set_height(titlebar_height - 2 * padding.y);
         internal::set_window_titlebar_controls_hovered(
-            window(), !ImGui::IsAnyItemHovered());
+            window(), ImGui::IsAnyItemHovered());
     }
     ImGui::SetCursorPosX(posx);
     float posy = ImGui::GetCursorPosY();

@@ -35,6 +35,7 @@
 // - Introduction, links and more at the top of imgui.cpp
 
 #import "imgui/imgui_impl_mosaic_macos.h"
+#include "support/logger.h"
 
 #import <time.h>
 
@@ -43,6 +44,7 @@
 #import <GameController/GameController.h>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <utl/hashtable.hpp>
 
 #include "application/application.h"
 #include "application/window.h"
@@ -1114,22 +1116,59 @@ struct ImGui_Impl_Mosaic_MacOS_ViewportData {
     ~ImGui_Impl_Mosaic_MacOS_ViewportData() { IM_ASSERT(NativeWindow == nil); }
 };
 
-// @interface ImGui_Impl_Mosaic_MacOS_Window : NSWindow
-// @end
-
-// @implementation ImGui_Impl_Mosaic_MacOS_Window
-
-// - (BOOL)canBecomeKeyWindow {
-//     return YES;
-// }
-
-// @end
-
 static void ConvertNSRect(NSRect* r) {
     NSRect firstScreenFrame = NSScreen.screens[0].frame;
     IM_ASSERT(firstScreenFrame.origin.x == 0 && firstScreenFrame.origin.y == 0);
     r->origin.y = firstScreenFrame.size.height - r->origin.y - r->size.height;
 }
+
+namespace {
+struct SizeConstraints { vml::int2 min, max; };
+} // namespace
+
+static SizeConstraints translate_size_constraints(ImRect c) {
+    vml::int2 min = (vml::int2)c.Min;
+    vml::int2 max = {c.Max.x == FLT_MAX ? INT_MAX : (int)c.Max.x,
+                     c.Max.y == FLT_MAX ? INT_MAX : (int)c.Max.y};
+    return {min, max};
+}
+
+namespace mosaic::internal { void set_view_closing(ImGuiViewport* viewport); }
+
+namespace {
+
+struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
+    ImGui_Impl_Mosaic_OSX_WindowDelegate(ImGuiViewport* viewport)
+        : viewport(viewport) {}
+
+    void on_resize(vml::int2 new_size) override {
+        viewport->PlatformRequestResize = true;
+        viewport->PlatformRequestMove = true;
+    }
+
+    void on_move(vml::int2 new_pos) override {
+        viewport->Pos = (vml::float2)new_pos;
+        viewport->PlatformRequestMove = true;
+        auto& g = *GImGui;
+        auto* viewport_p = (ImGuiViewportP*)viewport;
+        g.MovingWindow = viewport_p->Window;
+        g.ActiveId = viewport_p->Window->MoveId;
+    }
+
+    bool should_close() override {
+        mosaic::internal::set_view_closing(viewport);
+        return true;
+    }
+
+    void on_destroy() override {
+        viewport->PlatformHandle = nullptr;
+        viewport->PlatformHandleRaw = nullptr;
+    }
+
+    ImGuiViewport* viewport;
+};
+
+} // namespace
 
 static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
@@ -1185,6 +1224,9 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     viewport->PlatformRequestResize = false;
     viewport->PlatformHandleRaw = (__bridge_retained void*)ns_window;
     viewport->PlatformHandle = window;
+
+    window->add_delegate(
+        std::make_unique<ImGui_Impl_Mosaic_OSX_WindowDelegate>(viewport));
 }
 
 static void ImGui_Impl_Mosaic_MacOS_DestroyWindow(ImGuiViewport* viewport) {
@@ -1239,10 +1281,9 @@ static void ImGui_Impl_Mosaic_MacOS_SetWindowPos(ImGuiViewport* viewport,
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
         (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
     IM_ASSERT(vd->NativeWindow != 0);
-
+    if (vd->window->is_live_moving()) return;
     NSWindow* window = vd->NativeWindow;
     NSSize size = window.frame.size;
-
     NSRect r = NSMakeRect(pos.x, pos.y, size.width, size.height);
     ConvertNSRect(&r);
     [window setFrameOrigin:r.origin];
@@ -1263,7 +1304,7 @@ static void ImGui_Impl_Mosaic_MacOS_SetWindowSize(ImGuiViewport* viewport,
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
         (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
     IM_ASSERT(vd->NativeWindow != 0);
-
+    if (vd->window->is_live_resizing()) return;
     NSWindow* window = vd->NativeWindow;
     NSRect rect = window.frame;
     rect.origin.y -= (size.y - rect.size.height);

@@ -118,7 +118,7 @@ public:
     /// Hides or (unhides) this view
     void toggle_hidden() { set_hidden(m_data.hidden ^ true); }
 
-    struct BackendImpl;
+    struct Impl;
 
 protected:
     explicit View(ViewDescription desc = {});

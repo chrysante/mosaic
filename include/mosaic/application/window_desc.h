@@ -44,6 +44,10 @@ struct WindowDesc {
     /// Initial size of the window.
     vml::int2 size;
 
+    /// Size constraints
+    // FIXME: Not yet honored
+    vml::int2 min_size = {0, 0}, max_size = {INT_MAX, INT_MAX};
+
     /// Initial window title.
     std::string title;
 

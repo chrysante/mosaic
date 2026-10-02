@@ -42,6 +42,12 @@ public:
     /// \returns the window's size
     vml::int2 size() const;
 
+    /// \returns true iff the user is currently resizing the window
+    bool is_live_resizing() const;
+
+    /// \returns true iff the user is currently dragging the window
+    bool is_live_moving() const;
+
     /// \returns the height of the window's title bar
     float titlebar_height() const;
 

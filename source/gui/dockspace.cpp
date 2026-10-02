@@ -182,15 +182,8 @@ static void toolbar_window(float2 position, float2 size,
 /// Simulates window titlebar behaviour on the toolbar background
 static void titlebar_behaviour(Window& window, float toolbar_height) {
     if (toolbar_height <= 0) return;
-    ImGui::BeginDisabled();
-    float width = window.size().x;
-    ImGui::SetCursorPos({});
-    ImGui::SetNextItemAllowOverlap();
-    ImGui::InvisibleButton("Main_Toolbar_Background_Button",
-                           {width, toolbar_height});
-    ImGui::EndDisabled();
     internal::set_window_titlebar_controls_hovered(window,
-                                                   !ImGui::IsAnyItemHovered());
+                                                   ImGui::IsAnyItemHovered());
 }
 
 static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,

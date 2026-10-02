@@ -15,6 +15,7 @@ enum class CocoaEventType : short { window_shall_zoom };
 struct Window::Data {
     NSWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;
+    bool is_live_moving = false;
 };
 
 } // namespace mosaic
