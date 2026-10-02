@@ -93,6 +93,7 @@ void Application::imgui_init(Window* main_window) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.ConfigViewportsNoAutoMerge = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
     ImGui::StyleColorsDark();
     imgui_init_platform(main_window);

@@ -156,11 +156,12 @@ void View::do_frame() {
         m_data.size = imgui_window->Size;
         m_data.docked = is_docked(imgui_window);
         auto* viewport = (ImGuiViewportP*)imgui_window->Viewport;
-#if 0
         m_data.window = (Window*)viewport->PlatformHandle;
-#endif
-        if (m_data.window && GImGui->CurrentViewport->Window == imgui_window)
-            m_data.window->set_style({.large_titlebar = !!m_toolbar});
+        if (m_data.window && GImGui->CurrentViewport->Window == imgui_window) {
+            bool have_toolbar = m_toolbar.has_value();
+            m_data.window->set_style({.full_size_content = have_toolbar,
+                                      .large_titlebar = have_toolbar});
+        }
         if (m_data.window) {
             display_toolbar();
             display();

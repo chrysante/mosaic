@@ -35,7 +35,6 @@
 // - Introduction, links and more at the top of imgui.cpp
 
 #import "imgui/imgui_impl_mosaic_macos.h"
-#include "application/window_desc.h"
 
 #import <time.h>
 
@@ -43,9 +42,11 @@
 #import <Cocoa/Cocoa.h>
 #import <GameController/GameController.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include "application/application.h"
 #include "application/window.h"
+#include "application/window_desc.h"
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -597,10 +598,12 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
 
     bd->Observer = [ImGuiObserver new];
     bd->application = &app;
-    bd->NativeWindow = view.window ?: NSApp.orderedWindows.firstObject;
+    bd->NativeWindow =
+        ns_window; // view.window ?: NSApp.orderedWindows.firstObject;
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-    main_viewport->PlatformHandle = main_viewport->PlatformHandleRaw =
-        (__bridge_retained void*)bd->NativeWindow;
+    main_viewport->PlatformHandle = &main_window;
+    main_viewport->PlatformHandleRaw = (__bridge_retained void*)ns_window;
+
     ImGui_Impl_Mosaic_MacOS_UpdateMonitors();
     ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport();
 
@@ -888,9 +891,17 @@ static ImGuiMouseSource GetMouseSource(NSEvent* event) {
     }
 }
 
+static ImGuiViewport*
+find_window_by_platform_handle_raw(void* platform_handle_raw) {
+    ImGuiContext& g = *GImGui;
+    for (ImGuiViewportP* viewport : g.Viewports)
+        if (viewport->PlatformHandleRaw == platform_handle_raw) return viewport;
+    return NULL;
+}
+
 static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
     // Only process events from the window containing ImGui view
-    if (!ImGui::FindViewportByPlatformHandle((__bridge void*)event.window))
+    if (!find_window_by_platform_handle_raw((__bridge void*)event.window))
         return false;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -1172,8 +1183,8 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     vd->NativeWindow = ns_window;
     vd->WindowOwned = true;
     viewport->PlatformRequestResize = false;
-    viewport->PlatformHandle = viewport->PlatformHandleRaw =
-        (__bridge_retained void*)ns_window;
+    viewport->PlatformHandleRaw = (__bridge_retained void*)ns_window;
+    viewport->PlatformHandle = window;
 }
 
 static void ImGui_Impl_Mosaic_MacOS_DestroyWindow(ImGuiViewport* viewport) {
@@ -1188,8 +1199,9 @@ static void ImGui_Impl_Mosaic_MacOS_DestroyWindow(ImGuiViewport* viewport) {
         bd->application->destroy_window(vd->window);
         IM_DELETE(vd);
     }
-    viewport->PlatformUserData = viewport->PlatformHandle =
-        viewport->PlatformHandleRaw = nullptr;
+    viewport->PlatformUserData = nullptr;
+    viewport->PlatformHandle = nullptr;
+    viewport->PlatformHandleRaw = nullptr;
 }
 
 static void ImGui_Impl_Mosaic_MacOS_ShowWindow(ImGuiViewport* viewport) {
@@ -1373,7 +1385,9 @@ static void ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport() {
     vd->NativeWindow = bd->NativeWindow;
     vd->WindowOwned = false;
     main_viewport->PlatformUserData = vd;
-    main_viewport->PlatformHandle = (__bridge void*)bd->NativeWindow;
+    main_viewport->PlatformHandle = bd->application->main_window();
+    main_viewport->PlatformHandleRaw =
+        (__bridge_retained void*)bd->NativeWindow;
 
     [NSNotificationCenter.defaultCenter
         addObserver:bd->Observer

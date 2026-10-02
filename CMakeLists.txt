@@ -134,9 +134,6 @@ target_sources(ImGui PRIVATE
 )
 
 if(MOSAIC_PLATFORM_MACOS)
-target_sources(ImGui PRIVATE
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_metal.mm
-)
 target_compile_options(ImGui PRIVATE
     $<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>
 )
@@ -184,7 +181,6 @@ target_sources(mosaic PRIVATE
     source/gui/view.cpp
     source/gui/view_manager.cpp
     source/gui/view_registry.cpp
-    source/imgui/imgui_impl_mosaic_macos.mm
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp
@@ -209,6 +205,8 @@ target_sources(mosaic PRIVATE
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
+    source/imgui/imgui_impl_mosaic_macos.mm
+    source/imgui/imgui_impl_mosaic_metal.mm
 )
 target_compile_options(mosaic PRIVATE
     $<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>

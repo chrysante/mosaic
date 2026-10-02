@@ -32,6 +32,7 @@ public:
     }
 
 private:
+    void display() override { ImGui::Button("My View Button"); }
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")

@@ -1,16 +1,18 @@
 #include "application/application.h"
+
+#include <cstdlib>
+#include <iostream>
+#include <memory>
+
+#import <AppKit/AppKit.h>
+#import <Metal/Metal.h>
+
 #include "application/application_data.h"
 #include "application/application_data_macos.h"
 #include "application/window.h"
 #include "application/window_data_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
-
-#import <AppKit/AppKit.h>
-#import <Metal/Metal.h>
-#include <backends/imgui_impl_metal.h>
-#include <cstdlib>
-#include <iostream>
-#include <memory>
+#include "imgui/imgui_impl_mosaic_metal.h"
 
 using namespace mosaic;
 
@@ -111,7 +113,7 @@ void Application::create_main_window_platform(Window* window) {
 
 void Application::imgui_init_platform(Window* /* main_window */) {
     ImGui_Impl_Mosaic_MacOS_Init(*this);
-    ImGui_ImplMetal_Init(m_platform_data->device);
+    ImGui_Impl_Mosaic_Metal_Init(m_platform_data->device);
 }
 
 void Application::imgui_begin_frame_platform() {
@@ -135,7 +137,7 @@ void Application::imgui_begin_frame_platform() {
     m_platform_data->command_buffer =
         [m_platform_data->command_queue commandBuffer];
 
-    ImGui_ImplMetal_NewFrame(pass);
+    ImGui_Impl_Mosaic_Metal_NewFrame(pass);
     ImGui_Impl_Mosaic_MacOS_NewFrame(*main_window());
 
     m_platform_data->encoder = [m_platform_data->command_buffer
@@ -143,9 +145,9 @@ void Application::imgui_begin_frame_platform() {
 }
 
 void Application::imgui_end_frame_platform() {
-    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(),
-                                   m_platform_data->command_buffer,
-                                   m_platform_data->encoder);
+    ImGui_Impl_Mosaic_Metal_RenderDrawData(ImGui::GetDrawData(),
+                                           m_platform_data->command_buffer,
+                                           m_platform_data->encoder);
 
     [m_platform_data->encoder endEncoding];
 
