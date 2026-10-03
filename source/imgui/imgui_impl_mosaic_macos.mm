@@ -41,6 +41,7 @@
 
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
+#include <Foundation/NSObjCRuntime.h>
 #import <GameController/GameController.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -235,11 +236,6 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
         NSRect rect = NSMakeRect(_posX, contentRect.size.height - _posY, 0, 0);
         _imeRect = [window convertRectToScreen:rect];
     }
-}
-
-- (void)viewDidMoveToWindow {
-    // Ensure self is a first responder to receive the input events.
-    [self.window makeFirstResponder:self];
 }
 
 - (void)keyDown:(NSEvent*)event {
@@ -582,7 +578,7 @@ static void install_mouse_event_handler(mosaic::Window& window, NSView* view) {
 bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     auto& main_window = *app.main_window();
     NSWindow* ns_window = (__bridge NSWindow*)main_window.native_handle();
-    NSView* view = ns_window.contentView;
+    NSView* content_view = ns_window.contentView;
 
     ImGuiIO& io = ImGui::GetIO();
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
@@ -699,20 +695,23 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
         [[KeyEventResponder alloc] initWithFrame:NSZeroRect];
     bd->InputContext =
         [[NSTextInputContext alloc] initWithClient:bd->KeyEventResponder];
-    [view addSubview:bd->KeyEventResponder];
-    ImGui_Impl_Mosaic_MacOS_AddTrackingArea(view);
-    install_mouse_event_handler(main_window, view);
+    [content_view addSubview:bd->KeyEventResponder];
+    ImGui_Impl_Mosaic_MacOS_AddTrackingArea(content_view);
+    install_mouse_event_handler(main_window, content_view);
 
     platform_io.Platform_SetImeDataFn = [](ImGuiContext*, ImGuiViewport*,
                                            ImGuiPlatformImeData* data) -> void {
         ImGui_Impl_Mosaic_MacOS_Data* bd =
             ImGui_Impl_Mosaic_MacOS_GetBackendData();
+        NSWindow* ns_window = bd->NativeWindow;
         if (data->WantVisible) {
+            [ns_window makeFirstResponder:bd->KeyEventResponder];
             [bd->InputContext activate];
         } else {
             [bd->InputContext discardMarkedText];
             [bd->InputContext invalidateCharacterCoordinates];
             [bd->InputContext deactivate];
+            [ns_window makeFirstResponder:ns_window.contentView];
         }
         [bd->KeyEventResponder
             setImePosX:data->InputPos.x
@@ -1010,7 +1009,6 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
 
     if (event.type == NSEventTypeKeyDown || event.type == NSEventTypeKeyUp) {
         if ([event isARepeat]) return io.WantCaptureKeyboard;
-
         int key_code = (int)[event keyCode];
         ImGuiKey key = ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(key_code);
         io.AddKeyEvent(key, event.type == NSEventTypeKeyDown);
