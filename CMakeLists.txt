@@ -21,6 +21,13 @@ else()
     set(MOSAIC_LIBRARY_TYPE STATIC)
 endif()
 
+# Keep assertions enabled in RelWithDebInfo.
+if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-UNDEBUG>
+    )
+endif()
+
 function(mosaic_enable_warnings TARGET)
     if(MSVC)
         target_compile_options(${TARGET} PRIVATE
