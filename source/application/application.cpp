@@ -13,6 +13,7 @@
 #include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
+#include "application/window_delegate.h"
 #include "application/window_impl.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/service_context.h"
@@ -126,6 +127,7 @@ void Application::imgui_init(Window* main_window) {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigViewportsNoAutoMerge = true;
+    io.ConfigDockingTransparentPayload = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
     ImGui::StyleColorsDark();
     imgui_init_platform(main_window);
