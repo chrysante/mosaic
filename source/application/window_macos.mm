@@ -190,11 +190,11 @@ static void forward_event(Window const* window, NSEvent* event) {
     if (handler) handler(event);
 }
 
-@interface DebugView : NSView
-@property(nonatomic, assign) Window* mosaic_window;
+@interface WindowContentView : NSView
+@property(nonatomic, assign) mosaic::Window* mosaic_window;
 @end
 
-@implementation DebugView
+@implementation WindowContentView
 
 - (BOOL)acceptsFirstMouse:(NSEvent*)event {
     return YES;
@@ -238,7 +238,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
                                           backing:NSBackingStoreBuffered
                                             defer:NO];
         NSRect content_rect = [window contentRectForFrameRect:frame];
-        DebugView* content_view = [[DebugView alloc]
+        WindowContentView* content_view = [[WindowContentView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
                                      content_rect.size.height)];
         window.contentView = content_view;
