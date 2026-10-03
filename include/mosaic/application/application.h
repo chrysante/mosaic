@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mosaic/application/input_event2.h>
+#include <mosaic/application/input_event.h>
 #include <mosaic/application/window_desc.h>
 
 namespace mosaic {

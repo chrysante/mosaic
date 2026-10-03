@@ -2,7 +2,7 @@
 
 #include <ostream>
 
-#include "application/input_event2.h"
+#include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
 

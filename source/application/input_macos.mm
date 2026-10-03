@@ -6,7 +6,7 @@
 
 #include "application/application.h"
 #include "application/input.h"
-#include "application/input_event2.h"
+#include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
 #include "application/window_impl_macos.h"

@@ -3,7 +3,7 @@
 #include <deque>
 
 #include "application/application.h"
-#include "application/input_event2.h"
+#include "application/input_event.h"
 
 #ifndef NDEBUG
 

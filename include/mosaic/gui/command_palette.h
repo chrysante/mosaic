@@ -6,7 +6,7 @@
 #include <utl/hashtable.hpp>
 
 #include <mosaic/application/input.h>
-#include <mosaic/application/input_event2.h>
+#include <mosaic/application/input_event.h>
 
 namespace mosaic {
 

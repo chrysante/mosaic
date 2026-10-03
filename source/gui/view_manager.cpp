@@ -8,7 +8,7 @@
 #include <vml/vml.hpp>
 
 #include "application/application.h"
-#include "application/input_event2.h"
+#include "application/input_event.h"
 #include "application/window.h"
 #include "gui/view.h"
 #include "gui/view_registry.h"

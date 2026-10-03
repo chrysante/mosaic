@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "application/input_event2.h"
+#include "application/input_event.h"
 #include "support/logger.h"
 
 using namespace mosaic;

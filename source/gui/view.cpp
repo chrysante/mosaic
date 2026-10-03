@@ -6,7 +6,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 
-#include "application/input_event2.h"
+#include "application/input_event.h"
 #include "application/window.h"
 #include "application/window_impl.h"
 #include "gui/view_registry.h"
