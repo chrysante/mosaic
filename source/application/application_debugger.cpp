@@ -1,5 +1,7 @@
 #include "application/application_debugger.h"
 
+#ifndef NDEBUG
+
 #include <ranges>
 
 #include <imgui.h>
@@ -406,3 +408,5 @@ void Application::Debugger::display_input_debugger() {
         ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f), "ACTIVE");
     else ImGui::TextDisabled("Idle");
 }
+
+#endif // NDEBUG
