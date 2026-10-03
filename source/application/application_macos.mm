@@ -16,6 +16,8 @@
 
 using namespace mosaic;
 
+void Application::quit() { [m_platform_data->app stop:nil]; }
+
 Application::PlatformData* Application::create_platform_data() {
     return new PlatformData{};
 }

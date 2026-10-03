@@ -54,6 +54,9 @@ public:
     /// \returns the applications main command palette
     CommandPalette& command_palette();
 
+    ///
+    void quit();
+
 protected:
     Application();
 

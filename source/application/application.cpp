@@ -94,9 +94,23 @@ void Application::set_run_loop_mode(RunLoopMode mode) {
     m_data->run_loop_mode = mode;
 }
 
+namespace {
+
+struct AppWindowDelegate : WindowDelegate {
+    explicit AppWindowDelegate(Application& app)
+        : app(app) {}
+
+    void on_destroy() override { app.quit(); }
+
+    Application& app;
+};
+
+} // namespace
+
 Window* Application::create_main_window() {
     assert(m_data->windows.empty());
     auto* window = create_window({.position = {200, 200}, .size = {800, 600}});
+    window->add_delegate(std::make_unique<AppWindowDelegate>(*this));
     create_main_window_platform(window);
     return window;
 }

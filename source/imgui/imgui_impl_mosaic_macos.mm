@@ -1463,6 +1463,7 @@ static void ImGui_Impl_Mosaic_MacOS_ShutdownMultiViewportSupport() {
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
         (ImGui_Impl_Mosaic_MacOS_ViewportData*)main_viewport->PlatformUserData;
+    vd->NativeWindow = nullptr;
     IM_DELETE(vd);
     main_viewport->PlatformUserData = nullptr;
     ImGui::DestroyPlatformWindows();
