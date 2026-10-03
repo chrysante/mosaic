@@ -603,8 +603,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
         ImGuiBackendFlags_PlatformHasViewports; // We can create multi-viewports
                                                 // on the Platform side
                                                 // (optional)
-    // io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport; // We can
-    // call io.AddMouseViewportEvent() with correct data (optional)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport;
 
     bd->Observer = [ImGuiObserver new];
     bd->application = &app;
@@ -903,7 +902,7 @@ static ImGuiMouseSource GetMouseSource(NSEvent* event) {
 }
 
 static ImGuiViewport*
-find_window_by_platform_handle_raw(void* platform_handle_raw) {
+find_viewport_by_platform_handle_raw(void* platform_handle_raw) {
     ImGuiContext& g = *GImGui;
     for (ImGuiViewportP* viewport : g.Viewports)
         if (viewport->PlatformHandleRaw == platform_handle_raw) return viewport;
@@ -912,8 +911,9 @@ find_window_by_platform_handle_raw(void* platform_handle_raw) {
 
 static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
     // Only process events from the window containing ImGui view
-    if (!find_window_by_platform_handle_raw((__bridge void*)event.window))
-        return false;
+    ImGuiViewport* viewport =
+        find_viewport_by_platform_handle_raw((__bridge void*)event.window);
+    if (!viewport) return false;
 
     ImGuiIO& io = ImGui::GetIO();
     if (event.type == NSEventTypeLeftMouseDown ||
@@ -964,6 +964,7 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
         }
         io.AddMouseSourceEvent(GetMouseSource(event));
         io.AddMousePosEvent((float)mousePoint.x, (float)mousePoint.y);
+        io.AddMouseViewportEvent(viewport ? viewport->ID : 0);
         return io.WantCaptureMouse;
     }
 
