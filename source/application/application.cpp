@@ -13,6 +13,7 @@
 #include "application/input_event.h"
 #include "application/input_internal.h"
 #include "application/window.h"
+#include "application/window_impl.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/service_context.h"
 
@@ -59,7 +60,7 @@ Application::~Application() {
 }
 
 Window* Application::create_window(WindowDesc const& desc) {
-    auto window = internal::create_window(desc);
+    auto window = internal::WindowImpl::create_window(desc);
     auto* result = window.get();
     m_data->windows.push_back(std::move(window));
     return result;

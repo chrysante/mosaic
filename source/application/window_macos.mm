@@ -1,5 +1,4 @@
 #include "application/window.h"
-#include "application/window_desc.h"
 
 #include <AppKit/AppKit.h>
 #include <memory>
@@ -9,28 +8,31 @@
 #import <AppKit/NSWindow.h>
 
 #include "application/input_event.h"
-#include "application/window_data_macos.h"
+#include "application/window_desc.h"
+#include "application/window_impl_macos.h"
 
 using namespace mosaic;
 using namespace vml;
 
-struct internal::WindowImpl {
-    static void for_each_delegate(Window& window, auto action) {
-        for (auto& delegate : window.m_delegates)
-            action(*delegate);
-    }
-};
-
 using internal::WindowImpl;
+using internal::WindowImplMacOS;
 
-void internal::install_native_mouse_event_handler(Window* window,
-                                                  NativeEventHandler handler) {
-    window->m_data->native_mouse_event_handler = handler;
+// =============================================================================
+// WindowImplMacOS
+// =============================================================================
+
+void WindowImplMacOS::install_native_mouse_event_handler(
+    Window& window, NativeEventHandler event_handler) {
+    GET_WINDOW_IMPL(window).native_mouse_event_handler = event_handler;
 }
 
-internal::NativeEventHandler
-internal::get_native_mouse_event_handler(Window const* window) {
-    return window->m_data->native_mouse_event_handler;
+internal::NativeEventHandler const&
+WindowImplMacOS::get_native_mouse_event_handler(Window const& window) {
+    return GET_WINDOW_IMPL(window).native_mouse_event_handler;
+}
+
+std::unique_ptr<WindowImpl> WindowImpl::create_impl() {
+    return std::make_unique<WindowImplMacOS>();
 }
 
 // =============================================================================
@@ -42,16 +44,15 @@ internal::get_native_mouse_event_handler(Window const* window) {
 - (BOOL)windowShouldClose:(NSWindow*)window {
     if (!_window) return YES;
     bool allow = true;
-    WindowImpl::for_each_delegate(*_window, [&](WindowDelegate& delegate) {
-        allow &= delegate.should_close();
-    });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [&](WindowDelegate& delegate) { allow &= delegate.should_close(); });
     return allow;
 }
 
 - (void)windowWillMove:(NSNotification*)notification {
     if (!_window) return;
-    WindowImpl::for_each_delegate(
-        *_window, [](WindowDelegate& delegate) { delegate.on_move_start(); });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [](WindowDelegate& delegate) { delegate.on_move_start(); });
 }
 
 - (void)windowDidMove:(NSNotification*)notification {
@@ -59,8 +60,7 @@ internal::get_native_mouse_event_handler(Window const* window) {
     NSWindow* ns_window = notification.object;
     if (ns_window != (__bridge NSWindow*)_window->native_handle()) return;
     vml::int2 position = (vml::int2)ns_window.frame.origin;
-    WindowImpl::for_each_delegate(
-        *_window,
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
         [position](WindowDelegate& delegate) { delegate.on_move(position); });
 }
 
@@ -70,36 +70,36 @@ internal::get_native_mouse_event_handler(Window const* window) {
     if (ns_window != (__bridge NSWindow*)_window->native_handle()) return;
     NSSize size = ns_window.frame.size;
     vml::int2 new_size{(int)size.width, (int)size.height};
-    WindowImpl::for_each_delegate(
-        *_window,
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
         [new_size](WindowDelegate& delegate) { delegate.on_resize(new_size); });
 }
 
 - (void)windowDidBecomeKey:(NSNotification*)notification {
     if (!_window) return;
-    WindowImpl::for_each_delegate(
-        *_window, [](WindowDelegate& delegate) { delegate.on_focus(); });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [](WindowDelegate& delegate) { delegate.on_focus(); });
 }
 
 - (void)windowDidResignKey:(NSNotification*)notification {
     if (!_window) return;
-    WindowImpl::for_each_delegate(
-        *_window, [](WindowDelegate& delegate) { delegate.on_focus_loss(); });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [](WindowDelegate& delegate) { delegate.on_focus_loss(); });
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification {
     if (!_window) return;
     NSWindow* window = notification.object;
     CGFloat scale = window.backingScaleFactor;
-    WindowImpl::for_each_delegate(*_window, [scale](WindowDelegate& delegate) {
-        delegate.on_content_scale_change(scale);
-    });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [scale](WindowDelegate& delegate) {
+            delegate.on_content_scale_change(scale);
+        });
 }
 
 - (void)windowWillClose:(NSNotification*)notification {
     if (!_window) return;
-    WindowImpl::for_each_delegate(
-        *_window, [](WindowDelegate& delegate) { delegate.on_destroy(); });
+    GET_WINDOW_IMPL(*_window).for_each_delegate(
+        [](WindowDelegate& delegate) { delegate.on_destroy(); });
 }
 
 @end
@@ -107,8 +107,6 @@ internal::get_native_mouse_event_handler(Window const* window) {
 // =============================================================================
 // Window implementation
 // =============================================================================
-
-Window::~Window() = default;
 
 static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
     NSWindowStyleMask style_mask = 0;
@@ -128,10 +126,9 @@ static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
     return style_mask;
 }
 
-static void forward_event(Window const* window, NSEvent* event, NSView* view) {
-    auto* handler = internal::get_native_mouse_event_handler(window);
-    if (!handler) return;
-    handler((__bridge void*)event, (__bridge void*)view);
+static void forward_event(Window const* window, NSEvent* event) {
+    auto& handler = GET_WINDOW_IMPL(*window).native_mouse_event_handler;
+    if (handler) handler(event);
 }
 
 @interface DebugView : NSView
@@ -145,19 +142,19 @@ static void forward_event(Window const* window, NSEvent* event, NSView* view) {
 }
 
 - (void)scrollWheel:(NSEvent*)event {
-    forward_event(_mosaic_window, event, self);
+    forward_event(_mosaic_window, event);
 }
 
 - (void)mouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event, self);
+    forward_event(_mosaic_window, event);
 }
 
 - (void)rightMouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event, self);
+    forward_event(_mosaic_window, event);
 }
 
 - (void)otherMouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event, self);
+    forward_event(_mosaic_window, event);
 }
 
 - (BOOL)acceptsFirstResponder {
@@ -166,8 +163,7 @@ static void forward_event(Window const* window, NSEvent* event, NSView* view) {
 
 @end
 
-Window::Window(WindowDesc const& desc)
-    : m_data(std::make_unique<Data>()) {
+void Window::platform_constructor(WindowDesc const& desc) {
     @autoreleasepool {
         NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
                                   desc.size.y);
@@ -183,10 +179,10 @@ Window::Window(WindowDesc const& desc)
                                      content_rect.size.height)];
         window.contentView = content_view;
         content_view.mosaic_window = this;
-        m_data->native_window = window;
+        WINDOW_IMPL.native_window = window;
         WindowDelegateProxy* delegate = [[WindowDelegateProxy alloc] init];
         delegate.window = this;
-        m_data->delegate = delegate;
+        WINDOW_IMPL.delegate = delegate;
         window.delegate = delegate;
         if (desc.visible) {
             if (desc.focused) [window makeKeyAndOrderFront:nil];
@@ -201,31 +197,31 @@ static std::string ns_string_to_std_string(NSString* str) {
 }
 
 std::string Window::title() const {
-    return ns_string_to_std_string(m_data->native_window.title);
+    return ns_string_to_std_string(WINDOW_IMPL.native_window.title);
 }
 
 vml::int2 Window::position() const {
-    return (int2)m_data->native_window.frame.origin;
+    return (int2)WINDOW_IMPL.native_window.frame.origin;
 }
 
 vml::int2 Window::size() const {
-    auto size = m_data->native_window.frame.size;
+    auto size = WINDOW_IMPL.native_window.frame.size;
     return {(int)size.width, (int)size.height};
 }
 
 bool Window::is_live_resizing() const {
-    return m_data->native_window.inLiveResize;
+    return WINDOW_IMPL.native_window.inLiveResize;
 }
 
-bool Window::is_live_moving() const { return m_data->is_live_moving; }
+bool Window::is_live_moving() const { return WINDOW_IMPL.is_live_moving; }
 
 float Window::titlebar_height() const {
-    NSWindow* window = m_data->native_window;
+    NSWindow* window = WINDOW_IMPL.native_window;
     return (float)window.contentView.safeAreaInsets.top;
 }
 
 vml::AABB<float, 2> Window::title_buttons_area() const {
-    NSWindow* window = m_data->native_window;
+    NSWindow* window = WINDOW_IMPL.native_window;
     auto a = [window standardWindowButton:NSWindowCloseButton].frame;
     auto b = [window standardWindowButton:NSWindowMiniaturizeButton].frame;
     auto c = [window standardWindowButton:NSWindowZoomButton].frame;
@@ -236,47 +232,55 @@ vml::AABB<float, 2> Window::title_buttons_area() const {
 
 void Window::zoom() {
     @autoreleasepool {
-        NSWindow* window = m_data->native_window;
-        NSEvent* event =
-            [NSEvent otherEventWithType:NSEventTypeApplicationDefined
-                               location:NSMakePoint(0, 0)
-                          modifierFlags:0
-                              timestamp:0
-                           windowNumber:window.windowNumber
-                                context:nil
-                                subtype:(short)CocoaEventType::window_shall_zoom
-                                  data1:0
-                                  data2:0];
+        NSWindow* window = WINDOW_IMPL.native_window;
+        NSEvent* event = [NSEvent
+            otherEventWithType:NSEventTypeApplicationDefined
+                      location:NSMakePoint(0, 0)
+                 modifierFlags:0
+                     timestamp:0
+                  windowNumber:window.windowNumber
+                       context:nil
+                       subtype:(short)
+                                   internal::CocoaEventType::window_shall_zoom
+                         data1:0
+                         data2:0];
         [NSApp postEvent:event atStart:YES];
     }
 }
 
 void Window::set_focused() {
     @autoreleasepool {
-        NSWindow* window = m_data->native_window;
+        NSWindow* window = WINDOW_IMPL.native_window;
         [NSApp activateIgnoringOtherApps:YES];
         [window makeKeyAndOrderFront:nil];
     }
 }
 
-void* Window::native_handle() { return (__bridge void*)m_data->native_window; }
+void* Window::native_handle() {
+    return (__bridge void*)WINDOW_IMPL.native_window;
+}
 
 static bool is_in_titlebar(Window& window, NSEvent* event) {
     return event.window.frame.size.height - event.locationInWindow.y <=
            window.titlebar_height();
 }
 
+static bool is_titlebar_mouse_down(Window& window, NSEvent* event) {
+    return event.type == NSEventTypeLeftMouseDown &&
+           !GET_WINDOW_IMPL(window).titlebar_controls_hovered &&
+           is_in_titlebar(window, event);
+}
+
 void Window::on_input(InputEvent&, void* native_event) {
     @autoreleasepool {
         NSEvent* ns_event = (__bridge NSEvent*)native_event;
-        auto* ns_window = m_data->native_window;
+        auto* ns_window = WINDOW_IMPL.native_window;
         if (ns_event.window != ns_window) return;
-        if (ns_event.type == NSEventTypeLeftMouseDown &&
-            !m_titlebar_controls_hovered && is_in_titlebar(*this, ns_event)) {
+        if (is_titlebar_mouse_down(*this, ns_event)) {
             switch (ns_event.clickCount) {
             case 1:
                 [ns_window performWindowDragWithEvent:ns_event];
-                m_data->is_live_moving = true;
+                WINDOW_IMPL.is_live_moving = true;
                 break;
             case 2:
                 zoom();
@@ -286,24 +290,24 @@ void Window::on_input(InputEvent&, void* native_event) {
             }
         }
         if (ns_event.type == NSEventTypeLeftMouseUp)
-            m_data->is_live_moving = false;
+            WINDOW_IMPL.is_live_moving = false;
     }
 }
 
 void Window::apply_style() {
     @autoreleasepool {
-        NSWindow* window = m_data->native_window;
-        window.styleMask = to_ns_style_mask(m_style);
+        NSWindow* window = WINDOW_IMPL.native_window;
+        window.styleMask = to_ns_style_mask(m_impl->style);
         NSButton* zoom_button =
             [window standardWindowButton:NSWindowZoomButton];
         zoom_button.enabled =
-            test(m_style.capabilities & WindowCapability::zoomable);
+            test(m_impl->style.capabilities & WindowCapability::zoomable);
         window.movable = false;
-        if (m_style.full_size_content) {
+        if (m_impl->style.full_size_content) {
             window.titlebarAppearsTransparent = YES;
             window.titleVisibility = NSWindowTitleHidden;
         }
-        if (m_style.large_titlebar) {
+        if (m_impl->style.large_titlebar) {
             window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
             window.toolbar = [[NSToolbar alloc] init];
         }

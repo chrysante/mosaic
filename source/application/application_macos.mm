@@ -10,7 +10,7 @@
 #include "application/application_data.h"
 #include "application/application_data_macos.h"
 #include "application/window.h"
-#include "application/window_data_macos.h"
+#include "application/window_impl_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
 #include "imgui/imgui_impl_mosaic_metal.h"
 
@@ -41,7 +41,7 @@ void Application::platform_init() {
 }
 
 void Application::platform_run() {
-    NSWindow* window = main_window()->m_data->native_window;
+    NSWindow* window = GET_WINDOW_IMPL(*main_window()).native_window;
     NSView* view = window.contentView;
     DisplayLinkTarget* target = [[DisplayLinkTarget alloc] init];
     target.application = this;
@@ -102,7 +102,7 @@ void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
 @end
 
 void Application::create_main_window_platform(Window* window) {
-    NSWindow* native_window = window->m_data->native_window;
+    NSWindow* native_window = GET_WINDOW_IMPL(*window).native_window;
     NSView* content_view = native_window.contentView;
     MetalView* metal_view =
         [[MetalView alloc] init_with_frame:content_view.bounds

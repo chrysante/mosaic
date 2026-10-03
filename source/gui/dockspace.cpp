@@ -11,6 +11,9 @@
 #include <utl/vector.hpp>
 #include <vml/vml.hpp>
 
+#include "application/window.h"
+#include "application/window_impl.h"
+
 using namespace mosaic;
 using namespace vml::short_types;
 
@@ -182,8 +185,8 @@ static void toolbar_window(float2 position, float2 size,
 /// Simulates window titlebar behaviour on the toolbar background
 static void titlebar_behaviour(Window& window, float toolbar_height) {
     if (toolbar_height <= 0) return;
-    internal::set_window_titlebar_controls_hovered(window,
-                                                   ImGui::IsAnyItemHovered());
+    internal::WindowImpl::set_titlebar_controls_hovered(
+        window, ImGui::IsAnyItemHovered());
 }
 
 static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,

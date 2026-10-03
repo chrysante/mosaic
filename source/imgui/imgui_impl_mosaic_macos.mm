@@ -49,6 +49,7 @@
 #include "application/application.h"
 #include "application/window.h"
 #include "application/window_desc.h"
+#include "application/window_impl_macos.h"
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -571,11 +572,10 @@ static ImGuiKey ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(int key_code) {
     }
 }
 
-static void install_mouse_event_handler(mosaic::Window* window) {
-    mosaic::internal::install_native_mouse_event_handler(
-        window, [](void* event, void* view) {
-            ImGui_Impl_Mosaic_MacOS_HandleEvent((__bridge NSEvent*)event,
-                                                (__bridge NSView*)view);
+static void install_mouse_event_handler(mosaic::Window& window, NSView* view) {
+    mosaic::internal::WindowImplMacOS::install_native_mouse_event_handler(
+        window, [=](NSEvent* event) {
+            ImGui_Impl_Mosaic_MacOS_HandleEvent(event, view);
         });
 }
 
@@ -702,7 +702,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
         [[NSTextInputContext alloc] initWithClient:bd->KeyEventResponder];
     [view addSubview:bd->KeyEventResponder];
     ImGui_Impl_Mosaic_MacOS_AddTrackingArea(view);
-    install_mouse_event_handler(&main_window);
+    install_mouse_event_handler(main_window, view);
 
     platform_io.Platform_SetImeDataFn = [](ImGuiContext*, ImGuiViewport*,
                                            ImGuiPlatformImeData* data) -> void {
@@ -1211,7 +1211,7 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     };
     auto* window = bd->application->create_window(desc);
 
-    install_mouse_event_handler(window);
+    install_mouse_event_handler(*window, bd->NativeWindow.contentView);
 
     KeyEventResponder* view = [[KeyEventResponder alloc] initWithFrame:rect];
     if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6 &&

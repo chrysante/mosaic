@@ -8,6 +8,7 @@
 
 #include "application/input_event.h"
 #include "application/window.h"
+#include "application/window_impl.h"
 #include "gui/view_registry.h"
 #include "service/service_context.h"
 #include "support/logger.h"
@@ -228,7 +229,7 @@ void View::display_toolbar() {
         posx += compute_left_inset(window());
         float titlebar_height = window().titlebar_height();
         m_toolbar->set_height(titlebar_height - 2 * padding.y);
-        internal::set_window_titlebar_controls_hovered(
+        internal::WindowImpl::set_titlebar_controls_hovered(
             window(), ImGui::IsAnyItemHovered());
     }
     ImGui::SetCursorPosX(posx);
