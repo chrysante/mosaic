@@ -571,6 +571,14 @@ static ImGuiKey ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(int key_code) {
     }
 }
 
+static void install_mouse_event_handler(mosaic::Window* window) {
+    mosaic::internal::install_native_mouse_event_handler(
+        window, [](void* event, void* view) {
+            ImGui_Impl_Mosaic_MacOS_HandleEvent((__bridge NSEvent*)event,
+                                                (__bridge NSView*)view);
+        });
+}
+
 bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     auto& main_window = *app.main_window();
     NSWindow* ns_window = (__bridge NSWindow*)main_window.native_handle();
@@ -694,6 +702,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
         [[NSTextInputContext alloc] initWithClient:bd->KeyEventResponder];
     [view addSubview:bd->KeyEventResponder];
     ImGui_Impl_Mosaic_MacOS_AddTrackingArea(view);
+    install_mouse_event_handler(&main_window);
 
     platform_io.Platform_SetImeDataFn = [](ImGuiContext*, ImGuiViewport*,
                                            ImGuiPlatformImeData* data) -> void {
@@ -1080,13 +1089,12 @@ static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view) {
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
     if (bd->Monitor) return;
     NSEventMask eventMask = 0;
-    eventMask |= NSEventMaskMouseMoved | NSEventMaskScrollWheel;
-    eventMask |= NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp |
-                 NSEventMaskLeftMouseDragged;
-    eventMask |= NSEventMaskRightMouseDown | NSEventMaskRightMouseUp |
-                 NSEventMaskRightMouseDragged;
-    eventMask |= NSEventMaskOtherMouseDown | NSEventMaskOtherMouseUp |
-                 NSEventMaskOtherMouseDragged;
+    // We receive the mouse down events from the view to get proper hit-testing
+    // view native UI elements first.
+    eventMask |= NSEventMaskMouseMoved;
+    eventMask |= NSEventMaskLeftMouseUp | NSEventMaskLeftMouseDragged;
+    eventMask |= NSEventMaskRightMouseUp | NSEventMaskRightMouseDragged;
+    eventMask |= NSEventMaskOtherMouseUp | NSEventMaskOtherMouseDragged;
     eventMask |=
         NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
     bd->Monitor = [NSEvent
@@ -1202,6 +1210,8 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
             },
     };
     auto* window = bd->application->create_window(desc);
+
+    install_mouse_event_handler(window);
 
     KeyEventResponder* view = [[KeyEventResponder alloc] initWithFrame:rect];
     if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6 &&

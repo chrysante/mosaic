@@ -1,6 +1,7 @@
 #include "application/window.h"
 #include "application/window_desc.h"
 
+#include <AppKit/AppKit.h>
 #include <memory>
 
 #import <AppKit/NSButton.h>
@@ -21,6 +22,16 @@ struct internal::WindowImpl {
 };
 
 using internal::WindowImpl;
+
+void internal::install_native_mouse_event_handler(Window* window,
+                                                  NativeEventHandler handler) {
+    window->m_data->native_mouse_event_handler = handler;
+}
+
+internal::NativeEventHandler
+internal::get_native_mouse_event_handler(Window const* window) {
+    return window->m_data->native_mouse_event_handler;
+}
 
 // =============================================================================
 // WindowDelegateProxy
@@ -117,6 +128,44 @@ static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
     return style_mask;
 }
 
+static void forward_event(Window const* window, NSEvent* event, NSView* view) {
+    auto* handler = internal::get_native_mouse_event_handler(window);
+    if (!handler) return;
+    handler((__bridge void*)event, (__bridge void*)view);
+}
+
+@interface DebugView : NSView
+@property(nonatomic, assign) Window* mosaic_window;
+@end
+
+@implementation DebugView
+
+- (BOOL)acceptsFirstMouse:(NSEvent*)event {
+    return YES;
+}
+
+- (void)scrollWheel:(NSEvent*)event {
+    forward_event(_mosaic_window, event, self);
+}
+
+- (void)mouseDown:(NSEvent*)event {
+    forward_event(_mosaic_window, event, self);
+}
+
+- (void)rightMouseDown:(NSEvent*)event {
+    forward_event(_mosaic_window, event, self);
+}
+
+- (void)otherMouseDown:(NSEvent*)event {
+    forward_event(_mosaic_window, event, self);
+}
+
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+@end
+
 Window::Window(WindowDesc const& desc)
     : m_data(std::make_unique<Data>()) {
     @autoreleasepool {
@@ -128,6 +177,12 @@ Window::Window(WindowDesc const& desc)
                                         styleMask:style_mask
                                           backing:NSBackingStoreBuffered
                                             defer:NO];
+        NSRect content_rect = [window contentRectForFrameRect:frame];
+        DebugView* content_view = [[DebugView alloc]
+            initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
+                                     content_rect.size.height)];
+        window.contentView = content_view;
+        content_view.mosaic_window = this;
         m_data->native_window = window;
         WindowDelegateProxy* delegate = [[WindowDelegateProxy alloc] init];
         delegate.window = this;

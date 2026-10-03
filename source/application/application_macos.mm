@@ -43,30 +43,38 @@ void Application::platform_init() {
 void Application::platform_run() {
     NSWindow* window = main_window()->m_data->native_window;
     NSView* view = window.contentView;
-
     DisplayLinkTarget* target = [[DisplayLinkTarget alloc] init];
     target.application = this;
-
     m_platform_data->display_link_target = target;
     m_platform_data->display_link =
         [view displayLinkWithTarget:target
                            selector:@selector(displayLinkCallback:)];
-
     [m_platform_data->display_link addToRunLoop:[NSRunLoop currentRunLoop]
                                         forMode:NSRunLoopCommonModes];
-
     [m_platform_data->app run];
 }
 
 void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
 
-@interface MetalView : NSView
-@end
-
 @implementation MetalView
 
-+ (Class)layerClass {
-    return [CAMetalLayer class];
+- (instancetype)init_with_frame:(NSRect)frame device:(id<MTLDevice>)device {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        self.wantsLayer = YES;
+        CAMetalLayer* layer = [CAMetalLayer layer];
+        layer.device = device;
+        layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+        layer.framebufferOnly = YES;
+        layer.contentsGravity = kCAGravityTopLeft;
+        self.layer = layer;
+    }
+    return self;
+}
+
+- (CAMetalLayer*)metal_layer {
+    return (CAMetalLayer*)self.layer;
 }
 
 - (void)layout {
@@ -74,41 +82,35 @@ void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
     [self updateDrawableSize];
 }
 
+- (void)viewDidChangeBackingProperties {
+    [super viewDidChangeBackingProperties];
+    [self updateDrawableSize];
+}
+
 - (void)updateDrawableSize {
-    CAMetalLayer* layer = (CAMetalLayer*)self.layer;
+    CAMetalLayer* layer = self.metal_layer;
     CGFloat scale = self.window.backingScaleFactor;
     layer.contentsScale = scale;
     layer.drawableSize = CGSizeMake(self.bounds.size.width * scale,
                                     self.bounds.size.height * scale);
 }
 
-- (void)viewDidChangeBackingProperties {
-    [super viewDidChangeBackingProperties];
-    [self updateDrawableSize];
+- (NSView*)hitTest:(NSPoint)point {
+    return nil;
 }
 
 @end
 
 void Application::create_main_window_platform(Window* window) {
     NSWindow* native_window = window->m_data->native_window;
-    MetalView* view =
-        [[MetalView alloc] initWithFrame:native_window.contentView.bounds];
-    CAMetalLayer* layer = [CAMetalLayer layer];
-
-    layer.device = m_platform_data->device;
-    layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    layer.framebufferOnly = YES;
-    double scale = native_window.backingScaleFactor;
-    layer.contentsScale = scale;
-    // Prevent Core Animation from scaling the last drawable to fit the view
-    // during live window resizing.
-    layer.contentsGravity = kCAGravityTopLeft;
-    layer.drawableSize = CGSizeMake(view.bounds.size.width * scale,
-                                    view.bounds.size.height * scale);
-    view.wantsLayer = YES;
-    view.layer = layer;
-    native_window.contentView = view;
-    [view updateDrawableSize];
+    NSView* content_view = native_window.contentView;
+    MetalView* metal_view =
+        [[MetalView alloc] init_with_frame:content_view.bounds
+                                    device:m_platform_data->device];
+    [content_view addSubview:metal_view
+                  positioned:NSWindowAbove
+                  relativeTo:nil];
+    m_platform_data->metal_view = metal_view;
 }
 
 void Application::imgui_init_platform(Window* /* main_window */) {
@@ -117,10 +119,7 @@ void Application::imgui_init_platform(Window* /* main_window */) {
 }
 
 void Application::imgui_begin_frame_platform() {
-    NSWindow* native_window = main_window()->m_data->native_window;
-    NSView* view = native_window.contentView;
-    CAMetalLayer* layer = (CAMetalLayer*)view.layer;
-
+    CAMetalLayer* layer = m_platform_data->metal_view.metal_layer;
     m_platform_data->drawable = [layer nextDrawable];
     if (!m_platform_data->drawable) {
         std::cerr << "Error: Have no drawable\n";

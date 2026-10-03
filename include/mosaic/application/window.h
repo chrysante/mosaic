@@ -23,6 +23,10 @@ void set_window_titlebar_controls_hovered(Window& window, bool value);
 /// This is internal because all windows must be created through the application
 std::unique_ptr<Window> create_window(WindowDesc const& desc);
 
+using NativeEventHandler = void (*)(void*, void*);
+void install_native_mouse_event_handler(Window*, NativeEventHandler);
+NativeEventHandler get_native_mouse_event_handler(Window const*);
+
 } // namespace internal
 
 ///
@@ -77,6 +81,11 @@ private:
     internal::create_window(WindowDesc const&);
     friend void internal::set_window_titlebar_controls_hovered(Window& window,
                                                                bool value);
+    friend void
+    internal::install_native_mouse_event_handler(Window*,
+                                                 internal::NativeEventHandler);
+    friend internal::NativeEventHandler
+    internal::get_native_mouse_event_handler(Window const*);
 
     Window(WindowDesc const& desc);
 

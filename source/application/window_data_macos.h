@@ -16,6 +16,7 @@ struct Window::Data {
     NSWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;
     bool is_live_moving = false;
+    internal::NativeEventHandler native_mouse_event_handler = nullptr;
 };
 
 } // namespace mosaic

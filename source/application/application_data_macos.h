@@ -1,5 +1,7 @@
 #pragma once
 
+#import <Metal/Metal.h>
+
 #include "application/application.h"
 
 #import <AppKit/NSApplication.h>
@@ -18,12 +20,17 @@
 }
 @end
 
+@interface MetalView : NSView
+@property(nonatomic, readonly) CAMetalLayer* metal_layer;
+@end
+
 namespace mosaic {
 
 struct Application::PlatformData {
     NSApplication* app = nil;
     CADisplayLink* display_link = nil;
     DisplayLinkTarget* display_link_target = nil;
+    MetalView* metal_view;
 
     id<MTLDevice> device = nil;
     id<MTLCommandQueue> command_queue = nil;
