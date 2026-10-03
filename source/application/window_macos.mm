@@ -1,6 +1,5 @@
 #include "application/window.h"
 
-#include <AppKit/AppKit.h>
 #include <memory>
 
 #import <AppKit/NSButton.h>
@@ -33,6 +32,34 @@ WindowImplMacOS::get_native_mouse_event_handler(Window const& window) {
 
 std::unique_ptr<WindowImpl> WindowImpl::create_impl() {
     return std::make_unique<WindowImplMacOS>();
+}
+
+static void append_view_hierarchy(NSView* view, std::ostringstream& out,
+                                  int depth) {
+    if (!view) return;
+    std::string indent(depth * 2, ' ');
+    NSRect frame = view.frame;
+    out << indent << NSStringFromClass(view.class).UTF8String << " frame=("
+        << frame.origin.x << ", " << frame.origin.y << ", " << frame.size.width
+        << ", " << frame.size.height << ")";
+    if (view.hidden) out << " [hidden]";
+    if (view.alphaValue != 1.0) out << " [alpha=" << view.alphaValue << "]";
+    if (view.isOpaque) out << " [opaque]";
+    out << "\n";
+    for (NSView* subview in view.subviews)
+        append_view_hierarchy(subview, out, depth + 1);
+}
+
+static std::string view_hierarchy_description(NSWindow* window) {
+    std::ostringstream out;
+    if (!window) return "<null window>";
+    out << "Window: " << NSStringFromClass(window.class).UTF8String << "\n";
+    if (window.contentView) append_view_hierarchy(window.contentView, out, 0);
+    return out.str();
+}
+
+std::string WindowImpl::get_native_debug_string(Window const& window) {
+    return view_hierarchy_description(GET_WINDOW_IMPL(window).native_window);
 }
 
 // =============================================================================

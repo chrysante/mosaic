@@ -5,6 +5,7 @@
 #include "application/application.h"
 #include "application/application_data.h"
 #include "application/window.h"
+#include "application/window_impl.h"
 
 using namespace mosaic;
 
@@ -69,6 +70,11 @@ static void display_window_info(Window const* window) {
     // There isn't a visibility accessor in Window, so leave this
     // out unless you want to add one to the Window interface.
     ImGui::TextDisabled("-");
+    ImGui::TableSetColumnIndex(8);
+    // There isn't a visibility accessor in Window, so leave this
+    // out unless you want to add one to the Window interface.
+    ImGui::TextUnformatted(
+        internal::WindowImpl::get_native_debug_string(*window).c_str());
 }
 
 void Application::Debugger::display_window_debugger() {
@@ -77,7 +83,7 @@ void Application::Debugger::display_window_debugger() {
     ImGui::SameLine();
     ImGui::TextDisabled("(%zu)", windows.size());
     ImGui::Separator();
-    if (ImGui::BeginTable("Windows", 8,
+    if (ImGui::BeginTable("Windows", 9,
                           ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                               ImGuiTableFlags_Resizable |
                               ImGuiTableFlags_SizingStretchProp |
@@ -90,6 +96,7 @@ void Application::Debugger::display_window_debugger() {
         ImGui::TableSetupColumn("Viewport");
         ImGui::TableSetupColumn("Viewport Pos");
         ImGui::TableSetupColumn("Visible");
+        ImGui::TableSetupColumn("Native");
         ImGui::TableHeadersRow();
         for (auto& window : windows)
             display_window_info(window.get());

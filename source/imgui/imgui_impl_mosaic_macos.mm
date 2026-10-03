@@ -1225,8 +1225,7 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     }
 
     NSWindow* ns_window = (__bridge NSWindow*)window->native_handle();
-
-    ns_window.contentView = view;
+    [ns_window.contentView addSubview:view];
 
     vd->window = window;
     vd->NativeWindow = ns_window;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "application/window.h"
 
@@ -12,6 +13,8 @@ struct internal::WindowImpl {
     static std::unique_ptr<Window> create_window(WindowDesc const& desc);
 
     static void set_titlebar_controls_hovered(Window& window, bool value);
+
+    static std::string get_native_debug_string(Window const& window);
 
     virtual ~WindowImpl() = default;
 
