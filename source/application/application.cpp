@@ -139,8 +139,6 @@ void Application::do_run() { platform_run(); }
 
 void Application::on_input(InputEvent event, void* native_event) {
     input_update(m_data->input, event);
-    for (auto& window : m_data->windows)
-        window->on_input(event, native_event);
     m_data->command_palette.on_input(event);
     m_data->service_context.m_event_system->publish(event);
 }

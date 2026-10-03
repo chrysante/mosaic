@@ -68,8 +68,6 @@ private:
 
     void platform_constructor(WindowDesc const& desc);
 
-    void on_input(InputEvent& input_event, void* native_event);
-
     void apply_style();
 
     std::unique_ptr<internal::WindowImpl> m_impl;
