@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mosaic/application/input_event2.h>
 #include <mosaic/application/window_desc.h>
 
 namespace mosaic {
@@ -7,7 +8,6 @@ namespace mosaic {
 class Application;
 class CommandPalette;
 class Input;
-class InputEvent;
 class ServiceContext;
 class Window;
 
@@ -92,7 +92,7 @@ private:
 
     void do_run();
 
-    void on_input(InputEvent event, void* native_event);
+    void on_input(InputEventUnion const& event);
 
     void do_frame();
 

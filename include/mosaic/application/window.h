@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
 #include <vml/vml.hpp>
 
@@ -11,7 +10,7 @@
 
 namespace mosaic {
 
-class InputEvent;
+struct InputEvent;
 
 namespace internal { struct WindowImpl; }
 

@@ -10,7 +10,7 @@
 #include "application/application_data.h"
 #include "application/application_debugger.h"
 #include "application/input.h"
-#include "application/input_event.h"
+#include "application/input_event2.h"
 #include "application/input_internal.h"
 #include "application/window.h"
 #include "application/window_delegate.h"
@@ -62,6 +62,7 @@ Application::~Application() {
 
 Window* Application::create_window(WindowDesc const& desc) {
     auto window = internal::WindowImpl::create_window(desc);
+    register_window_for_input(*window);
     auto* result = window.get();
     m_data->windows.push_back(std::move(window));
     return result;
@@ -153,10 +154,13 @@ void internal::run_one_frame(Application& app) {
 
 void Application::do_run() { platform_run(); }
 
-void Application::on_input(InputEvent event, void* native_event) {
-    input_update(m_data->input, event);
-    m_data->command_palette.on_input(event);
+void Application::on_input(InputEventUnion const& event) {
+    input_update(m_data->input, event.base());
+    m_data->command_palette.on_input(event.base());
     m_data->service_context.m_event_system->publish(event);
+#ifndef NDEBUG
+    m_debugger->on_input(event);
+#endif
 }
 
 void Application::do_frame() {

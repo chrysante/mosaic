@@ -6,7 +6,6 @@
 #import <AppKit/NSToolbar.h>
 #import <AppKit/NSWindow.h>
 
-#include "application/input_event.h"
 #include "application/window_desc.h"
 #include "application/window_impl_macos.h"
 
@@ -20,14 +19,11 @@ using internal::WindowImplMacOS;
 // WindowImplMacOS
 // =============================================================================
 
-void WindowImplMacOS::install_native_mouse_event_handler(
+void WindowImplMacOS::add_native_event_handler(
     Window& window, NativeEventHandler event_handler) {
-    GET_WINDOW_IMPL(window).native_mouse_event_handler = event_handler;
-}
-
-internal::NativeEventHandler const&
-WindowImplMacOS::get_native_mouse_event_handler(Window const& window) {
-    return GET_WINDOW_IMPL(window).native_mouse_event_handler;
+    assert(event_handler);
+    GET_WINDOW_IMPL(window).native_event_handlers.push_back(
+        std::move(event_handler));
 }
 
 std::unique_ptr<WindowImpl> WindowImpl::create_impl() {
@@ -186,8 +182,9 @@ static void handle_window_drag_end(Window& window, NSEvent* event) {
 }
 
 static void forward_event(Window const* window, NSEvent* event) {
-    auto& handler = GET_WINDOW_IMPL(*window).native_mouse_event_handler;
-    if (handler) handler(event);
+    auto& handlers = GET_WINDOW_IMPL(*window).native_event_handlers;
+    for (auto& handler : handlers)
+        handler(event);
 }
 
 @interface WindowContentView : NSView

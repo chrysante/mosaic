@@ -8,7 +8,7 @@
 #include <vml/vml.hpp>
 
 #include "application/application.h"
-#include "application/input_event.h"
+#include "application/input_event2.h"
 #include "application/window.h"
 #include "gui/view.h"
 #include "gui/view_registry.h"
@@ -134,6 +134,7 @@ void ViewManager::display() {
 }
 
 bool ViewManager::on_input(InputEvent& event) {
+#if 0
     /// Give to focused view
     if (auto* focused = focused_view()) {
         focused->do_on_input(event);
@@ -145,6 +146,7 @@ bool ViewManager::on_input(InputEvent& event) {
         view->do_on_input(event);
         if (event.handled()) return true;
     }
+#endif
     return false;
 }
 

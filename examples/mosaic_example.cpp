@@ -6,7 +6,6 @@
 
 #include <mosaic/application/application.h>
 #include <mosaic/application/input.h>
-#include <mosaic/application/input_event.h>
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
@@ -42,11 +41,6 @@ public:
     ExampleApp()
         : event_receiver(service_context().make_event_receiver())
         , event_emitter(service_context().make_event_emitter()) {
-        event_receiver.listen([this](InputEvent& e) {
-            e.handle<InputEventMask::key_down>([this](KeyEvent event) {
-                text = std::to_string((int)event.key);
-            });
-        });
         // clang-format off
         command_palette().add({
             .name = "My Command",

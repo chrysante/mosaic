@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include "application/input_event2.h"
 #include "support/logger.h"
 
 using namespace mosaic;
@@ -54,18 +55,23 @@ Command const* CommandPalette::find(std::string_view name) const {
     return &itr->second;
 }
 
-void CommandPalette::on_input(InputEvent& event) const {
-    event.handle<InputEventMask::key_down>([&](KeyEvent const& event) {
-        auto listItr = m_key_map.find(event.key);
-        if (listItr == m_key_map.end()) return false;
-        auto& list = listItr->second;
-        /// Sometimes numlock gets set even if not held
-        auto mod_flags = event.modifier_flags & ~ModFlags::num_lock;
-        auto itr = std::find_if(list.begin(), list.end(), [&](auto& p) {
-            return p.mod_flags == mod_flags;
-        });
-        if (itr == list.end()) return false;
-        if (itr->command.enabled()) itr->command.execute();
-        return true;
+void CommandPalette::on_input(InputEvent const& event) const {
+    // clang-format off
+    csp::visit(event, csp::overload {
+        [&](KeyDownEvent const& event) {
+            auto list_itr = m_key_map.find(event.key);
+            if (list_itr == m_key_map.end()) return false;
+            auto& list = list_itr->second;
+            /// Sometimes numlock gets set even if not held
+            auto mod_flags = event.modifier_flags & ~ModFlags::num_lock;
+            auto itr = std::find_if(list.begin(), list.end(), [&](auto& p) {
+                return p.mod_flags == mod_flags;
+            });
+            if (itr == list.end()) return false;
+            if (itr->command.enabled()) itr->command.execute();
+            return true;
+        },
+        [&](InputEvent const&) { return false; },
     });
+    // clang-format on
 }

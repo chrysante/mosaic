@@ -6,7 +6,7 @@
 #include <utl/hashtable.hpp>
 
 #include <mosaic/application/input.h>
-#include <mosaic/application/input_event.h>
+#include <mosaic/application/input_event2.h>
 
 namespace mosaic {
 
@@ -37,23 +37,17 @@ public:
         , m_enabled(std::move(desc.enabled)) {}
 
     /// \returns the name of this command
-    std::string const& name() const {
-        return m_name;
-    }
+    std::string const& name() const { return m_name; }
 
     /// \returns the associated key combination
-    KeyCombination key_combination() const {
-        return m_key_comb;
-    }
+    KeyCombination key_combination() const { return m_key_comb; }
 
     /// Performs the command
     /// \pre `enabled()` must return `true`
     void execute() const;
 
     /// \returns `true` if this command can be executed
-    bool enabled() const {
-        return !m_enabled || m_enabled();
-    }
+    bool enabled() const { return !m_enabled || m_enabled(); }
 
 private:
     friend class CommandPalette;
@@ -99,7 +93,7 @@ private:
     };
 
     ///
-    void on_input(InputEvent& event) const;
+    void on_input(InputEvent const& event) const;
 
     /// This is a node hashmap because we give out pointers to elements
     utl::node_hashmap<std::string, Command> m_name_map;

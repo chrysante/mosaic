@@ -6,7 +6,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 
-#include "application/input_event.h"
+#include "application/input_event2.h"
 #include "application/window.h"
 #include "application/window_impl.h"
 #include "gui/view_registry.h"
@@ -247,6 +247,7 @@ void View::display_toolbar() {
 }
 
 void View::do_on_input(InputEvent& event) {
+#if 0
     using enum InputEventMask;
     event.handle<mouse_down>([&](MouseEvent const&) {
         m_input_state.capture = m_input_state.hovered;
@@ -258,6 +259,8 @@ void View::do_on_input(InputEvent& event) {
         return;
     if (test(event.type() & key) && !focused()) return;
     m_command_palette.on_input(event);
+
+#endif
 }
 
 YAML::Node View::do_serialize() const {

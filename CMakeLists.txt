@@ -80,6 +80,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(utility)
 
+# utility
+FetchContent_Declare(
+    csp
+    GIT_REPOSITORY https://github.com/chrysante/csp.git
+    GIT_TAG v0.0.2
+)
+FetchContent_MakeAvailable(csp)
+
 # termfmt
 FetchContent_Declare(
     termfmt
@@ -160,6 +168,7 @@ target_link_libraries(mosaic
     PUBLIC
         vml
         utility
+        csp
         ImGui
         magic_enum
         yaml-cpp::yaml-cpp

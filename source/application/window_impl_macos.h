@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <type_traits>
+#include <vector>
 
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSWindow.h>
@@ -29,15 +30,12 @@ using NativeEventHandler = std::function<void(NSEvent*)>;
 #define WINDOW_IMPL GET_WINDOW_IMPL(*this)
 
 struct WindowImplMacOS : WindowImpl {
-    static void install_native_mouse_event_handler(Window&, NativeEventHandler);
-
-    static NativeEventHandler const&
-    get_native_mouse_event_handler(Window const&);
+    static void add_native_event_handler(Window&, NativeEventHandler);
 
     NSWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;
     bool is_live_moving = false;
-    NativeEventHandler native_mouse_event_handler = nullptr;
+    std::vector<NativeEventHandler> native_event_handlers;
 };
 
 } // namespace mosaic::internal

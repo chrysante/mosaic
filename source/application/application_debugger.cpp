@@ -1,11 +1,14 @@
 #include "application/application_debugger.h"
 
+#include <ranges>
+
 #include <imgui.h>
 
 #include "application/application.h"
 #include "application/application_data.h"
 #include "application/window.h"
 #include "application/window_impl.h"
+#include "magic_enum/magic_enum.hpp"
 
 using namespace mosaic;
 
@@ -16,9 +19,23 @@ void Application::Debugger::display() {
         ImGui::End();
         return;
     }
-    display_window_debugger();
+    if (ImGui::BeginTabBar("DebuggerTabs")) {
+        if (ImGui::BeginTabItem("Windows")) {
+            display_window_debugger();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Input Events")) {
+            display_event_debugger();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
     ImGui::End();
 }
+
+// =============================================================================
+// Window Debugger
+// =============================================================================
 
 static void display_window_info(Window const* window) {
     if (!window) {
@@ -102,4 +119,141 @@ void Application::Debugger::display_window_debugger() {
             display_window_info(window.get());
         ImGui::EndTable();
     }
+}
+
+// =============================================================================
+// Event Debugger
+// =============================================================================
+
+static void display_modifiers(InputEvent const& event) {
+    ImGui::TableSetColumnIndex(10);
+    std::string text = to_string(event.modifier_flags);
+    ImGui::TextUnformatted(text.data(), text.data() + text.size());
+}
+
+static void display_mouse_event_base(const MouseEvent& event) {
+    ImGui::TableSetColumnIndex(2);
+    ImGui::Text("(%.1f, %.1f)", event.location_in_window.x,
+                event.location_in_window.y);
+    ImGui::TableSetColumnIndex(3);
+    ImGui::Text("(%.1f, %.1f)", event.location_on_screen.x,
+                event.location_on_screen.y);
+}
+
+static void display_event(MouseDownEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(5);
+    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
+                           : event.button == MouseButton::right ? "Right"
+                                                                : "Other");
+    ImGui::TableSetColumnIndex(7);
+    ImGui::Text("%ld", event.click_count);
+    display_modifiers(event);
+}
+
+void display_event(MouseUpEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(5);
+    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
+                           : event.button == MouseButton::right ? "Right"
+                                                                : "Other");
+    display_modifiers(event);
+}
+
+static void display_event(MouseDragEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(4);
+    ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
+    ImGui::TableSetColumnIndex(5);
+    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
+                           : event.button == MouseButton::right ? "Right"
+                                                                : "Other");
+    display_modifiers(event);
+}
+
+void display_event(MouseMoveEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(4);
+    ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
+    display_modifiers(event);
+}
+
+void display_event(ScrollEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(4);
+    ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
+    ImGui::TableSetColumnIndex(9);
+    ImGui::TextUnformatted(event.is_trackpad ? "Trackpad" : "Mouse");
+    display_modifiers(event);
+}
+
+static void display_event(MagnificationEvent const& event) {
+    display_mouse_event_base(event);
+    ImGui::TableSetColumnIndex(4);
+    ImGui::Text("%.3f", event.magnification);
+    display_modifiers(event);
+}
+
+static void display_event(KeyDownEvent const& event) {
+    ImGui::TableSetColumnIndex(6);
+    ImGui::Text("%d", static_cast<int>(event.key));
+    ImGui::TableSetColumnIndex(8);
+    ImGui::Text("%d", event.repeat_count);
+    display_modifiers(event);
+}
+
+static void display_event(KeyUpEvent const& event) {
+    ImGui::TableSetColumnIndex(6);
+    ImGui::Text("%d", static_cast<int>(event.key));
+    display_modifiers(event);
+}
+
+void Application::Debugger::display_event_debugger() {
+    ImGui::Text("Events: %zu", m_input_queue.size());
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) m_input_queue.clear();
+    ImGui::Separator();
+
+    constexpr ImGuiTableFlags table_flags =
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+        ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
+
+    if (!ImGui::BeginTable("InputEvents", 11, table_flags)) return;
+
+    ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 35.0f);
+    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 135.0f);
+    ImGui::TableSetupColumn("Window", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+    ImGui::TableSetupColumn("Screen", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+    ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+    ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+    ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+    ImGui::TableSetupColumn("Clicks", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+    ImGui::TableSetupColumn("Repeat", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+    ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+    ImGui::TableSetupColumn("Modifiers", ImGuiTableColumnFlags_WidthFixed,
+                            120.0f);
+
+    ImGui::TableHeadersRow();
+    std::size_t index = 0;
+    for (auto const& event : m_input_queue | std::views::reverse) {
+        ImGui::TableNextRow();
+
+        // Index
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Text("%zu", index++);
+
+        // ---------------------------------------------------------
+        // Event-specific information
+        // ---------------------------------------------------------
+        ImGui::TableSetColumnIndex(1);
+        std::string_view type_name =
+            magic_enum::enum_name(get_rtti(event.base()));
+        ImGui::TextUnformatted(type_name.data(),
+                               type_name.data() + type_name.size());
+        csp::visit(event.base(),
+                   [](auto const& event) { display_event(event); });
+    }
+
+    ImGui::EndTable();
 }

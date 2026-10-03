@@ -569,7 +569,7 @@ static ImGuiKey ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(int key_code) {
 }
 
 static void install_mouse_event_handler(mosaic::Window& window, NSView* view) {
-    mosaic::internal::WindowImplMacOS::install_native_mouse_event_handler(
+    mosaic::internal::WindowImplMacOS::add_native_event_handler(
         window, [=](NSEvent* event) {
             ImGui_Impl_Mosaic_MacOS_HandleEvent(event, view);
         });

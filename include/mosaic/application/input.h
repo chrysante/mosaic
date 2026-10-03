@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iosfwd>
+#include <string>
 
 #include <utl/common.hpp>
 #include <vml/vml.hpp>
@@ -11,7 +12,7 @@
 namespace mosaic {
 
 class Window;
-class InputEvent;
+struct InputEvent;
 
 /// Flags type to indicate if modifier keys are pressed
 enum class ModFlags : unsigned {
@@ -23,6 +24,8 @@ enum class ModFlags : unsigned {
     super = 1u << 4,
     num_lock = 1u << 5,
 };
+
+std::string to_string(ModFlags flags);
 
 std::ostream& operator<<(std::ostream& ostream, ModFlags flags);
 
@@ -155,22 +158,16 @@ enum struct MouseButton {
 class MOSAIC_EXPORT Input {
 public:
     /// \Returns the current mouse position in screen coordinates
-    vml::float2 mouse_position() const {
-        return m_mouse_position;
-    }
+    vml::float2 mouse_position() const { return m_mouse_position; }
 
     /// \Returns the current mouse position in the coordinates of \p window
     vml::float2 mouse_position_in_window(Window const& window) const;
 
     /// \Returns the offset between the mouse position this frame and last frame
-    vml::float2 mouse_offset() const {
-        return m_mouse_offset;
-    }
+    vml::float2 mouse_offset() const { return m_mouse_offset; }
 
     /// \Returns the current scroll offset
-    vml::float2 scroll_offset() const {
-        return m_scroll_offset;
-    }
+    vml::float2 scroll_offset() const { return m_scroll_offset; }
 
     /// \Returns `true` if \p button is currently pressed
     bool mouse_down(MouseButton button) const {
@@ -178,14 +175,10 @@ public:
     }
 
     /// \Returns `true` if \p Key is currently pressed
-    bool key_down(Key key) const {
-        return m_key_down[(size_t)key];
-    }
+    bool key_down(Key key) const { return m_key_down[(size_t)key]; }
 
     /// \Returns a bitfield of the currently pressed modifier keys
-    ModFlags mod_flags() const {
-        return m_mod_flags;
-    }
+    ModFlags mod_flags() const { return m_mod_flags; }
 
     struct Impl;
 
