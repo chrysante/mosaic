@@ -153,6 +153,38 @@ static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
     return style_mask;
 }
 
+static bool is_in_titlebar(Window& window, NSEvent* event) {
+    if (event.window.frame.size.height - event.locationInWindow.y >
+        window.titlebar_height())
+        return false;
+    return !GET_WINDOW_IMPL(window).titlebar_controls_hovered;
+}
+
+static bool handle_window_drag_begin(Window& window, NSEvent* event) {
+    auto* ns_window = GET_WINDOW_IMPL(window).native_window;
+    if (event.window != ns_window) return false;
+    assert(event.type == NSEventTypeLeftMouseDown);
+    if (!is_in_titlebar(window, event)) return false;
+    switch (event.clickCount) {
+    case 1:
+        [ns_window performWindowDragWithEvent:event];
+        GET_WINDOW_IMPL(window).is_live_moving = true;
+        return true;
+    case 2:
+        window.zoom();
+        return true;
+    default:
+        return false;
+    }
+    return false;
+}
+
+static void handle_window_drag_end(Window& window, NSEvent* event) {
+    assert(event.type == NSEventTypeLeftMouseUp);
+    if (GET_WINDOW_IMPL(window).is_live_moving)
+        GET_WINDOW_IMPL(window).is_live_moving = false;
+}
+
 static void forward_event(Window const* window, NSEvent* event) {
     auto& handler = GET_WINDOW_IMPL(*window).native_mouse_event_handler;
     if (handler) handler(event);
@@ -173,7 +205,12 @@ static void forward_event(Window const* window, NSEvent* event) {
 }
 
 - (void)mouseDown:(NSEvent*)event {
+    if (handle_window_drag_begin(*_mosaic_window, event)) return;
     forward_event(_mosaic_window, event);
+}
+
+- (void)mouseUp:(NSEvent*)event {
+    handle_window_drag_end(*_mosaic_window, event);
 }
 
 - (void)rightMouseDown:(NSEvent*)event {
@@ -285,40 +322,6 @@ void Window::set_focused() {
 
 void* Window::native_handle() {
     return (__bridge void*)WINDOW_IMPL.native_window;
-}
-
-static bool is_in_titlebar(Window& window, NSEvent* event) {
-    return event.window.frame.size.height - event.locationInWindow.y <=
-           window.titlebar_height();
-}
-
-static bool is_titlebar_mouse_down(Window& window, NSEvent* event) {
-    return event.type == NSEventTypeLeftMouseDown &&
-           !GET_WINDOW_IMPL(window).titlebar_controls_hovered &&
-           is_in_titlebar(window, event);
-}
-
-void Window::on_input(InputEvent&, void* native_event) {
-    @autoreleasepool {
-        NSEvent* ns_event = (__bridge NSEvent*)native_event;
-        auto* ns_window = WINDOW_IMPL.native_window;
-        if (ns_event.window != ns_window) return;
-        if (is_titlebar_mouse_down(*this, ns_event)) {
-            switch (ns_event.clickCount) {
-            case 1:
-                [ns_window performWindowDragWithEvent:ns_event];
-                WINDOW_IMPL.is_live_moving = true;
-                break;
-            case 2:
-                zoom();
-                break;
-            default:
-                break;
-            }
-        }
-        if (ns_event.type == NSEventTypeLeftMouseUp)
-            WINDOW_IMPL.is_live_moving = false;
-    }
 }
 
 void Window::apply_style() {
