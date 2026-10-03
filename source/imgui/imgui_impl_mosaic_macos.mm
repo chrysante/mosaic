@@ -1089,21 +1089,15 @@ static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view) {
     if (bd->Monitor) return;
     NSEventMask eventMask = 0;
     // We receive the mouse down events from the view to get proper hit-testing
-    // view native UI elements first.
+    // of native UI elements first.
     eventMask |= NSEventMaskMouseMoved;
-    eventMask |= NSEventMaskLeftMouseUp | NSEventMaskLeftMouseDragged;
-    eventMask |= NSEventMaskRightMouseUp | NSEventMaskRightMouseDragged;
-    eventMask |= NSEventMaskOtherMouseUp | NSEventMaskOtherMouseDragged;
-    eventMask |=
-        NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
-    bd->Monitor = [NSEvent
-        addLocalMonitorForEventsMatchingMask:eventMask
-                                     handler:^NSEvent* _Nullable(
-                                         NSEvent* event) {
-                                       ImGui_Impl_Mosaic_MacOS_HandleEvent(
-                                           event, view);
-                                       return event;
-                                     }];
+    eventMask |= NSEventMaskFlagsChanged;
+    auto handler = ^NSEvent* _Nullable(NSEvent* event) {
+        ImGui_Impl_Mosaic_MacOS_HandleEvent(event, view);
+        return event;
+    };
+    bd->Monitor = [NSEvent addLocalMonitorForEventsMatchingMask:eventMask
+                                                        handler:handler];
 }
 
 //--------------------------------------------------------------------------------------------------------

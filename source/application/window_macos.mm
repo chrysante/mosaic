@@ -195,36 +195,50 @@ static void forward_event(Window const* window, NSEvent* event) {
 @end
 
 @implementation WindowContentView
-
 - (BOOL)acceptsFirstMouse:(NSEvent*)event {
     return YES;
 }
-
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
 - (void)scrollWheel:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
-
 - (void)mouseDown:(NSEvent*)event {
     if (handle_window_drag_begin(*_mosaic_window, event)) return;
     forward_event(_mosaic_window, event);
 }
-
 - (void)mouseUp:(NSEvent*)event {
     handle_window_drag_end(*_mosaic_window, event);
+    forward_event(_mosaic_window, event);
 }
-
+- (void)mouseDragged:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
 - (void)rightMouseDown:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
-
+- (void)rightMouseUp:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
+- (void)rightMouseDragged:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
 - (void)otherMouseDown:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
-
-- (BOOL)acceptsFirstResponder {
-    return YES;
+- (void)otherMouseUp:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
 }
-
+- (void)otherMouseDragged:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
+- (void)keyDown:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
+- (void)keyUp:(NSEvent*)event {
+    forward_event(_mosaic_window, event);
+}
 @end
 
 void Window::platform_constructor(WindowDesc const& desc) {
