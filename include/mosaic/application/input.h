@@ -33,7 +33,7 @@ UTL_ENUM_OPERATORS(ModFlags);
 
 /// All known keyboard keys
 enum class Key {
-    none = 0,
+    none,
     A,
     S,
     D,
@@ -114,10 +114,10 @@ enum class Key {
     left_shift,
     left_alt,
     left_super,
-    Right_ctrl,
-    Right_shift,
-    Right_alt,
-    Right_super,
+    right_ctrl,
+    right_shift,
+    right_alt,
+    right_super,
     F1,
     F2,
     F3,
