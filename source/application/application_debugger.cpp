@@ -28,6 +28,10 @@ void Application::Debugger::display() {
             display_event_debugger();
             ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("Input")) {
+            display_input_debugger();
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
     ImGui::End();
@@ -256,4 +260,149 @@ void Application::Debugger::display_event_debugger() {
     }
 
     ImGui::EndTable();
+}
+
+// =============================================================================
+// Input Debugger
+// =============================================================================
+
+void Application::Debugger::display_input_debugger() {
+    Input const& input = application->input();
+    // -------------------------------------------------------------------------
+    // Mouse
+    // -------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Mouse", ImGuiTreeNodeFlags_DefaultOpen)) {
+        vml::float2 const mouse_pos = input.mouse_position();
+        vml::float2 const mouse_offset = input.mouse_offset();
+        vml::float2 const scroll = input.scroll_offset();
+
+        ImGui::Text("Position");
+        ImGui::SameLine(150.0f);
+        ImGui::Text("(%.1f, %.1f)", mouse_pos.x, mouse_pos.y);
+
+        ImGui::Text("Offset");
+        ImGui::SameLine(150.0f);
+        ImGui::TextColored((mouse_offset.x != 0.0f || mouse_offset.y != 0.0f)
+                               ? ImVec4(1.0f, 0.8f, 0.2f, 1.0f)
+                               : ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                           "(%.1f, %.1f)", mouse_offset.x, mouse_offset.y);
+
+        ImGui::Text("Scroll");
+        ImGui::SameLine(150.0f);
+        ImGui::TextColored((scroll.x != 0.0f || scroll.y != 0.0f)
+                               ? ImVec4(0.3f, 0.8f, 1.0f, 1.0f)
+                               : ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                           "(%.1f, %.1f)", scroll.x, scroll.y);
+
+        ImGui::Spacing();
+
+        // Mouse buttons
+        ImGui::Text("Buttons");
+        ImGui::Separator();
+        for (size_t i = 0; i < enum_count<MouseButton>; ++i) {
+            MouseButton button = static_cast<MouseButton>(i);
+            auto button_name = to_string(button);
+            ImGui::TextUnformatted(button_name.data(),
+                                   button_name.data() + button_name.size());
+            if (input.mouse_down(button)) {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImVec4(0.3f, 1.0f, 0.4f, 1.0f));
+                ImGui::Text("[DOWN]");
+                ImGui::PopStyleColor();
+            }
+        }
+    }
+
+    ImGui::Spacing();
+
+    // -------------------------------------------------------------------------
+    // Keyboard
+    // -------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Modifiers");
+        ImGui::Separator();
+        auto modifier = [](bool active, char const* name) {
+            ImGui::SameLine(0.0f, 8.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  active ? ImVec4(0.2f, 0.55f, 0.3f, 1.0f)
+                                         : ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  active ? ImVec4(0.25f, 0.65f, 0.35f, 1.0f)
+                                         : ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+            ImGui::SmallButton(name);
+            ImGui::PopStyleColor(2);
+        };
+        ModFlags const mods = input.mod_flags();
+        modifier((mods & ModFlags::caps_lock) != ModFlags::none, "Caps Lock");
+        modifier((mods & ModFlags::shift) != ModFlags::none, "Shift");
+        modifier((mods & ModFlags::control) != ModFlags::none, "Ctrl");
+        modifier((mods & ModFlags::alt) != ModFlags::none, "Alt");
+        modifier((mods & ModFlags::super) != ModFlags::none, "Super");
+        modifier((mods & ModFlags::num_lock) != ModFlags::none, "Num Lock");
+
+        ImGui::Spacing();
+
+        ImGui::Text("Flags");
+        ImGui::SameLine(150.0f);
+        ImGui::Text("%s", to_string(mods).c_str());
+
+        ImGui::Spacing();
+        ImGui::Text("Pressed keys");
+        ImGui::Separator();
+
+        bool any_key_down = false;
+
+        // Again, this assumes enum_count<Key> can be used as the number
+        // of values in the Key enum.
+        for (size_t i = 0; i < enum_count<Key>; ++i) {
+            Key key = static_cast<Key>(i);
+            if (!input.key_down(key)) continue;
+            any_key_down = true;
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.3f, 1.0f, 0.4f, 1.0f));
+            ImGui::Bullet();
+            ImGui::SameLine();
+            ImGui::Text("Key %zu", i);
+            ImGui::PopStyleColor();
+        }
+
+        if (!any_key_down) ImGui::TextDisabled("No keys pressed");
+    }
+
+    ImGui::Spacing();
+
+    // -------------------------------------------------------------------------
+    // Activity indicator
+    // -------------------------------------------------------------------------
+    bool const mouse_moved =
+        input.mouse_offset().x != 0.0f || input.mouse_offset().y != 0.0f;
+
+    bool const scrolled =
+        input.scroll_offset().x != 0.0f || input.scroll_offset().y != 0.0f;
+
+    bool any_mouse_down = false;
+    for (size_t i = 0; i < enum_count<MouseButton>; ++i) {
+        if (input.mouse_down(static_cast<MouseButton>(i))) {
+            any_mouse_down = true;
+            break;
+        }
+    }
+
+    bool any_key_down = false;
+    for (size_t i = 0; i < enum_count<Key>; ++i) {
+        if (input.key_down(static_cast<Key>(i))) {
+            any_key_down = true;
+            break;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Input activity");
+
+    ImGui::SameLine();
+
+    if (mouse_moved || scrolled || any_mouse_down || any_key_down)
+        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f), "ACTIVE");
+    else ImGui::TextDisabled("Idle");
 }

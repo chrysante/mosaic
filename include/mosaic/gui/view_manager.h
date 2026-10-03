@@ -13,7 +13,7 @@ namespace mosaic {
 class ServiceContext;
 class View;
 class ViewRegistryEntry;
-class InputEvent;
+struct InputEvent;
 
 /// Creates and destroys all `View` instances in the application
 class ViewManager {

@@ -15,7 +15,7 @@
 
 namespace mosaic {
 
-class InputEvent;
+struct InputEvent;
 class ServiceContext;
 class Window;
 

@@ -33,6 +33,22 @@ std::ostream& mosaic::operator<<(std::ostream& str, ModFlags flags) {
     return str << to_string(flags);
 }
 
+std::string MOSAIC_EXPORT mosaic::to_string(MouseButton button) {
+    switch (button) {
+    case MouseButton::left:
+        return "left";
+    case MouseButton::right:
+        return "right";
+    case MouseButton::other:
+        return "other";
+    }
+}
+
+std::ostream& MOSAIC_EXPORT mosaic::operator<<(std::ostream& str,
+                                               MouseButton button) {
+    return str << to_string(button);
+}
+
 vml::float2 Input::mouse_position_in_window(Window const& window) const {
     return mouse_position() - window.position();
 }

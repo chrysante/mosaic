@@ -25,9 +25,9 @@ enum class ModFlags : unsigned {
     num_lock = 1u << 5,
 };
 
-std::string to_string(ModFlags flags);
+std::string MOSAIC_EXPORT to_string(ModFlags flags);
 
-std::ostream& operator<<(std::ostream& ostream, ModFlags flags);
+std::ostream& MOSAIC_EXPORT operator<<(std::ostream& ostream, ModFlags flags);
 
 UTL_ENUM_OPERATORS(ModFlags);
 
@@ -146,11 +146,15 @@ enum class Key {
 
 /// List of all known mouse buttons
 enum struct MouseButton {
-    none = -1,
     left = 0,
     right = 1,
     other = 2,
 };
+
+std::string MOSAIC_EXPORT to_string(MouseButton button);
+
+std::ostream& MOSAIC_EXPORT operator<<(std::ostream& ostream,
+                                       MouseButton button);
 
 /// Utility class that captures all input and stores it for easy access during a
 /// frame. An object of this class is accessible via the application and can be

@@ -48,8 +48,8 @@ public:
 
 private:
     void display_window_debugger();
-
     void display_event_debugger();
+    void display_input_debugger();
 
     Application* application;
     FixedQueue<InputEventUnion> m_input_queue;
