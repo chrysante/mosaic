@@ -333,11 +333,6 @@ static NSEvent* handle_event(NSEvent* event) {
     case NSEventTypeKeyDown:
         g_callback_map.invoke_all(make_key_event(event));
         break;
-    case NSEventTypeApplicationDefined:
-        if ((internal::CocoaEventType)event.subtype ==
-            internal::CocoaEventType::window_shall_zoom)
-            [event.window zoom:nil];
-        break;
     default:
         break;
     }

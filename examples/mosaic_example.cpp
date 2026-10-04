@@ -45,7 +45,7 @@ public:
         command_palette().add({
             .name = "My Command",
             .key_comb = {.key = Key::K, .mod_flags = ModFlags::control},
-            .command = [this] { text = "did run command"; }
+            .command = [this] { main_window()->zoom(); }
         });
         dockspace.set_left_toolbar({
             ToolbarIconButton("plus")

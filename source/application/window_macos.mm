@@ -307,19 +307,7 @@ vml::AABB<float, 2> Window::title_buttons_area() const {
 
 void Window::zoom() {
     @autoreleasepool {
-        NSWindow* window = WINDOW_IMPL.native_window;
-        NSEvent* event = [NSEvent
-            otherEventWithType:NSEventTypeApplicationDefined
-                      location:NSMakePoint(0, 0)
-                 modifierFlags:0
-                     timestamp:0
-                  windowNumber:window.windowNumber
-                       context:nil
-                       subtype:(short)
-                                   internal::CocoaEventType::window_shall_zoom
-                         data1:0
-                         data2:0];
-        [NSApp postEvent:event atStart:YES];
+        [WINDOW_IMPL.native_window zoom:nil];
     }
 }
 
