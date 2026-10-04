@@ -158,7 +158,15 @@ void ApplicationImpl::imgui_begin_frame() {
     ImGui::NewFrame();
 }
 
+void ApplicationImpl::imgui_copy_item_hovered_to_windows() {
+    bool item_hovered = ImGui::IsAnyItemHovered();
+    for (auto& window : windows)
+        internal::WindowImpl::set_titlebar_controls_hovered(*window,
+                                                            item_hovered);
+}
+
 void ApplicationImpl::imgui_end_frame() {
+    imgui_copy_item_hovered_to_windows();
     ImGui::Render();
     imgui_end_frame_platform();
     ImGui::UpdatePlatformWindows();

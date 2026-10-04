@@ -35,6 +35,7 @@ struct internal::ApplicationImpl {
 
     void imgui_init();
     void imgui_begin_frame();
+    void imgui_copy_item_hovered_to_windows();
     void imgui_end_frame();
 
     virtual void imgui_init_platform() = 0;

@@ -182,13 +182,6 @@ static void toolbar_window(float2 position, float2 size,
     ImGui::End();
 }
 
-/// Simulates window titlebar behaviour on the toolbar background
-static void titlebar_behaviour(Window& window, float toolbar_height) {
-    if (toolbar_height <= 0) return;
-    internal::WindowImpl::set_titlebar_controls_hovered(
-        window, ImGui::IsAnyItemHovered());
-}
-
 static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,
                                                      unsigned main_dock_id) {
     auto potentialRects = [&] {
@@ -335,7 +328,6 @@ void Dockspace::display_toolbars(Window& window) {
     });
     assert(spacing.size() <= 2);
     toolbar_window(get_position(), {width, height}, [&] {
-        titlebar_behaviour(window, height);
         auto* toolbar_layout_fn =
             std::array{toolbar_layout_one, toolbar_layout_two,
                        toolbar_layout_three}[spacing.size()];
