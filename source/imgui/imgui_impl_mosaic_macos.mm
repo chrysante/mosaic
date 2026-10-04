@@ -849,6 +849,24 @@ static void ImGui_Impl_Mosaic_MacOS_UpdateImePosWithView(NSView* view) {
     if (io.WantTextInput) [bd->KeyEventResponder updateImePosWithView:view];
 }
 
+static void ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement() {
+    auto& g = *GImGui;
+    for (int i = 1; i < g.Viewports.size(); ++i) {
+        auto* viewport = g.Viewports[i];
+        mosaic::Window* window = (mosaic::Window*)viewport->PlatformHandle;
+        if (window && window->is_live_moving()) {
+            ImGui::FocusWindow(viewport->Window);
+            ImGui::SetActiveID(viewport->Window->MoveId, viewport->Window);
+            if (g.IO.ConfigNavCursorVisibleAuto) g.NavCursorVisible = false;
+            g.ActiveIdNoClearOnFocusLoss = true;
+            ImGui::SetActiveIdUsingAllKeyboardKeys();
+            g.MovingWindow = viewport->Window;
+            viewport->Flags |= ImGuiViewportFlags_NoInputs;
+            break;
+        }
+    }
+}
+
 void ImGui_Impl_Mosaic_MacOS_NewFrame(mosaic::Window& main_window) {
     NSWindow* ns_window = (__bridge NSWindow*)main_window.native_handle();
     NSView* view = ns_window.contentView;
@@ -877,6 +895,7 @@ void ImGui_Impl_Mosaic_MacOS_NewFrame(mosaic::Window& main_window) {
     ImGui_Impl_Mosaic_MacOS_UpdateMouseCursor();
     ImGui_Impl_Mosaic_MacOS_UpdateGamepads();
     ImGui_Impl_Mosaic_MacOS_UpdateImePosWithView(view);
+    ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement();
 }
 
 // Must only be called for a mouse event, otherwise an exception occurs
@@ -1142,19 +1161,12 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
     ImGui_Impl_Mosaic_OSX_WindowDelegate(ImGuiViewport* viewport)
         : viewport(viewport) {}
 
-    void on_resize(vml::int2 new_size) override {
+    void on_resize(vml::int2) override {
         viewport->PlatformRequestResize = true;
         viewport->PlatformRequestMove = true;
     }
 
-    void on_move(vml::int2 new_pos) override {
-        viewport->Pos = (vml::float2)new_pos;
-        viewport->PlatformRequestMove = true;
-        auto& g = *GImGui;
-        auto* viewport_p = (ImGuiViewportP*)viewport;
-        g.MovingWindow = viewport_p->Window;
-        g.ActiveId = viewport_p->Window->MoveId;
-    }
+    void on_move(vml::int2) override { viewport->PlatformRequestMove = true; }
 
     bool should_close() override {
         mosaic::internal::set_view_closing(viewport);

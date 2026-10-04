@@ -202,7 +202,7 @@ static void forward_event(Window const* window, NSEvent* event) {
     forward_event(_mosaic_window, event);
 }
 - (void)mouseDown:(NSEvent*)event {
-    if (handle_window_drag_begin(*_mosaic_window, event)) return;
+    handle_window_drag_begin(*_mosaic_window, event);
     forward_event(_mosaic_window, event);
 }
 - (void)mouseUp:(NSEvent*)event {
