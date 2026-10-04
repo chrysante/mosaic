@@ -331,7 +331,9 @@ void Window::apply_style() {
             [window standardWindowButton:NSWindowZoomButton];
         zoom_button.enabled =
             test(m_impl->style.capabilities & WindowCapability::zoomable);
-        window.movable = false;
+        // In case of full size content view we implement moving differently
+        // because we first must check if the mouse is over imgui controls
+        window.movable = !m_impl->style.full_size_content;
         if (m_impl->style.full_size_content) {
             window.titlebarAppearsTransparent = YES;
             window.titleVisibility = NSWindowTitleHidden;

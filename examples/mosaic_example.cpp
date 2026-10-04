@@ -31,10 +31,35 @@ public:
     }
 
 private:
-    void display() override { ImGui::Button("My View Button"); }
+    void display() override {
+        ImGui::Button("My View Button");
+        float t = (float)ImGui::GetTime();
+        float v = fmodf(t, 1.0f);
+        ImGui::ProgressBar(v, ImVec2(100, 0));
+        auto* viewport = ImGui::GetWindowViewport();
+        ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
+        ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
+    }
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
+
+static bool full_size = true;
+
+static void test_view() {
+    ImGuiWindow* window = ImGui::FindWindowByName("test-view");
+    bool docked = window && window->DockNode != nullptr;
+    ImGui::SetNextWindowFlags(ImGuiWindowFlags_NoMove, !docked);
+    ImGui::Begin("test-view");
+    if (auto* viewport = ImGui::GetCurrentWindow()->Viewport) {
+        if (auto* window = (Window*)viewport->PlatformHandle) {
+            window->set_style(
+                {.full_size_content = full_size, .large_titlebar = full_size});
+        }
+    }
+    ImGui::Checkbox("Full Size", &full_size);
+    ImGui::End();
+}
 
 class ExampleApp : public Application {
 public:
@@ -46,6 +71,11 @@ public:
             .name = "My Command",
             .key_comb = {.key = Key::K, .mod_flags = ModFlags::control},
             .command = [this] { main_window()->zoom(); }
+        });
+        command_palette().add({
+            .name = "My Command",
+            .key_comb = {.key = Key::F, .mod_flags = ModFlags::control},
+            .command = [] { full_size = !full_size; }
         });
         dockspace.set_left_toolbar({
             ToolbarIconButton("plus")
@@ -79,19 +109,19 @@ private:
         ImGui::PushFont(font);
         ImGui::Button("My Button");
         ImGui::PopFont();
-
         auto& fm = service_context().font_manager();
         auto icon = fm.get_icon(IconSize::_24, "plus-circled");
-
         ImGui::PushFont(icon.font);
         ImGui::Button(icon.utf8_rep.data());
         ImGui::PopFont();
-
         ImGui::Text("%s", text.c_str());
-
         ImGui::End();
 
+        test_view();
+
         display_icon_viewer();
+
+        ImGui::ShowMetricsWindow();
     }
 
     void display_icon_viewer() {
