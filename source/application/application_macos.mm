@@ -1,77 +1,81 @@
-#include "application/application.h"
+#include "application/application_impl_macos.h"
 
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 
-#include "application/application_data.h"
-#include "application/application_data_macos.h"
+#include "application/application.h"
 #include "application/window.h"
 #include "application/window_impl_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
 #include "imgui/imgui_impl_mosaic_metal.h"
+#include "support/logger.h"
 
 using namespace mosaic;
 
-void Application::quit() { [m_platform_data->app stop:nil]; }
+using internal::ApplicationImpl;
+using internal::ApplicationImplMacOS;
 
-Application::PlatformData* Application::create_platform_data() {
-    return new PlatformData{};
+std::unique_ptr<ApplicationImpl>
+ApplicationImpl::create_impl(Application& app) {
+    return std::make_unique<ApplicationImplMacOS>(app);
 }
 
-void Application::destroy_platform_data(PlatformData* data) { delete data; }
+void Application::quit() { [APP_IMPL.native_app stop:nil]; }
 
-void Application::platform_init() {
+void ApplicationImplMacOS::init_platform() {
     @autoreleasepool {
-        NSApplication* app = m_platform_data->app =
-            [NSApplication sharedApplication];
-        [app setActivationPolicy:NSApplicationActivationPolicyRegular];
-        [app activateIgnoringOtherApps:YES];
-
-        m_platform_data->device = MTLCreateSystemDefaultDevice();
-        if (!m_platform_data->device) {
+        native_app = [NSApplication sharedApplication];
+        [native_app setActivationPolicy:NSApplicationActivationPolicyRegular];
+        [native_app activateIgnoringOtherApps:YES];
+        device = MTLCreateSystemDefaultDevice();
+        if (!device) {
             // Metal isn't available
-            std::cerr << "Metal is not available\n";
+            Logger::error("Metal is not available\n");
             std::exit(EXIT_FAILURE);
         }
-        m_platform_data->command_queue =
-            [m_platform_data->device newCommandQueue];
+        command_queue = [device newCommandQueue];
     }
 }
 
-void Application::platform_run() {
-    NSWindow* window = GET_WINDOW_IMPL(*main_window()).native_window;
+@implementation DisplayLinkTarget
+- (void)displayLinkCallback:(CADisplayLink*)displayLink {
+    _app_impl->run_one_frame();
+}
+@end
+
+int ApplicationImplMacOS::run_platform() {
+    NSWindow* window = GET_WINDOW_IMPL(*app.main_window()).native_window;
     NSView* view = window.contentView;
-    DisplayLinkTarget* target = [[DisplayLinkTarget alloc] init];
-    target.application = this;
-    m_platform_data->display_link_target = target;
-    m_platform_data->display_link =
-        [view displayLinkWithTarget:target
-                           selector:@selector(displayLinkCallback:)];
-    [m_platform_data->display_link addToRunLoop:[NSRunLoop currentRunLoop]
-                                        forMode:NSRunLoopCommonModes];
-    [m_platform_data->app run];
+    display_link_target = [[DisplayLinkTarget alloc] init];
+    display_link_target.app_impl = this;
+    display_link = [view displayLinkWithTarget:display_link_target
+                                      selector:@selector(displayLinkCallback:)];
+    [display_link addToRunLoop:[NSRunLoop currentRunLoop]
+                       forMode:NSRunLoopCommonModes];
+    [native_app run];
+    return 0;
 }
 
-void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
+void ApplicationImplMacOS::shutdown_platform() {
+    ImGui_Impl_Mosaic_MacOS_Shutdown();
+}
 
 @implementation MetalView
 
 - (instancetype)init_with_frame:(NSRect)frame device:(id<MTLDevice>)device {
     self = [super initWithFrame:frame];
-    if (self) {
-        self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        self.wantsLayer = YES;
-        CAMetalLayer* layer = [CAMetalLayer layer];
-        layer.device = device;
-        layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        layer.framebufferOnly = YES;
-        layer.contentsGravity = kCAGravityTopLeft;
-        self.layer = layer;
-    }
+    if (!self) return nil;
+    self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    self.wantsLayer = YES;
+    CAMetalLayer* layer = [CAMetalLayer layer];
+    layer.device = device;
+    layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    layer.framebufferOnly = YES;
+    layer.contentsGravity = kCAGravityTopLeft;
+    self.layer = layer;
     return self;
 }
 
@@ -103,55 +107,44 @@ void Application::platform_shutdown() { ImGui_Impl_Mosaic_MacOS_Shutdown(); }
 
 @end
 
-void Application::create_main_window_platform(Window* window) {
-    NSWindow* native_window = GET_WINDOW_IMPL(*window).native_window;
+void ApplicationImplMacOS::create_main_window_platform(Window& window) {
+    NSWindow* native_window = GET_WINDOW_IMPL(window).native_window;
     NSView* content_view = native_window.contentView;
-    MetalView* metal_view =
-        [[MetalView alloc] init_with_frame:content_view.bounds
-                                    device:m_platform_data->device];
+    metal_view = [[MetalView alloc] init_with_frame:content_view.bounds
+                                             device:device];
     [content_view addSubview:metal_view
                   positioned:NSWindowAbove
                   relativeTo:nil];
-    m_platform_data->metal_view = metal_view;
 }
 
-void Application::imgui_init_platform(Window* /* main_window */) {
-    ImGui_Impl_Mosaic_MacOS_Init(*this);
-    ImGui_Impl_Mosaic_Metal_Init(m_platform_data->device);
+void ApplicationImplMacOS::imgui_init_platform() {
+    ImGui_Impl_Mosaic_MacOS_Init(app);
+    ImGui_Impl_Mosaic_Metal_Init(device);
 }
 
-void Application::imgui_begin_frame_platform() {
-    CAMetalLayer* layer = m_platform_data->metal_view.metal_layer;
-    m_platform_data->drawable = [layer nextDrawable];
-    if (!m_platform_data->drawable) {
-        std::cerr << "Error: Have no drawable\n";
+void ApplicationImplMacOS::imgui_begin_frame_platform() {
+    CAMetalLayer* layer = metal_view.metal_layer;
+    drawable = [layer nextDrawable];
+    if (!drawable) {
+        Logger::error("Have no drawable\n");
         return;
     }
-
     MTLRenderPassDescriptor* pass =
         [MTLRenderPassDescriptor renderPassDescriptor];
-    pass.colorAttachments[0].texture = m_platform_data->drawable.texture;
+    pass.colorAttachments[0].texture = drawable.texture;
     pass.colorAttachments[0].loadAction = MTLLoadActionClear;
     pass.colorAttachments[0].storeAction = MTLStoreActionStore;
     pass.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0);
-
-    m_platform_data->command_buffer =
-        [m_platform_data->command_queue commandBuffer];
-
+    command_buffer = [command_queue commandBuffer];
     ImGui_Impl_Mosaic_Metal_NewFrame(pass);
-    ImGui_Impl_Mosaic_MacOS_NewFrame(*main_window());
-
-    m_platform_data->encoder = [m_platform_data->command_buffer
-        renderCommandEncoderWithDescriptor:pass];
+    ImGui_Impl_Mosaic_MacOS_NewFrame(*app.main_window());
+    encoder = [command_buffer renderCommandEncoderWithDescriptor:pass];
 }
 
-void Application::imgui_end_frame_platform() {
-    ImGui_Impl_Mosaic_Metal_RenderDrawData(ImGui::GetDrawData(),
-                                           m_platform_data->command_buffer,
-                                           m_platform_data->encoder);
-
-    [m_platform_data->encoder endEncoding];
-
-    [m_platform_data->command_buffer presentDrawable:m_platform_data->drawable];
-    [m_platform_data->command_buffer commit];
+void ApplicationImplMacOS::imgui_end_frame_platform() {
+    ImGui_Impl_Mosaic_Metal_RenderDrawData(ImGui::GetDrawData(), command_buffer,
+                                           encoder);
+    [encoder endEncoding];
+    [command_buffer presentDrawable:drawable];
+    [command_buffer commit];
 }

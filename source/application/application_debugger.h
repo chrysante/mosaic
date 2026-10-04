@@ -2,12 +2,13 @@
 
 #include <deque>
 
-#include "application/application.h"
 #include "application/input_event.h"
 
 #ifndef NDEBUG
 
 namespace mosaic {
+
+class Application;
 
 template <typename T> class FixedQueue {
 public:
@@ -34,10 +35,10 @@ private:
     std::size_t m_capacity;
 };
 
-class Application::Debugger {
+class ApplicationDebugger {
 public:
-    Debugger(Application* application)
-        : application(application)
+    ApplicationDebugger(Application& app)
+        : app(app)
         , m_input_queue(100) {}
 
     void display();
@@ -51,7 +52,7 @@ private:
     void display_event_debugger();
     void display_input_debugger();
 
-    Application* application;
+    Application& app;
     FixedQueue<InputEventUnion> m_input_queue;
     bool m_open = false;
 };

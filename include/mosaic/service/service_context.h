@@ -9,6 +9,8 @@
 
 namespace mosaic {
 
+namespace internal { struct ApplicationImpl; }
+
 class ServiceContext {
 public:
     ServiceContext();
@@ -22,7 +24,7 @@ public:
     FontManager& font_manager() { return m_font_manager; }
 
 private:
-    friend class Application;
+    friend struct internal::ApplicationImpl;
 
     ThreadPool m_thread_pool;
     WorkDispatcher m_dispatcher;

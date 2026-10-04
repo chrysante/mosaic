@@ -139,5 +139,5 @@ private:
 
 int main() {
     ExampleApp app;
-    run_application(app);
+    return app.run();
 }

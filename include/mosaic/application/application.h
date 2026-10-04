@@ -1,29 +1,24 @@
 #pragma once
 
-#include <mosaic/application/input_event.h>
+#include <memory>
+
 #include <mosaic/application/window_desc.h>
+#include <mosaic/support/export.h>
 
 namespace mosaic {
 
-class Application;
 class CommandPalette;
 class Input;
 class ServiceContext;
 class Window;
 
-namespace internal { void run_one_frame(Application& app); }
+namespace internal { struct ApplicationImpl; }
 
 ///
 enum class RunLoopMode { Wait, Poll };
 
 ///
-void run_application(Application& app);
-
-///
-class Application {
-    friend void mosaic::run_application(class Application&);
-    friend void internal::run_one_frame(Application&);
-
+class MOSAIC_EXPORT Application {
 public:
     virtual ~Application();
 
@@ -57,6 +52,9 @@ public:
     ///
     void quit();
 
+    ///
+    int run();
+
 protected:
     Application();
 
@@ -65,44 +63,11 @@ protected:
 
 private:
     // Customization points
-
     virtual void frame() {}
 
-    // Internals
+    friend struct internal::ApplicationImpl;
 
-    struct Data;
-    struct PlatformData;
-
-    static PlatformData* create_platform_data();
-    static void destroy_platform_data(PlatformData*);
-
-    void platform_init();
-    void platform_run();
-    void platform_shutdown();
-
-    Window* create_main_window();
-    void create_main_window_platform(Window* main_window);
-
-    void imgui_init(Window* main_window);
-    void imgui_init_platform(Window* main_window);
-    void imgui_begin_frame();
-    void imgui_begin_frame_platform();
-    void imgui_end_frame();
-    void imgui_end_frame_platform();
-
-    void do_run();
-
-    void on_input(InputEventUnion const& event);
-
-    void do_frame();
-
-    Data* m_data;
-    PlatformData* m_platform_data;
-
-#ifndef NDEBUG
-    class Debugger;
-    std::unique_ptr<Debugger> m_debugger;
-#endif
+    std::unique_ptr<internal::ApplicationImpl> m_impl;
 };
 
 } // namespace mosaic

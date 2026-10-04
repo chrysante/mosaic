@@ -7,14 +7,16 @@
 #include <imgui.h>
 
 #include "application/application.h"
-#include "application/application_data.h"
+#include "application/application_impl.h"
 #include "application/window.h"
 #include "application/window_impl.h"
 #include "magic_enum/magic_enum.hpp"
 
 using namespace mosaic;
 
-void Application::Debugger::display() {
+using internal::ApplicationImpl;
+
+void ApplicationDebugger::display() {
     if (!m_open) return;
     ImGui::SetNextWindowSize(ImVec2(900.0f, 600.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Application Debugger", &m_open)) {
@@ -100,8 +102,8 @@ static void display_window_info(Window const* window) {
         internal::WindowImpl::get_native_debug_string(*window).c_str());
 }
 
-void Application::Debugger::display_window_debugger() {
-    auto const& windows = application->m_data->windows;
+void ApplicationDebugger::display_window_debugger() {
+    auto const& windows = ApplicationImpl::get_impl(app).windows;
     ImGui::Text("Windows");
     ImGui::SameLine();
     ImGui::TextDisabled("(%zu)", windows.size());
@@ -214,7 +216,7 @@ static void display_event(KeyUpEvent const& event) {
     display_modifiers(event);
 }
 
-void Application::Debugger::display_event_debugger() {
+void ApplicationDebugger::display_event_debugger() {
     ImGui::Text("Events: %zu", m_input_queue.size());
     ImGui::SameLine();
     if (ImGui::Button("Clear")) m_input_queue.clear();
@@ -268,8 +270,8 @@ void Application::Debugger::display_event_debugger() {
 // Input Debugger
 // =============================================================================
 
-void Application::Debugger::display_input_debugger() {
-    Input const& input = application->input();
+void ApplicationDebugger::display_input_debugger() {
+    Input const& input = app.input();
     // -------------------------------------------------------------------------
     // Mouse
     // -------------------------------------------------------------------------

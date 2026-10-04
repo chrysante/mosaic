@@ -10,6 +10,8 @@
 
 namespace mosaic {
 
+namespace internal { struct ApplicationImpl; }
+
 ///
 struct KeyCombination {
     ///
@@ -84,7 +86,7 @@ public:
     Command const* find(std::string_view name) const;
 
 private:
-    friend class Application;
+    friend struct internal::ApplicationImpl;
     friend class View;
 
     struct ModCommandPair {
