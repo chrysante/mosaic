@@ -4,8 +4,7 @@
 #include <type_traits>
 #include <vector>
 
-#import <AppKit/NSEvent.h>
-#import <AppKit/NSWindow.h>
+#import <AppKit/Appkit.h>
 
 #include "application/window.h"
 #include "application/window_impl.h"
@@ -23,6 +22,14 @@
 @property(nonatomic, assign) mosaic::Window* window;
 @end
 
+@interface MosaicKeyEventResponder : NSView <NSTextInputClient>
+@end
+
+@interface MosaicWindow : NSWindow
+@property(nonatomic, assign) MosaicKeyEventResponder* key_event_responder;
+@property(nonatomic, strong) NSTextInputContext* text_input_context;
+@end
+
 namespace mosaic::internal {
 
 enum class CocoaEventType : short { window_shall_zoom };
@@ -32,7 +39,7 @@ using NativeEventHandler = std::function<void(NSEvent*)>;
 struct WindowImplMacOS : WindowImpl {
     static void add_native_event_handler(Window&, NativeEventHandler);
 
-    NSWindow* native_window = nil;
+    MosaicWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;
     bool is_live_moving = false;
     std::vector<NativeEventHandler> native_event_handlers;

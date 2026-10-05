@@ -1,5 +1,6 @@
 #include "application/window.h"
 
+#include <ios>
 #include <memory>
 
 #import <AppKit/NSButton.h>
@@ -30,8 +31,7 @@ std::unique_ptr<WindowImpl> WindowImpl::create_impl() {
     return std::make_unique<WindowImplMacOS>();
 }
 
-static void append_view_hierarchy(NSView* view, std::ostringstream& out,
-                                  int depth) {
+static void append_view_hierarchy(std::ostream& out, NSView* view, int depth) {
     if (!view) return;
     std::string indent(depth * 2, ' ');
     NSRect frame = view.frame;
@@ -43,19 +43,26 @@ static void append_view_hierarchy(NSView* view, std::ostringstream& out,
     if (view.isOpaque) out << " [opaque]";
     out << "\n";
     for (NSView* subview in view.subviews)
-        append_view_hierarchy(subview, out, depth + 1);
+        append_view_hierarchy(out, subview, depth + 1);
 }
 
-static std::string view_hierarchy_description(NSWindow* window) {
-    std::ostringstream out;
-    if (!window) return "<null window>";
+static void view_hierarchy_description(std::ostream& out, NSWindow* window) {
+    if (!window) {
+        out << "<null window>";
+        return;
+    }
     out << "Window: " << NSStringFromClass(window.class).UTF8String << "\n";
-    if (window.contentView) append_view_hierarchy(window.contentView, out, 0);
-    return out.str();
+    if (window.contentView) append_view_hierarchy(out, window.contentView, 0);
 }
 
 std::string WindowImpl::get_native_debug_string(Window const& window) {
-    return view_hierarchy_description(GET_WINDOW_IMPL(window).native_window);
+    std::ostringstream out;
+    NSWindow* native_window = GET_WINDOW_IMPL(window).native_window;
+    out << std::boolalpha;
+    out << "Is key: " << (bool)native_window.isKeyWindow << "\n";
+    out << "Is main: " << (bool)native_window.isMainWindow << "\n";
+    view_hierarchy_description(out, native_window);
+    return std::move(out).str();
 }
 
 // =============================================================================
@@ -128,7 +135,7 @@ std::string WindowImpl::get_native_debug_string(Window const& window) {
 @end
 
 // =============================================================================
-// Window implementation
+// WindowContentView
 // =============================================================================
 
 static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
@@ -238,16 +245,33 @@ static void forward_event(Window const* window, NSEvent* event) {
 }
 @end
 
+// =============================================================================
+// MosaicWindow
+// =============================================================================
+
+@implementation MosaicWindow
+- (BOOL)canBecomeKeyWindow {
+    return YES;
+}
+- (BOOL)canBecomeMainWindow {
+    return YES;
+}
+@end
+
+// =============================================================================
+// mosaic::Window implementation
+// =============================================================================
+
 void Window::platform_constructor(WindowDesc const& desc) {
     @autoreleasepool {
         NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
                                   desc.size.y);
         auto style_mask = to_ns_style_mask(desc.style);
-        NSWindow* window =
-            [[NSWindow alloc] initWithContentRect:frame
-                                        styleMask:style_mask
-                                          backing:NSBackingStoreBuffered
-                                            defer:NO];
+        MosaicWindow* window =
+            [[MosaicWindow alloc] initWithContentRect:frame
+                                            styleMask:style_mask
+                                              backing:NSBackingStoreBuffered
+                                                defer:NO];
         NSRect content_rect = [window contentRectForFrameRect:frame];
         WindowContentView* content_view = [[WindowContentView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
@@ -289,6 +313,10 @@ bool Window::is_live_resizing() const {
 }
 
 bool Window::is_live_moving() const { return WINDOW_IMPL.is_live_moving; }
+
+bool Window::is_focused() const {
+    return WINDOW_IMPL.native_window.isKeyWindow;
+}
 
 float Window::titlebar_height() const {
     NSWindow* window = WINDOW_IMPL.native_window;

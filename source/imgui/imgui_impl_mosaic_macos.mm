@@ -35,7 +35,6 @@
 // - Introduction, links and more at the top of imgui.cpp
 
 #import "imgui/imgui_impl_mosaic_macos.h"
-#include "support/logger.h"
 
 #import <time.h>
 
@@ -136,7 +135,7 @@
      __TV_OS_VERSION_MIN_REQUIRED >= 120100)
 
 @class ImGuiObserver;
-@class KeyEventResponder;
+@class MosaicKeyEventResponder;
 
 // Data
 struct ImGui_Impl_Mosaic_MacOS_Data {
@@ -144,8 +143,6 @@ struct ImGui_Impl_Mosaic_MacOS_Data {
     NSCursor* MouseCursors[ImGuiMouseCursor_COUNT];
     bool MouseCursorHidden;
     ImGuiObserver* Observer;
-    KeyEventResponder* KeyEventResponder;
-    NSTextInputContext* InputContext;
     id Monitor;
     mosaic::Application* application;
     NSWindow* NativeWindow;
@@ -169,6 +166,9 @@ static inline CFTimeInterval GetMachAbsoluteTimeInSeconds() {
 // Forward Declarations
 static void ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport();
 static void ImGui_Impl_Mosaic_MacOS_ShutdownMultiViewportSupport();
+static void ImGui_Impl_Mosaic_MacOS_InitMouseCursors();
+static void ImGui_Impl_Mosaic_MacOS_InitIme();
+static void ImGui_Impl_Mosaic_MacOS_InitClipboard();
 static void ImGui_Impl_Mosaic_MacOS_UpdateMonitors();
 static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view);
 static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
@@ -183,8 +183,8 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
 @end
 
 /**
- KeyEventResponder implements the NSTextInputClient protocol as is required by
- the macOS text input manager.
+ MosaicKeyEventResponder implements the NSTextInputClient protocol as is
+ required by the macOS text input manager.
 
  The macOS text input manager is invoked by calling the interpretKeyEvents
  method from the keyDown method. Keyboard events are then evaluated by the macOS
@@ -197,10 +197,7 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
  and GLFW:
   https://github.com/glfw/glfw/blob/b55a517ae0c7b5127dffa79a64f5406021bf9076/src/cocoa_window.m#L722-L723
  */
-@interface KeyEventResponder : NSView <NSTextInputClient>
-@end
-
-@implementation KeyEventResponder {
+@implementation MosaicKeyEventResponder {
     float _posX;
     float _posY;
     NSRect _imeRect;
@@ -216,26 +213,14 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
 - (void)updateImePosWithView:(NSView*)view {
     NSWindow* window = view.window;
     if (!window) return;
-
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        NSRect frame = window.frame;
-        NSRect contentRect = window.contentLayoutRect;
-        if (window.styleMask &
-            NSWindowStyleMaskFullSizeContentView) // No title bar windows should
-                                                  // be considered.
-            contentRect = frame;
-
-        NSRect firstScreenFrame = NSScreen.screens[0].frame;
-        _imeRect = NSMakeRect(_posX, _posY, 0, 0);
-        _imeRect.origin.y = firstScreenFrame.size.height -
-                            _imeRect.size.height -
-                            _imeRect.origin.y; // Opposite of ConvertNSRect()
-    } else {
-        NSRect contentRect = [window contentRectForFrameRect:window.frame];
-        NSRect rect = NSMakeRect(_posX, contentRect.size.height - _posY, 0, 0);
-        _imeRect = [window convertRectToScreen:rect];
-    }
+    NSRect frame = window.frame;
+    NSRect contentRect = window.contentLayoutRect;
+    if (window.styleMask & NSWindowStyleMaskFullSizeContentView)
+        contentRect = frame;
+    NSRect firstScreenFrame = NSScreen.screens[0].frame;
+    _imeRect = NSMakeRect(_posX, _posY, 0, 0);
+    _imeRect.origin.y = firstScreenFrame.size.height - _imeRect.size.height -
+                        _imeRect.origin.y; // Opposite of ConvertNSRect()
 }
 
 - (void)keyDown:(NSEvent*)event {
@@ -252,12 +237,10 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view);
 
 - (void)insertText:(id)aString replacementRange:(NSRange)replacementRange {
     ImGuiIO& io = ImGui::GetIO();
-
     NSString* characters;
     if ([aString isKindOfClass:[NSAttributedString class]])
         characters = [aString string];
     else characters = (NSString*)aString;
-
     io.AddInputCharactersUTF8(characters.UTF8String);
 }
 
@@ -576,12 +559,7 @@ static void install_mouse_event_handler(mosaic::Window& window, NSView* view) {
 }
 
 bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
-    auto& main_window = *app.main_window();
-    NSWindow* ns_window = (__bridge NSWindow*)main_window.native_handle();
-    NSView* content_view = ns_window.contentView;
-
     ImGuiIO& io = ImGui::GetIO();
-    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
     IMGUI_CHECKVERSION();
     IM_ASSERT(io.BackendPlatformUserData == nullptr &&
               "Already initialized a platform backend!");
@@ -589,61 +567,82 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     // Setup backend capabilities flags
     ImGui_Impl_Mosaic_MacOS_Data* bd = IM_NEW(ImGui_Impl_Mosaic_MacOS_Data)();
     io.BackendPlatformUserData = (void*)bd;
-    io.BackendPlatformName = "imgui_impl_osx";
-    io.BackendFlags |=
-        ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor()
-                                           // values (optional)
-    // io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can
-    // honor io.WantSetMousePos requests (optional, rarely used)
-    io.BackendFlags |=
-        ImGuiBackendFlags_PlatformHasViewports; // We can create multi-viewports
-                                                // on the Platform side
-                                                // (optional)
+    io.BackendPlatformName = "imgui_impl_mosaic_osx";
+    // We can honor GetMouseCursor() values (optional)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
+    // We can create multi-viewports on the Platform side (optional)
+    io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;
     io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport;
+
+    auto& main_window = *app.main_window();
+    MosaicWindow* native_window = GET_WINDOW_IMPL(main_window).native_window;
+    NSView* content_view = native_window.contentView;
 
     bd->Observer = [ImGuiObserver new];
     bd->application = &app;
-    bd->NativeWindow =
-        ns_window; // view.window ?: NSApp.orderedWindows.firstObject;
+    bd->NativeWindow = native_window;
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
     main_viewport->PlatformHandle = &main_window;
-    main_viewport->PlatformHandleRaw = (__bridge_retained void*)ns_window;
+    main_viewport->PlatformHandleRaw = (__bridge_retained void*)native_window;
 
     ImGui_Impl_Mosaic_MacOS_UpdateMonitors();
     ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport();
+    ImGui_Impl_Mosaic_MacOS_InitMouseCursors();
+    ImGui_Impl_Mosaic_MacOS_InitClipboard();
 
-    // Load cursors. Some of them are undocumented.
-    bd->MouseCursorHidden = false;
-    bd->MouseCursors[ImGuiMouseCursor_Arrow] = [NSCursor arrowCursor];
-    bd->MouseCursors[ImGuiMouseCursor_TextInput] = [NSCursor IBeamCursor];
-    bd->MouseCursors[ImGuiMouseCursor_ResizeAll] = [NSCursor closedHandCursor];
-    bd->MouseCursors[ImGuiMouseCursor_ResizeNS] =
-        [NSCursor respondsToSelector:@selector(_windowResizeNorthSouthCursor)]
-            ? [NSCursor _windowResizeNorthSouthCursor]
-            : [NSCursor resizeUpDownCursor];
-    bd->MouseCursors[ImGuiMouseCursor_ResizeEW] =
-        [NSCursor respondsToSelector:@selector(_windowResizeEastWestCursor)]
-            ? [NSCursor _windowResizeEastWestCursor]
-            : [NSCursor resizeLeftRightCursor];
-    bd->MouseCursors[ImGuiMouseCursor_ResizeNESW] =
-        [NSCursor
-            respondsToSelector:@selector(_windowResizeNorthEastSouthWestCursor)]
-            ? [NSCursor _windowResizeNorthEastSouthWestCursor]
-            : [NSCursor closedHandCursor];
-    bd->MouseCursors[ImGuiMouseCursor_ResizeNWSE] =
-        [NSCursor
-            respondsToSelector:@selector(_windowResizeNorthWestSouthEastCursor)]
-            ? [NSCursor _windowResizeNorthWestSouthEastCursor]
-            : [NSCursor closedHandCursor];
-    bd->MouseCursors[ImGuiMouseCursor_Hand] = [NSCursor pointingHandCursor];
-    bd->MouseCursors[ImGuiMouseCursor_Wait] =
-        bd->MouseCursors[ImGuiMouseCursor_Progress] =
-            [NSCursor respondsToSelector:@selector(busyButClickableCursor)]
-                ? [NSCursor busyButClickableCursor]
-                : [NSCursor arrowCursor];
-    bd->MouseCursors[ImGuiMouseCursor_NotAllowed] =
-        [NSCursor operationNotAllowedCursor];
+    [[NSNotificationCenter defaultCenter]
+        addObserver:bd->Observer
+           selector:@selector(onApplicationBecomeActive:)
+               name:NSApplicationDidBecomeActiveNotification
+             object:nil];
+    [[NSNotificationCenter defaultCenter]
+        addObserver:bd->Observer
+           selector:@selector(onApplicationBecomeInactive:)
+               name:NSApplicationDidResignActiveNotification
+             object:nil];
 
+    // Add the NSTextInputClient to the view hierarchy,
+    // to receive keyboard events and translate them to input text.
+    MosaicKeyEventResponder* key_event_responder =
+        [[MosaicKeyEventResponder alloc] initWithFrame:NSZeroRect];
+    native_window.key_event_responder = key_event_responder;
+    [content_view addSubview:key_event_responder];
+    ImGui_Impl_Mosaic_MacOS_AddTrackingArea(content_view);
+    install_mouse_event_handler(main_window, content_view);
+    native_window.text_input_context =
+        [[NSTextInputContext alloc] initWithClient:key_event_responder];
+
+    ImGui_Impl_Mosaic_MacOS_InitIme();
+    return true;
+}
+
+void ImGui_Impl_Mosaic_MacOS_Shutdown() {
+    ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
+    IM_ASSERT(bd != nullptr &&
+              "No platform backend to shutdown, or already shutdown?");
+
+    [[NSNotificationCenter defaultCenter] removeObserver:bd->Observer];
+    bd->Observer = nullptr;
+    if (bd->Monitor != nullptr) {
+        [NSEvent removeMonitor:bd->Monitor];
+        bd->Monitor = nullptr;
+    }
+
+    ImGui_Impl_Mosaic_MacOS_ShutdownMultiViewportSupport();
+    ImGui_Impl_Mosaic_MacOS_DestroyBackendData();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+
+    io.BackendPlatformName = nullptr;
+    io.BackendPlatformUserData = nullptr;
+    io.BackendFlags &=
+        ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasGamepad |
+          ImGuiBackendFlags_PlatformHasViewports);
+    platform_io.ClearPlatformHandlers();
+}
+
+static void ImGui_Impl_Mosaic_MacOS_InitClipboard() {
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
     // Note that imgui.cpp also include default OSX clipboard handlers which can
     // be enabled by adding '#define
     // IMGUI_ENABLE_OSX_DEFAULT_CLIPBOARD_FUNCTIONS' in imconfig.h and adding
@@ -677,73 +676,65 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
         strcpy(s_clipboard.Data, string_c);
         return s_clipboard.Data;
     };
+}
 
-    [[NSNotificationCenter defaultCenter]
-        addObserver:bd->Observer
-           selector:@selector(onApplicationBecomeActive:)
-               name:NSApplicationDidBecomeActiveNotification
-             object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:bd->Observer
-           selector:@selector(onApplicationBecomeInactive:)
-               name:NSApplicationDidResignActiveNotification
-             object:nil];
+static void ImGui_Impl_Mosaic_MacOS_InitMouseCursors() {
+    ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
+    // Load cursors. Some of them are undocumented.
+    bd->MouseCursorHidden = false;
+    bd->MouseCursors[ImGuiMouseCursor_Arrow] = [NSCursor arrowCursor];
+    bd->MouseCursors[ImGuiMouseCursor_TextInput] = [NSCursor IBeamCursor];
+    bd->MouseCursors[ImGuiMouseCursor_ResizeAll] = [NSCursor closedHandCursor];
+    bd->MouseCursors[ImGuiMouseCursor_ResizeNS] =
+        [NSCursor respondsToSelector:@selector(_windowResizeNorthSouthCursor)]
+            ? [NSCursor _windowResizeNorthSouthCursor]
+            : [NSCursor resizeUpDownCursor];
+    bd->MouseCursors[ImGuiMouseCursor_ResizeEW] =
+        [NSCursor respondsToSelector:@selector(_windowResizeEastWestCursor)]
+            ? [NSCursor _windowResizeEastWestCursor]
+            : [NSCursor resizeLeftRightCursor];
+    bd->MouseCursors[ImGuiMouseCursor_ResizeNESW] =
+        [NSCursor
+            respondsToSelector:@selector(_windowResizeNorthEastSouthWestCursor)]
+            ? [NSCursor _windowResizeNorthEastSouthWestCursor]
+            : [NSCursor closedHandCursor];
+    bd->MouseCursors[ImGuiMouseCursor_ResizeNWSE] =
+        [NSCursor
+            respondsToSelector:@selector(_windowResizeNorthWestSouthEastCursor)]
+            ? [NSCursor _windowResizeNorthWestSouthEastCursor]
+            : [NSCursor closedHandCursor];
+    bd->MouseCursors[ImGuiMouseCursor_Hand] = [NSCursor pointingHandCursor];
+    bd->MouseCursors[ImGuiMouseCursor_Wait] =
+        bd->MouseCursors[ImGuiMouseCursor_Progress] =
+            [NSCursor respondsToSelector:@selector(busyButClickableCursor)]
+                ? [NSCursor busyButClickableCursor]
+                : [NSCursor arrowCursor];
+    bd->MouseCursors[ImGuiMouseCursor_NotAllowed] =
+        [NSCursor operationNotAllowedCursor];
+}
 
-    // Add the NSTextInputClient to the view hierarchy,
-    // to receive keyboard events and translate them to input text.
-    bd->KeyEventResponder =
-        [[KeyEventResponder alloc] initWithFrame:NSZeroRect];
-    bd->InputContext =
-        [[NSTextInputContext alloc] initWithClient:bd->KeyEventResponder];
-    [content_view addSubview:bd->KeyEventResponder];
-    ImGui_Impl_Mosaic_MacOS_AddTrackingArea(content_view);
-    install_mouse_event_handler(main_window, content_view);
-
-    platform_io.Platform_SetImeDataFn = [](ImGuiContext*, ImGuiViewport*,
+static void ImGui_Impl_Mosaic_MacOS_InitIme() {
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    platform_io.Platform_SetImeDataFn = [](ImGuiContext*,
+                                           ImGuiViewport* viewport,
                                            ImGuiPlatformImeData* data) -> void {
-        ImGui_Impl_Mosaic_MacOS_Data* bd =
-            ImGui_Impl_Mosaic_MacOS_GetBackendData();
-        NSWindow* ns_window = bd->NativeWindow;
+        mosaic::Window* window = (mosaic::Window*)viewport->PlatformHandle;
+        MosaicWindow* native_window = GET_WINDOW_IMPL(*window).native_window;
+
         if (data->WantVisible) {
-            [ns_window makeFirstResponder:bd->KeyEventResponder];
-            [bd->InputContext activate];
+            [native_window
+                makeFirstResponder:native_window.key_event_responder];
+            [native_window.text_input_context activate];
         } else {
-            [bd->InputContext discardMarkedText];
-            [bd->InputContext invalidateCharacterCoordinates];
-            [bd->InputContext deactivate];
-            [ns_window makeFirstResponder:ns_window.contentView];
+            [native_window.text_input_context discardMarkedText];
+            [native_window.text_input_context invalidateCharacterCoordinates];
+            [native_window.text_input_context deactivate];
+            [native_window makeFirstResponder:native_window.contentView];
         }
-        [bd->KeyEventResponder
+        [native_window.key_event_responder
             setImePosX:data->InputPos.x
                imePosY:data->InputPos.y + data->InputLineHeight];
     };
-
-    return true;
-}
-
-void ImGui_Impl_Mosaic_MacOS_Shutdown() {
-    ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
-    IM_ASSERT(bd != nullptr &&
-              "No platform backend to shutdown, or already shutdown?");
-
-    [[NSNotificationCenter defaultCenter] removeObserver:bd->Observer];
-    bd->Observer = nullptr;
-    if (bd->Monitor != nullptr) {
-        [NSEvent removeMonitor:bd->Monitor];
-        bd->Monitor = nullptr;
-    }
-
-    ImGui_Impl_Mosaic_MacOS_ShutdownMultiViewportSupport();
-    ImGui_Impl_Mosaic_MacOS_DestroyBackendData();
-    ImGuiIO& io = ImGui::GetIO();
-    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-
-    io.BackendPlatformName = nullptr;
-    io.BackendPlatformUserData = nullptr;
-    io.BackendFlags &=
-        ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasGamepad |
-          ImGuiBackendFlags_PlatformHasViewports);
-    platform_io.ClearPlatformHandlers();
 }
 
 static void ImGui_Impl_Mosaic_MacOS_UpdateMouseCursor() {
@@ -843,10 +834,23 @@ static void ImGui_Impl_Mosaic_MacOS_UpdateGamepads() {
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 }
 
-static void ImGui_Impl_Mosaic_MacOS_UpdateImePosWithView(NSView* view) {
-    ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
+static void update_ime_pos_for_window(mosaic::Window& window) {
+    MosaicWindow* native_window = GET_WINDOW_IMPL(window).native_window;
+    [native_window.key_event_responder
+        updateImePosWithView:native_window.contentView];
+}
+
+static void ImGui_Impl_Mosaic_MacOS_UpdateImePos() {
     ImGuiIO& io = ImGui::GetIO();
-    if (io.WantTextInput) [bd->KeyEventResponder updateImePosWithView:view];
+    if (!io.WantTextInput) return;
+    ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
+    update_ime_pos_for_window(*bd->application->main_window());
+    auto& g = *GImGui;
+    for (int i = 1; i < g.Viewports.size(); ++i) {
+        auto* viewport = g.Viewports[i];
+        if (auto* window = (mosaic::Window*)viewport->PlatformHandle)
+            update_ime_pos_for_window(*window);
+    }
 }
 
 static void ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement() {
@@ -891,7 +895,7 @@ void ImGui_Impl_Mosaic_MacOS_NewFrame(mosaic::Window& main_window) {
 
     ImGui_Impl_Mosaic_MacOS_UpdateMouseCursor();
     ImGui_Impl_Mosaic_MacOS_UpdateGamepads();
-    ImGui_Impl_Mosaic_MacOS_UpdateImePosWithView(view);
+    ImGui_Impl_Mosaic_MacOS_UpdateImePos();
     ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement();
 }
 
@@ -1185,12 +1189,6 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
         IM_NEW(ImGui_Impl_Mosaic_MacOS_ViewportData)();
     viewport->PlatformUserData = vd;
-
-    NSScreen* screen = bd->NativeWindow.screen;
-    NSRect rect = NSMakeRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x,
-                             viewport->Size.y);
-    ConvertNSRect(&rect);
-
     using enum mosaic::WindowCapability;
     mosaic::WindowDesc desc{
         .position = (vml::int2)viewport->Pos,
@@ -1212,28 +1210,25 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
             },
     };
     auto* window = bd->application->create_window(desc);
-
     install_mouse_event_handler(*window, bd->NativeWindow.contentView);
 
-    KeyEventResponder* view = [[KeyEventResponder alloc] initWithFrame:rect];
-    if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6 &&
-        ceil(NSAppKitVersionNumber) < NSAppKitVersionNumber10_15) {
-        // Benefits OpenGL renderers on macOS 10.7-10.14: deprecated in 10.14,
-        // on by default since 10.15.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [view setWantsBestResolutionOpenGLSurface:YES];
-#pragma clang diagnostic pop
-    }
-
-    NSWindow* ns_window = (__bridge NSWindow*)window->native_handle();
-    [ns_window.contentView addSubview:view];
-
+    NSRect rect = NSMakeRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x,
+                             viewport->Size.y);
+    ConvertNSRect(&rect);
+    // NSRect rect = NSZeroRect;
+    MosaicKeyEventResponder* key_event_responder =
+        [[MosaicKeyEventResponder alloc] initWithFrame:rect];
+    MosaicWindow* native_window = GET_WINDOW_IMPL(*window).native_window;
+    [native_window.contentView addSubview:key_event_responder];
+    native_window.key_event_responder = key_event_responder;
+    native_window.text_input_context =
+        [[NSTextInputContext alloc] initWithClient:key_event_responder];
     vd->window = window;
-    vd->NativeWindow = ns_window;
+    vd->NativeWindow = native_window;
     vd->WindowOwned = true;
     viewport->PlatformRequestResize = false;
-    viewport->PlatformHandleRaw = (__bridge_retained void*)ns_window;
+#warning Is this really supposed to be a __bridge_retained cast?
+    viewport->PlatformHandleRaw = (__bridge_retained void*)native_window;
     viewport->PlatformHandle = window;
 
     window->add_delegate(

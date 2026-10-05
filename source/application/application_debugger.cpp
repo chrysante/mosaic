@@ -5,12 +5,13 @@
 #include <ranges>
 
 #include <imgui.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include "application/application.h"
 #include "application/application_impl.h"
 #include "application/window.h"
 #include "application/window_impl.h"
-#include "magic_enum/magic_enum.hpp"
+#include "gui/font.h"
 
 using namespace mosaic;
 
@@ -56,28 +57,29 @@ static void display_window_info(Window const* window) {
     // Main row
     // -------------------------------------------------------------
     ImGui::TableNextRow();
+    if (window->is_focused())
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                               IM_COL32(50, 100, 180, 80));
     // Window
     ImGui::TableSetColumnIndex(0);
     ImGui::Text("%s", window->title().c_str());
     ImGui::TextDisabled("%p", static_cast<void const*>(window));
-    // Position
-    ImGui::TableSetColumnIndex(1);
-    ImGui::Text("%d, %d", position.x, position.y);
-    // Size
-    ImGui::TableSetColumnIndex(2);
-    ImGui::Text("%d x %d", size.x, size.y);
-    // Moving
-    ImGui::TableSetColumnIndex(3);
     if (window->is_live_moving())
         ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.5f, 1.0f), "MOVING");
-    else ImGui::TextDisabled("no");
-    // Resizing
-    ImGui::TableSetColumnIndex(4);
     if (window->is_live_resizing())
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "RESIZING");
-    else ImGui::TextDisabled("no");
+    // Frame
+    ImGui::TableSetColumnIndex(1);
+    ImGui::Text("Pos: %d, %d", position.x, position.y);
+    ImGui::Text("Size: %d x %d", size.x, size.y);
+    // Native
+    ImGui::TableSetColumnIndex(2);
+    ui::with_font(ui::font(FontStyle::monospaced), [&] {
+        ImGui::TextUnformatted(
+            internal::WindowImpl::get_native_debug_string(*window).c_str());
+    });
     // ImGui viewport
-    ImGui::TableSetColumnIndex(5);
+    ImGui::TableSetColumnIndex(3);
     ImGuiViewport* viewport = nullptr;
     // Adapt this lookup to however your application associates
     // Window with its ImGui viewport.
@@ -87,19 +89,14 @@ static void display_window_info(Window const* window) {
     if (viewport) ImGui::Text("%08X", viewport->ID);
     else ImGui::TextDisabled("none");
     // Viewport position
-    ImGui::TableSetColumnIndex(6);
+    ImGui::TableSetColumnIndex(4);
     if (viewport) ImGui::Text("%.0f, %.0f", viewport->Pos.x, viewport->Pos.y);
     else ImGui::TextDisabled("-");
     // Visible
-    ImGui::TableSetColumnIndex(7);
+    ImGui::TableSetColumnIndex(5);
     // There isn't a visibility accessor in Window, so leave this
     // out unless you want to add one to the Window interface.
     ImGui::TextDisabled("-");
-    ImGui::TableSetColumnIndex(8);
-    // There isn't a visibility accessor in Window, so leave this
-    // out unless you want to add one to the Window interface.
-    ImGui::TextUnformatted(
-        internal::WindowImpl::get_native_debug_string(*window).c_str());
 }
 
 void ApplicationDebugger::display_window_debugger() {
@@ -108,20 +105,17 @@ void ApplicationDebugger::display_window_debugger() {
     ImGui::SameLine();
     ImGui::TextDisabled("(%zu)", windows.size());
     ImGui::Separator();
-    if (ImGui::BeginTable("Windows", 9,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                              ImGuiTableFlags_Resizable |
-                              ImGuiTableFlags_SizingStretchProp |
-                              ImGuiTableFlags_ScrollY)) {
+    auto table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                       ImGuiTableFlags_Resizable |
+                       ImGuiTableFlags_SizingStretchProp |
+                       ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX;
+    if (ImGui::BeginTable("Windows", 6, table_flags)) {
         ImGui::TableSetupColumn("Window");
-        ImGui::TableSetupColumn("Position");
-        ImGui::TableSetupColumn("Size");
-        ImGui::TableSetupColumn("Moving");
-        ImGui::TableSetupColumn("Resizing");
+        ImGui::TableSetupColumn("Frame");
+        ImGui::TableSetupColumn("Native");
         ImGui::TableSetupColumn("Viewport");
         ImGui::TableSetupColumn("Viewport Pos");
         ImGui::TableSetupColumn("Visible");
-        ImGui::TableSetupColumn("Native");
         ImGui::TableHeadersRow();
         for (auto& window : windows)
             display_window_info(window.get());

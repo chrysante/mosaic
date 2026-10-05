@@ -37,6 +37,9 @@ public:
     /// \returns true iff the user is currently dragging the window
     bool is_live_moving() const;
 
+    /// \returns true iff this window is focused
+    bool is_focused() const;
+
     /// \returns the height of the window's title bar
     float titlebar_height() const;
 
