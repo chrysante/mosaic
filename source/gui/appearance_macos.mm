@@ -27,6 +27,7 @@ static mosaic::Style make_style_impl(AppearanceType type) {
 #define COL(name) convert_color(NSColor.name)
     // clang-format off
     return {
+        .type = type,
         .vars = {
             .window_border = false,
             .child_window_border = false,
