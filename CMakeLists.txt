@@ -190,6 +190,7 @@ target_sources(mosaic PRIVATE
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
+    source/gui/appearance.cpp
     source/gui/command_palette.cpp
     source/gui/dockspace.cpp
     source/gui/font.cpp
@@ -222,6 +223,7 @@ target_sources(mosaic PRIVATE
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
+    source/gui/appearance_macos.mm
     source/imgui/imgui_impl_mosaic_macos.mm
     source/imgui/imgui_impl_mosaic_metal.mm
 )

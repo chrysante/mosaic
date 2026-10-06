@@ -15,6 +15,7 @@
 #include "application/window.h"
 #include "application/window_delegate.h"
 #include "application/window_impl.h"
+#include "gui/appearance_internal.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/service_context.h"
 
@@ -149,11 +150,12 @@ void ApplicationImpl::imgui_init() {
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
-    ImGui::StyleColorsDark();
+    update_style(/* force: */ true);
     imgui_init_platform();
 }
 
 void ApplicationImpl::imgui_begin_frame() {
+    update_style();
     imgui_begin_frame_platform();
     ImGui::NewFrame();
 }
