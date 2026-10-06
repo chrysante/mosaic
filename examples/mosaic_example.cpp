@@ -1,4 +1,4 @@
-#include "mosaic/gui/toolbar.h"
+#include "mosaic/application/window_desc.h"
 #include <string>
 
 #include <imgui.h>
@@ -9,6 +9,7 @@
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_manager.h>
 #include <mosaic/gui/view_registry.h>
@@ -53,8 +54,9 @@ static void test_view() {
     ImGui::Begin("test-view");
     if (auto* viewport = ImGui::GetCurrentWindow()->Viewport) {
         if (auto* window = (Window*)viewport->PlatformHandle) {
-            window->set_style(
-                {.full_size_content = full_size, .large_titlebar = full_size});
+            window->set_style({.decoration = WindowDecoration::normal,
+                               .full_size_content = full_size,
+                               .large_titlebar = full_size});
         }
     }
     ImGui::Checkbox("Full Size", &full_size);

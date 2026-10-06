@@ -35,6 +35,9 @@ struct WindowStyle {
     /// Use the larger/unified title-bar appearance.
     bool large_titlebar = false;
 
+    /// Use window shadow
+    bool has_shadow = true;
+
     bool operator==(WindowStyle const&) const = default;
 };
 

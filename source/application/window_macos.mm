@@ -405,5 +405,6 @@ void Window::apply_style() {
             window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
             window.toolbar = [[NSToolbar alloc] init];
         }
+        window.hasShadow = m_impl->style.has_shadow;
     }
 }
