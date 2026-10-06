@@ -5,6 +5,7 @@
 
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include "application/application.h"
 #include "application/window.h"
@@ -63,58 +64,8 @@ void ApplicationImplMacOS::shutdown_platform() {
     ImGui_Impl_Mosaic_MacOS_Shutdown();
 }
 
-@implementation MetalView
-
-- (instancetype)init_with_frame:(NSRect)frame device:(id<MTLDevice>)device {
-    self = [super initWithFrame:frame];
-    if (!self) return nil;
-    self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    self.wantsLayer = YES;
-    CAMetalLayer* layer = [CAMetalLayer layer];
-    layer.device = device;
-    layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    layer.framebufferOnly = YES;
-    layer.contentsGravity = kCAGravityTopLeft;
-    self.layer = layer;
-    return self;
-}
-
-- (CAMetalLayer*)metal_layer {
-    return (CAMetalLayer*)self.layer;
-}
-
-- (void)layout {
-    [super layout];
-    [self updateDrawableSize];
-}
-
-- (void)viewDidChangeBackingProperties {
-    [super viewDidChangeBackingProperties];
-    [self updateDrawableSize];
-}
-
-- (void)updateDrawableSize {
-    CAMetalLayer* layer = self.metal_layer;
-    CGFloat scale = self.window.backingScaleFactor;
-    layer.contentsScale = scale;
-    layer.drawableSize = CGSizeMake(self.bounds.size.width * scale,
-                                    self.bounds.size.height * scale);
-}
-
-- (NSView*)hitTest:(NSPoint)point {
-    return nil;
-}
-
-@end
-
 void ApplicationImplMacOS::create_main_window_platform(Window& window) {
-    NSWindow* native_window = GET_WINDOW_IMPL(window).native_window;
-    NSView* content_view = native_window.contentView;
-    metal_view = [[MetalView alloc] init_with_frame:content_view.bounds
-                                             device:device];
-    [content_view addSubview:metal_view
-                  positioned:NSWindowAbove
-                  relativeTo:nil];
+    metal_layer = WindowImplMacOS::create_metal_layer(device, window);
 }
 
 void ApplicationImplMacOS::imgui_init_platform() {
@@ -123,8 +74,7 @@ void ApplicationImplMacOS::imgui_init_platform() {
 }
 
 void ApplicationImplMacOS::imgui_begin_frame_platform() {
-    CAMetalLayer* layer = metal_view.metal_layer;
-    drawable = [layer nextDrawable];
+    drawable = [metal_layer nextDrawable];
     if (!drawable) {
         Logger::error("Have no drawable\n");
         return;

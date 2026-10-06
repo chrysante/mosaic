@@ -6,6 +6,7 @@
 #import <AppKit/NSButton.h>
 #import <AppKit/NSToolbar.h>
 #import <AppKit/NSWindow.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 #include "application/window_desc.h"
 #include "application/window_impl_macos.h"
@@ -63,6 +64,21 @@ std::string WindowImpl::get_native_debug_string(Window const& window) {
     out << "Is main: " << (bool)native_window.isMainWindow << "\n";
     view_hierarchy_description(out, native_window);
     return std::move(out).str();
+}
+
+CAMetalLayer* WindowImplMacOS::create_metal_layer(id<MTLDevice> device,
+                                                  Window& window) {
+    CAMetalLayer* layer = [CAMetalLayer layer];
+    layer.device = device;
+    layer.framebufferOnly = YES;
+    static MTLPixelFormat const window_pixel_format = MTLPixelFormatBGRA8Unorm;
+    layer.pixelFormat = window_pixel_format;
+    layer.contentsGravity = kCAGravityTopLeft;
+    NSWindow* native_window = GET_WINDOW_IMPL(window).native_window;
+    NSView* view = native_window.contentView;
+    view.layer = layer;
+    view.wantsLayer = YES;
+    return layer;
 }
 
 // =============================================================================
@@ -135,7 +151,7 @@ std::string WindowImpl::get_native_debug_string(Window const& window) {
 @end
 
 // =============================================================================
-// WindowContentView
+// MosaicView
 // =============================================================================
 
 static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
@@ -194,11 +210,11 @@ static void forward_event(Window const* window, NSEvent* event) {
         handler(event);
 }
 
-@interface WindowContentView : NSView
+@interface MosaicView : NSView
 @property(nonatomic, assign) mosaic::Window* mosaic_window;
 @end
 
-@implementation WindowContentView
+@implementation MosaicView
 - (BOOL)acceptsFirstMouse:(NSEvent*)event {
     return YES;
 }
@@ -243,6 +259,24 @@ static void forward_event(Window const* window, NSEvent* event) {
 - (void)keyUp:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
+
+- (void)layout {
+    [super layout];
+    [self updateDrawableSize];
+}
+- (void)viewDidChangeBackingProperties {
+    [super viewDidChangeBackingProperties];
+    [self updateDrawableSize];
+}
+- (void)updateDrawableSize {
+    if (![self.layer isKindOfClass:[CAMetalLayer class]]) return;
+    CAMetalLayer* layer = (CAMetalLayer*)self.layer;
+    CGFloat scale = self.window.backingScaleFactor;
+    layer.contentsScale = scale;
+    layer.drawableSize = CGSizeMake(self.bounds.size.width * scale,
+                                    self.bounds.size.height * scale);
+}
+
 @end
 
 // =============================================================================
@@ -273,7 +307,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
         NSRect content_rect = [window contentRectForFrameRect:frame];
-        WindowContentView* content_view = [[WindowContentView alloc]
+        MosaicView* content_view = [[MosaicView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
                                      content_rect.size.height)];
         window.contentView = content_view;

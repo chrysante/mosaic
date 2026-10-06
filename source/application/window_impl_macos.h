@@ -5,6 +5,8 @@
 #include <vector>
 
 #import <AppKit/Appkit.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 #include "application/window.h"
 #include "application/window_impl.h"
@@ -38,6 +40,9 @@ using NativeEventHandler = std::function<void(NSEvent*)>;
 
 struct WindowImplMacOS : WindowImpl {
     static void add_native_event_handler(Window&, NativeEventHandler);
+
+    static CAMetalLayer* create_metal_layer(id<MTLDevice> device,
+                                            Window& window);
 
     MosaicWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;

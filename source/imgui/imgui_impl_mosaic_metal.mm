@@ -64,14 +64,15 @@
 //  io.BackendRendererName so it can be displayed in the About Window.
 //  2018-07-05: Metal: Added new Metal backend implementation.
 
-#include <imgui.h>
+#include "imgui/imgui_impl_mosaic_metal.h"
 
 #ifndef IMGUI_DISABLE
 
-#include "imgui/imgui_impl_mosaic_metal.h"
-
 #import <Metal/Metal.h>
+#include <imgui.h>
 #import <time.h>
+
+#include "application/window_impl_macos.h"
 
 // Forward Declarations
 static void ImGui_Impl_Mosaic_Metal_InitMultiViewportSupport();
@@ -647,7 +648,14 @@ static void ImGui_Impl_Mosaic_Metal_CreateWindow(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_Metal_Data* bd = ImGui_Impl_Mosaic_Metal_GetBackendData();
     ImGuiViewportDataMetal* data = IM_NEW(ImGuiViewportDataMetal)();
     viewport->RendererUserData = data;
-
+    id<MTLDevice> device = bd->SharedMetalContext.device;
+    mosaic::Window* window = (mosaic::Window*)viewport->PlatformHandle;
+    IM_ASSERT(window);
+    CAMetalLayer* layer =
+        mosaic::internal::WindowImplMacOS::create_metal_layer(device, *window);
+    data->MetalLayer = layer;
+    data->CommandQueue = [device newCommandQueue];
+    data->RenderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
     // PlatformHandleRaw should always be a NSWindow*, whereas PlatformHandle
     // might be a higher-level handle (e.g. GLFWWindow*, SDL_Window*). Some
     // back-ends will leave PlatformHandleRaw == 0, in which case we assume
@@ -655,23 +663,6 @@ static void ImGui_Impl_Mosaic_Metal_CreateWindow(ImGuiViewport* viewport) {
     void* handle = viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw
                                                : viewport->PlatformHandle;
     IM_ASSERT(handle != nullptr);
-
-    id<MTLDevice> device = bd->SharedMetalContext.device;
-    CAMetalLayer* layer = [CAMetalLayer layer];
-    layer.device = device;
-    layer.framebufferOnly = YES;
-    layer.pixelFormat =
-        bd->SharedMetalContext.framebufferDescriptor.colorPixelFormat;
-    layer.contentsGravity = kCAGravityTopLeft;
-#if TARGET_OS_OSX
-    NSWindow* window = (__bridge NSWindow*)handle;
-    NSView* view = window.contentView;
-    view.layer = layer;
-    view.wantsLayer = YES;
-#endif
-    data->MetalLayer = layer;
-    data->CommandQueue = [device newCommandQueue];
-    data->RenderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
     data->Handle = handle;
 }
 
@@ -688,21 +679,7 @@ inline static CGSize MakeScaledSize(CGSize size, CGFloat scale) {
     return CGSizeMake(size.width * scale, size.height * scale);
 }
 
-static void ImGui_Impl_Mosaic_Metal_SetWindowSize(ImGuiViewport* viewport,
-                                                  ImVec2 size) {
-    ImGuiViewportDataMetal* data =
-        (ImGuiViewportDataMetal*)viewport->RendererUserData;
-#if 0 && TARGET_OS_OSX
-    void* handle = viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw : viewport->PlatformHandle;
-    NSWindow* window = (__bridge NSWindow*)handle;
-    CGFloat scale = window.backingScaleFactor;
-    data->MetalLayer.contentsScale = scale;
-    data->MetalLayer.drawableSize = MakeScaledSize(CGSizeMake(size.x, size.y), scale);
-#else
-    data->MetalLayer.drawableSize = MakeScaledSize(
-        CGSizeMake(size.x, size.y), data->MetalLayer.contentsScale);
-#endif
-}
+static void ImGui_Impl_Mosaic_Metal_SetWindowSize(ImGuiViewport*, ImVec2) {}
 
 static void ImGui_Impl_Mosaic_Metal_RenderWindow(ImGuiViewport* viewport,
                                                  void*) {

@@ -21,10 +21,6 @@
 - (void)displayLinkCallback:(CADisplayLink*)displayLink;
 @end
 
-@interface MetalView : NSView
-@property(nonatomic, readonly) CAMetalLayer* metal_layer;
-@end
-
 namespace mosaic::internal {
 
 struct ApplicationImplMacOS : internal::ApplicationImpl {
@@ -42,7 +38,7 @@ struct ApplicationImplMacOS : internal::ApplicationImpl {
     NSApplication* native_app = nil;
     CADisplayLink* display_link = nil;
     DisplayLinkTarget* display_link_target = nil;
-    MetalView* metal_view = nil;
+    CAMetalLayer* metal_layer = nil;
 
     // Persistent render data
     id<MTLDevice> device = nil;
