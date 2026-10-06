@@ -123,8 +123,8 @@ struct AppWindowDelegate : WindowDelegate {
 
 Window* ApplicationImpl::create_main_window() {
     assert(windows.empty());
-    auto* window =
-        app.create_window({.position = {200, 200}, .size = {800, 600}});
+    auto* window = app.create_window(
+        {.position = {200, 200}, .size = {800, 600}, .title = "MAIN WINDOW"});
     window->add_delegate(std::make_unique<AppWindowDelegate>(app));
     create_main_window_platform(*window);
     return window;

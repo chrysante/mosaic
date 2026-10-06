@@ -317,6 +317,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
         delegate.window = this;
         WINDOW_IMPL.delegate = delegate;
         window.delegate = delegate;
+        window.title = [NSString stringWithUTF8String:desc.title.c_str()];
         if (desc.visible) {
             if (desc.focused) [window makeKeyAndOrderFront:nil];
             else [window orderFront:nil];
