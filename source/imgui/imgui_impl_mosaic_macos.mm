@@ -168,6 +168,7 @@ static void ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport();
 static void ImGui_Impl_Mosaic_MacOS_ShutdownMultiViewportSupport();
 static void ImGui_Impl_Mosaic_MacOS_InitMouseCursors();
 static void ImGui_Impl_Mosaic_MacOS_InitIme();
+static void create_key_event_responder(mosaic::Window& window);
 static void ImGui_Impl_Mosaic_MacOS_InitClipboard();
 static void ImGui_Impl_Mosaic_MacOS_UpdateMonitors();
 static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view);
@@ -601,17 +602,9 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
                name:NSApplicationDidResignActiveNotification
              object:nil];
 
-    // Add the NSTextInputClient to the view hierarchy,
-    // to receive keyboard events and translate them to input text.
-    MosaicKeyEventResponder* key_event_responder =
-        [[MosaicKeyEventResponder alloc] initWithFrame:NSZeroRect];
-    native_window.key_event_responder = key_event_responder;
-    [content_view addSubview:key_event_responder];
     ImGui_Impl_Mosaic_MacOS_AddTrackingArea(content_view);
     install_mouse_event_handler(main_window, content_view);
-    native_window.text_input_context =
-        [[NSTextInputContext alloc] initWithClient:key_event_responder];
-
+    create_key_event_responder(main_window);
     ImGui_Impl_Mosaic_MacOS_InitIme();
     return true;
 }
@@ -735,6 +728,16 @@ static void ImGui_Impl_Mosaic_MacOS_InitIme() {
             setImePosX:data->InputPos.x
                imePosY:data->InputPos.y + data->InputLineHeight];
     };
+}
+
+static void create_key_event_responder(mosaic::Window& window) {
+    MosaicWindow* native_window = GET_WINDOW_IMPL(window).native_window;
+    MosaicKeyEventResponder* key_event_responder =
+        [[MosaicKeyEventResponder alloc] initWithFrame:NSZeroRect];
+    native_window.key_event_responder = key_event_responder;
+    [native_window.contentView addSubview:key_event_responder];
+    native_window.text_input_context =
+        [[NSTextInputContext alloc] initWithClient:key_event_responder];
 }
 
 static void ImGui_Impl_Mosaic_MacOS_UpdateMouseCursor() {
@@ -1211,24 +1214,14 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     };
     auto* window = bd->application->create_window(desc);
     install_mouse_event_handler(*window, bd->NativeWindow.contentView);
+    create_key_event_responder(*window);
 
-    NSRect rect = NSMakeRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x,
-                             viewport->Size.y);
-    ConvertNSRect(&rect);
-    // NSRect rect = NSZeroRect;
-    MosaicKeyEventResponder* key_event_responder =
-        [[MosaicKeyEventResponder alloc] initWithFrame:rect];
-    MosaicWindow* native_window = GET_WINDOW_IMPL(*window).native_window;
-    [native_window.contentView addSubview:key_event_responder];
-    native_window.key_event_responder = key_event_responder;
-    native_window.text_input_context =
-        [[NSTextInputContext alloc] initWithClient:key_event_responder];
     vd->window = window;
-    vd->NativeWindow = native_window;
+    vd->NativeWindow = GET_WINDOW_IMPL(*window).native_window;
     vd->WindowOwned = true;
     viewport->PlatformRequestResize = false;
 #warning Is this really supposed to be a __bridge_retained cast?
-    viewport->PlatformHandleRaw = (__bridge_retained void*)native_window;
+    viewport->PlatformHandleRaw = (__bridge_retained void*)vd->NativeWindow;
     viewport->PlatformHandle = window;
 
     window->add_delegate(
