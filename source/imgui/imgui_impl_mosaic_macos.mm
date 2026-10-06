@@ -584,7 +584,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     bd->NativeWindow = native_window;
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
     main_viewport->PlatformHandle = &main_window;
-    main_viewport->PlatformHandleRaw = (__bridge_retained void*)native_window;
+    main_viewport->PlatformHandleRaw = (__bridge void*)native_window;
 
     ImGui_Impl_Mosaic_MacOS_UpdateMonitors();
     ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport();
@@ -1220,8 +1220,7 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     vd->NativeWindow = GET_WINDOW_IMPL(*window).native_window;
     vd->WindowOwned = true;
     viewport->PlatformRequestResize = false;
-#warning Is this really supposed to be a __bridge_retained cast?
-    viewport->PlatformHandleRaw = (__bridge_retained void*)vd->NativeWindow;
+    viewport->PlatformHandleRaw = (__bridge void*)vd->NativeWindow;
     viewport->PlatformHandle = window;
 
     window->add_delegate(
@@ -1426,8 +1425,7 @@ static void ImGui_Impl_Mosaic_MacOS_InitMultiViewportSupport() {
     vd->WindowOwned = false;
     main_viewport->PlatformUserData = vd;
     main_viewport->PlatformHandle = bd->application->main_window();
-    main_viewport->PlatformHandleRaw =
-        (__bridge_retained void*)bd->NativeWindow;
+    main_viewport->PlatformHandleRaw = (__bridge void*)bd->NativeWindow;
 
     [NSNotificationCenter.defaultCenter
         addObserver:bd->Observer
