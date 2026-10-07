@@ -186,7 +186,7 @@ target_link_libraries(mosaic
 
 target_sources(mosaic PRIVATE
     source/application/application.cpp
-    source/application/application_debugger.cpp
+    source/application/debug_tools.cpp
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
@@ -220,6 +220,7 @@ target_link_libraries(mosaic PRIVATE
 )
 target_sources(mosaic PRIVATE
     source/application/application_macos.mm
+    source/application/debug_tools_macos.mm
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm

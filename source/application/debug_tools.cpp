@@ -1,4 +1,4 @@
-#include "application/application_debugger.h"
+#include "application/debug_tools.h"
 
 #ifndef NDEBUG
 
@@ -26,27 +26,29 @@ void ApplicationDebugger::display() {
     }
     if (ImGui::BeginTabBar("DebuggerTabs")) {
         if (ImGui::BeginTabItem("Windows")) {
-            display_window_debugger();
+            draw_window_debugger();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Input Events")) {
-            display_event_debugger();
+            draw_event_debugger();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Input")) {
-            display_input_debugger();
+            draw_input_debugger();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
     }
     ImGui::End();
+
+    display_native_window_style_inspector();
 }
 
 // =============================================================================
 // Window Debugger
 // =============================================================================
 
-static void display_window_info(Window const* window) {
+static void draw_window_info(Window const* window) {
     if (!window) {
         ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "NULL");
         return;
@@ -99,7 +101,7 @@ static void display_window_info(Window const* window) {
     ImGui::TextDisabled("-");
 }
 
-void ApplicationDebugger::display_window_debugger() {
+void ApplicationDebugger::draw_window_debugger() {
     auto const& windows = ApplicationImpl::get_impl(app).windows;
     ImGui::Text("Windows");
     ImGui::SameLine();
@@ -118,7 +120,7 @@ void ApplicationDebugger::display_window_debugger() {
         ImGui::TableSetupColumn("Visible");
         ImGui::TableHeadersRow();
         for (auto& window : windows)
-            display_window_info(window.get());
+            draw_window_info(window.get());
         ImGui::EndTable();
     }
 }
@@ -127,13 +129,13 @@ void ApplicationDebugger::display_window_debugger() {
 // Event Debugger
 // =============================================================================
 
-static void display_modifiers(InputEvent const& event) {
+static void draw_modifiers(InputEvent const& event) {
     ImGui::TableSetColumnIndex(10);
     std::string text = to_string(event.modifier_flags);
     ImGui::TextUnformatted(text.data(), text.data() + text.size());
 }
 
-static void display_mouse_event_base(const MouseEvent& event) {
+static void draw_mouse_event_base(const MouseEvent& event) {
     ImGui::TableSetColumnIndex(2);
     ImGui::Text("(%.1f, %.1f)", event.location_in_window.x,
                 event.location_in_window.y);
@@ -142,75 +144,75 @@ static void display_mouse_event_base(const MouseEvent& event) {
                 event.location_on_screen.y);
 }
 
-static void display_event(MouseDownEvent const& event) {
-    display_mouse_event_base(event);
+static void draw_event(MouseDownEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(5);
     ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
                            : event.button == MouseButton::right ? "Right"
                                                                 : "Other");
     ImGui::TableSetColumnIndex(7);
     ImGui::Text("%ld", event.click_count);
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-void display_event(MouseUpEvent const& event) {
-    display_mouse_event_base(event);
+void draw_event(MouseUpEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(5);
     ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
                            : event.button == MouseButton::right ? "Right"
                                                                 : "Other");
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-static void display_event(MouseDragEvent const& event) {
-    display_mouse_event_base(event);
+static void draw_event(MouseDragEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(4);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
     ImGui::TableSetColumnIndex(5);
     ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
                            : event.button == MouseButton::right ? "Right"
                                                                 : "Other");
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-void display_event(MouseMoveEvent const& event) {
-    display_mouse_event_base(event);
+void draw_event(MouseMoveEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(4);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-void display_event(ScrollEvent const& event) {
-    display_mouse_event_base(event);
+void draw_event(ScrollEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(4);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
     ImGui::TableSetColumnIndex(9);
     ImGui::TextUnformatted(event.is_trackpad ? "Trackpad" : "Mouse");
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-static void display_event(MagnificationEvent const& event) {
-    display_mouse_event_base(event);
+static void draw_event(MagnificationEvent const& event) {
+    draw_mouse_event_base(event);
     ImGui::TableSetColumnIndex(4);
     ImGui::Text("%.3f", event.magnification);
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-static void display_event(KeyDownEvent const& event) {
+static void draw_event(KeyDownEvent const& event) {
     ImGui::TableSetColumnIndex(6);
     ImGui::Text("%d", static_cast<int>(event.key));
     ImGui::TableSetColumnIndex(8);
     ImGui::Text("%d", event.repeat_count);
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-static void display_event(KeyUpEvent const& event) {
+static void draw_event(KeyUpEvent const& event) {
     ImGui::TableSetColumnIndex(6);
     ImGui::Text("%d", static_cast<int>(event.key));
-    display_modifiers(event);
+    draw_modifiers(event);
 }
 
-void ApplicationDebugger::display_event_debugger() {
+void ApplicationDebugger::draw_event_debugger() {
     ImGui::Text("Events: %zu", m_input_queue.size());
     ImGui::SameLine();
     if (ImGui::Button("Clear")) m_input_queue.clear();
@@ -253,8 +255,7 @@ void ApplicationDebugger::display_event_debugger() {
             magic_enum::enum_name(get_rtti(event.base()));
         ImGui::TextUnformatted(type_name.data(),
                                type_name.data() + type_name.size());
-        csp::visit(event.base(),
-                   [](auto const& event) { display_event(event); });
+        csp::visit(event.base(), [](auto const& event) { draw_event(event); });
     }
 
     ImGui::EndTable();
@@ -264,7 +265,7 @@ void ApplicationDebugger::display_event_debugger() {
 // Input Debugger
 // =============================================================================
 
-void ApplicationDebugger::display_input_debugger() {
+void ApplicationDebugger::draw_input_debugger() {
     Input const& input = app.input();
     // -------------------------------------------------------------------------
     // Mouse

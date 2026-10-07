@@ -7,8 +7,8 @@
 
 #include <imgui.h>
 
-#include "application/application_debugger.h"
 #include "application/application_impl.h"
+#include "application/debug_tools.h"
 #include "application/input.h"
 #include "application/input_event.h"
 #include "application/input_internal.h"

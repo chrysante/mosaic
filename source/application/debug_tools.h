@@ -48,9 +48,10 @@ public:
     void on_input(InputEventUnion event) { m_input_queue.push(event); }
 
 private:
-    void display_window_debugger();
-    void display_event_debugger();
-    void display_input_debugger();
+    void draw_window_debugger();
+    void draw_event_debugger();
+    void draw_input_debugger();
+    void display_native_window_style_inspector();
 
     Application& app;
     FixedQueue<InputEventUnion> m_input_queue;
