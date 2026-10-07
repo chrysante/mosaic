@@ -146,7 +146,7 @@ static Key translate_key_code_german(unsigned code) {
     case 124:
         return Key::right_arrow;
     default:
-        return Key::none;
+        return Key::unkown;
     }
 }
 
@@ -242,12 +242,17 @@ static InputEventUnion make_key_event(NSEvent* event) {
     Key key = translate_key_code_german(event.keyCode);
     switch (event.type) {
     case NSEventTypeKeyDown:
-        return KeyDownEvent(mod_flags, key, event.isARepeat ? 1 : 2);
+        return KeyDownEvent(mod_flags, key, event.isARepeat);
     case NSEventTypeKeyUp:
         return KeyUpEvent(mod_flags, key);
     default:
         std::terminate();
     }
+}
+
+static InputEventUnion make_modifiers_changed_event(NSEvent* event) {
+    ModFlags mod_flags = translate_mod_flags(event.modifierFlags);
+    return ModifiersChangedEvent(mod_flags);
 }
 
 namespace {
@@ -333,6 +338,9 @@ static NSEvent* handle_event(NSEvent* event) {
     case NSEventTypeKeyDown:
         g_callback_map.invoke_all(make_key_event(event));
         break;
+    case NSEventTypeFlagsChanged:
+        g_callback_map.invoke_all(make_modifiers_changed_event(event));
+        break;
     default:
         break;
     }
@@ -342,6 +350,8 @@ static NSEvent* handle_event(NSEvent* event) {
 static void create_global_monitors() {
     NSEventMask mask = 0;
     mask |= NSEventMaskMouseMoved;
+    mask |= NSEventMaskKeyDown;
+    mask |= NSEventMaskKeyUp;
     mask |= NSEventMaskFlagsChanged;
     mask |= NSEventMaskGesture;
     mask |= NSEventMaskMagnify;

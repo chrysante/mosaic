@@ -1115,6 +1115,7 @@ static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view) {
     // of native UI elements first.
     eventMask |= NSEventMaskMouseMoved;
     eventMask |= NSEventMaskFlagsChanged;
+    eventMask |= NSEventMaskKeyUp | NSEventMaskKeyDown;
     auto handler = ^NSEvent* _Nullable(NSEvent* event) {
         ImGui_Impl_Mosaic_MacOS_HandleEvent(event, view);
         return event;

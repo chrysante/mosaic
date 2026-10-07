@@ -27,7 +27,7 @@ Command const* CommandPalette::add(Command cmd) {
     cmd.m_key_comb.mod_flags = canonicalize(cmd.m_key_comb.mod_flags);
     auto* result = &m_name_map.insert({cmd.name(), cmd}).first->second;
     auto key_comb = cmd.key_combination();
-    if (key_comb.key != Key::none) {
+    if (key_comb.key != Key::unkown) {
         auto& list = m_key_map[key_comb.key];
         list.push_back({canonicalize(key_comb.mod_flags), cmd});
     }

@@ -254,10 +254,11 @@ static void forward_event(Window const* window, NSEvent* event) {
     forward_event(_mosaic_window, event);
 }
 - (void)keyDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
+    // Key events are already handled by the event monitor.
+    // We consume the event for now so it doesn't beep.
 }
 - (void)keyUp:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
+    // See -keyDown
 }
 
 - (void)layout {

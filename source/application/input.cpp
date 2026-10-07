@@ -1,6 +1,9 @@
 #include "application/input.h"
 
+#include <array>
 #include <ostream>
+#include <string>
+#include <string_view>
 
 #include "application/input_event.h"
 #include "application/input_internal.h"
@@ -10,7 +13,7 @@ using namespace mosaic;
 using namespace vml::short_types;
 
 std::string mosaic::to_string(ModFlags flags) {
-    std::string result = "[";
+    std::string result;
     bool any = false;
 #define CASE(Name, Str)                                                        \
     if (test(flags & Name)) {                                                  \
@@ -18,14 +21,13 @@ std::string mosaic::to_string(ModFlags flags) {
         any = true;                                                            \
         result += Str;                                                         \
     }
-    CASE(ModFlags::caps_lock, "caps_lock")
-    CASE(ModFlags::shift, "shift")
-    CASE(ModFlags::control, "control")
-    CASE(ModFlags::alt, "alt")
-    CASE(ModFlags::super, "super")
-    CASE(ModFlags::num_lock, "num_lock")
+    CASE(ModFlags::caps_lock, "Caps Lock")
+    CASE(ModFlags::shift, "Shift")
+    CASE(ModFlags::control, "Control")
+    CASE(ModFlags::alt, "Alt")
+    CASE(ModFlags::super, "Super")
+    CASE(ModFlags::num_lock, "Num Lock")
 #undef CASE
-    result += "]";
     return result;
 }
 
@@ -33,19 +35,27 @@ std::ostream& mosaic::operator<<(std::ostream& str, ModFlags flags) {
     return str << to_string(flags);
 }
 
-std::string MOSAIC_EXPORT mosaic::to_string(MouseButton button) {
-    switch (button) {
-    case MouseButton::left:
-        return "left";
-    case MouseButton::right:
-        return "right";
-    case MouseButton::other:
-        return "other";
-    }
+std::string mosaic::to_string(Key key) {
+    static constexpr std::array data{
+#define MOSAIC_INPUT_KEY(key, label) std::string_view(label),
+#include "application/input.def"
+    };
+    return std::string(data[(std::size_t)key]);
 }
 
-std::ostream& MOSAIC_EXPORT mosaic::operator<<(std::ostream& str,
-                                               MouseButton button) {
+std::ostream& mosaic::operator<<(std::ostream& str, Key key) {
+    return str << to_string(key);
+}
+
+std::string mosaic::to_string(MouseButton button) {
+    static constexpr std::array data{
+#define MOSAIC_INPUT_MOUSE_BUTTON(button, label) std::string_view(label),
+#include "application/input.def"
+    };
+    return std::string(data[(std::size_t)button]);
+}
+
+std::ostream& mosaic::operator<<(std::ostream& str, MouseButton button) {
     return str << to_string(button);
 }
 

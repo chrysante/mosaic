@@ -9,9 +9,11 @@
 
 #include "application/application.h"
 #include "application/application_impl.h"
+#include "application/input_event.h"
 #include "application/window.h"
 #include "application/window_impl.h"
 #include "gui/font.h"
+#include "support/enum.h"
 
 using namespace mosaic;
 
@@ -129,128 +131,122 @@ void ApplicationDebugger::draw_window_debugger() {
 // Event Debugger
 // =============================================================================
 
+// clang-format off
+#define EVENT_TABLE(X)                                                                    \
+    X(col_type,            "Type",              ImGuiTableColumnFlags_WidthFixed, 135.0f) \
+    X(col_location_window, "Location (Window)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
+    X(col_location_screen, "Location (Screen)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
+    X(col_offset,          "Offset",            ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
+    X(col_button_key,      "Button/Key",        ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
+    X(col_click_count,     "Click Count",       ImGuiTableColumnFlags_WidthFixed, 55.0f)  \
+    X(col_source,          "Source",            ImGuiTableColumnFlags_WidthFixed, 75.0f)  \
+    X(col_modifiers,       "Modifiers",         ImGuiTableColumnFlags_WidthFixed, 120.0f)
+// clang-format on
+
+enum EventColName {
+#define X(name, _2, _3, _4) name,
+    EVENT_TABLE(X)
+#undef X
+};
+
 static void draw_modifiers(InputEvent const& event) {
-    ImGui::TableSetColumnIndex(10);
+    ImGui::TableSetColumnIndex(col_modifiers);
     std::string text = to_string(event.modifier_flags);
     ImGui::TextUnformatted(text.data(), text.data() + text.size());
 }
 
 static void draw_mouse_event_base(const MouseEvent& event) {
-    ImGui::TableSetColumnIndex(2);
+    ImGui::TableSetColumnIndex(col_location_window);
     ImGui::Text("(%.1f, %.1f)", event.location_in_window.x,
                 event.location_in_window.y);
-    ImGui::TableSetColumnIndex(3);
+    ImGui::TableSetColumnIndex(col_location_screen);
     ImGui::Text("(%.1f, %.1f)", event.location_on_screen.x,
                 event.location_on_screen.y);
 }
 
 static void draw_event(MouseDownEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(5);
-    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
-                           : event.button == MouseButton::right ? "Right"
-                                                                : "Other");
-    ImGui::TableSetColumnIndex(7);
+    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::Text("%s", to_string(event.button).c_str());
+    ImGui::TableSetColumnIndex(col_click_count);
     ImGui::Text("%ld", event.click_count);
     draw_modifiers(event);
 }
 
 void draw_event(MouseUpEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(5);
-    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
-                           : event.button == MouseButton::right ? "Right"
-                                                                : "Other");
+    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::Text("%s", to_string(event.button).c_str());
     draw_modifiers(event);
 }
 
 static void draw_event(MouseDragEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(4);
+    ImGui::TableSetColumnIndex(col_offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
-    ImGui::TableSetColumnIndex(5);
-    ImGui::TextUnformatted(event.button == MouseButton::left    ? "Left"
-                           : event.button == MouseButton::right ? "Right"
-                                                                : "Other");
+    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::Text("%s", to_string(event.button).c_str());
     draw_modifiers(event);
 }
 
 void draw_event(MouseMoveEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(4);
+    ImGui::TableSetColumnIndex(col_offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
     draw_modifiers(event);
 }
 
 void draw_event(ScrollEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(4);
+    ImGui::TableSetColumnIndex(col_offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
-    ImGui::TableSetColumnIndex(9);
+    ImGui::TableSetColumnIndex(col_source);
     ImGui::TextUnformatted(event.is_trackpad ? "Trackpad" : "Mouse");
     draw_modifiers(event);
 }
 
 static void draw_event(MagnificationEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(4);
+    ImGui::TableSetColumnIndex(col_offset);
     ImGui::Text("%.3f", event.magnification);
     draw_modifiers(event);
 }
 
-static void draw_event(KeyDownEvent const& event) {
-    ImGui::TableSetColumnIndex(6);
-    ImGui::Text("%d", static_cast<int>(event.key));
-    ImGui::TableSetColumnIndex(8);
-    ImGui::Text("%d", event.repeat_count);
+static void draw_event(KeyEvent const& event) {
+    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::Text("%s", to_string(event.key).c_str());
+    if (auto* key_down = csp::dyncast<KeyDownEvent const*>(&event);
+        key_down && key_down->is_repeat) {
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(32, 225, 32, 255));
+        ImGui::Text("REPEAT");
+        ImGui::PopStyleColor();
+    }
     draw_modifiers(event);
 }
 
-static void draw_event(KeyUpEvent const& event) {
-    ImGui::TableSetColumnIndex(6);
-    ImGui::Text("%d", static_cast<int>(event.key));
+static void draw_event(ModifiersChangedEvent const& event) {
     draw_modifiers(event);
 }
 
 void ApplicationDebugger::draw_event_debugger() {
-    ImGui::Text("Events: %zu", m_input_queue.size());
-    ImGui::SameLine();
-    if (ImGui::Button("Clear")) m_input_queue.clear();
-    ImGui::Separator();
-
-    constexpr ImGuiTableFlags table_flags =
+    static ImGuiTableFlags const table_flags =
         ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
         ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
         ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("InputEvents", enum_count<EventColName>,
+                           table_flags))
+        return;
 
-    if (!ImGui::BeginTable("InputEvents", 11, table_flags)) return;
-
-    ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 35.0f);
-    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 135.0f);
-    ImGui::TableSetupColumn("Window", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("Screen", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-    ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-    ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-    ImGui::TableSetupColumn("Clicks", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-    ImGui::TableSetupColumn("Repeat", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-    ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-    ImGui::TableSetupColumn("Modifiers", ImGuiTableColumnFlags_WidthFixed,
-                            120.0f);
+#define X(name, label, flags, width)                                           \
+    ImGui::TableSetupColumn(label, flags, width);
+    EVENT_TABLE(X)
+#undef X
 
     ImGui::TableHeadersRow();
-    std::size_t index = 0;
     for (auto const& event : m_input_queue | std::views::reverse) {
         ImGui::TableNextRow();
-
-        // Index
-        ImGui::TableSetColumnIndex(0);
-        ImGui::Text("%zu", index++);
-
-        // ---------------------------------------------------------
-        // Event-specific information
-        // ---------------------------------------------------------
-        ImGui::TableSetColumnIndex(1);
+        ImGui::TableSetColumnIndex(col_type);
         std::string_view type_name =
             magic_enum::enum_name(get_rtti(event.base()));
         ImGui::TextUnformatted(type_name.data(),
@@ -341,7 +337,6 @@ void ApplicationDebugger::draw_input_debugger() {
         modifier((mods & ModFlags::num_lock) != ModFlags::none, "Num Lock");
 
         ImGui::Spacing();
-
         ImGui::Text("Flags");
         ImGui::SameLine(150.0f);
         ImGui::Text("%s", to_string(mods).c_str());
@@ -349,11 +344,7 @@ void ApplicationDebugger::draw_input_debugger() {
         ImGui::Spacing();
         ImGui::Text("Pressed keys");
         ImGui::Separator();
-
         bool any_key_down = false;
-
-        // Again, this assumes enum_count<Key> can be used as the number
-        // of values in the Key enum.
         for (size_t i = 0; i < enum_count<Key>; ++i) {
             Key key = static_cast<Key>(i);
             if (!input.key_down(key)) continue;
@@ -362,10 +353,9 @@ void ApplicationDebugger::draw_input_debugger() {
                                   ImVec4(0.3f, 1.0f, 0.4f, 1.0f));
             ImGui::Bullet();
             ImGui::SameLine();
-            ImGui::Text("Key %zu", i);
+            ImGui::Text("%s", to_string(key).c_str());
             ImGui::PopStyleColor();
         }
-
         if (!any_key_down) ImGui::TextDisabled("No keys pressed");
     }
 

@@ -108,9 +108,6 @@ static void draw_native_window_style_inspector() {
             {"Miniaturizable", NSWindowStyleMaskMiniaturizable},
             {"Resizable", NSWindowStyleMaskResizable},
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
-            {"Textured Background", NSWindowStyleMaskTexturedBackground},
-#endif
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
             {"Unified Title And Toolbar",
              NSWindowStyleMaskUnifiedTitleAndToolbar},
 #endif

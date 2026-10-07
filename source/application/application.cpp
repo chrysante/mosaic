@@ -191,4 +191,5 @@ void ApplicationImpl::do_frame() {
 #ifndef NDEBUG
     debugger->display();
 #endif
+    input_end_frame(input);
 }
