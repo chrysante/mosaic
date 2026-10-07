@@ -261,13 +261,18 @@ struct MagnificationEvent : MouseEvent {
 
 /// Common key event data
 struct KeyEvent : InputEvent {
-    /// The key that generated the event
+    /// The logical key
     Key key;
 
+    /// The physical key that generated the event
+    PhysicalKey physical;
+
 protected:
-    KeyEvent(internal::InputEventType type, ModFlags mod_flags, Key key)
+    KeyEvent(internal::InputEventType type, ModFlags mod_flags, Key key,
+             PhysicalKey physical)
         : InputEvent(type, mod_flags)
-        , key(key) {}
+        , key(key)
+        , physical(physical) {}
 };
 
 struct KeyDownEvent : KeyEvent {
@@ -275,14 +280,17 @@ struct KeyDownEvent : KeyEvent {
     /// down key
     bool is_repeat;
 
-    KeyDownEvent(ModFlags mod_flags, Key key, bool is_repeat)
-        : KeyEvent(internal::InputEventType::KeyDownEvent, mod_flags, key)
+    KeyDownEvent(ModFlags mod_flags, Key key, PhysicalKey physical,
+                 bool is_repeat)
+        : KeyEvent(internal::InputEventType::KeyDownEvent, mod_flags, key,
+                   physical)
         , is_repeat(is_repeat) {}
 };
 
 struct KeyUpEvent : KeyEvent {
-    KeyUpEvent(ModFlags mod_flags, Key key)
-        : KeyEvent(internal::InputEventType::KeyUpEvent, mod_flags, key) {}
+    KeyUpEvent(ModFlags mod_flags, Key key, PhysicalKey physical)
+        : KeyEvent(internal::InputEventType::KeyUpEvent, mod_flags, key,
+                   physical) {}
 };
 
 struct ModifiersChangedEvent : InputEvent {

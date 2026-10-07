@@ -138,6 +138,7 @@ void ApplicationDebugger::draw_window_debugger() {
     X(col_location_screen, "Location (Screen)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
     X(col_offset,          "Offset",            ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
     X(col_button_key,      "Button/Key",        ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
+    X(col_physical_key,    "Physical Key",      ImGuiTableColumnFlags_WidthFixed, 70.0f)  \
     X(col_click_count,     "Click Count",       ImGuiTableColumnFlags_WidthFixed, 55.0f)  \
     X(col_source,          "Source",            ImGuiTableColumnFlags_WidthFixed, 75.0f)  \
     X(col_modifiers,       "Modifiers",         ImGuiTableColumnFlags_WidthFixed, 120.0f)
@@ -222,6 +223,8 @@ static void draw_event(KeyEvent const& event) {
         ImGui::Text("REPEAT");
         ImGui::PopStyleColor();
     }
+    ImGui::TableSetColumnIndex(col_physical_key);
+    ImGui::Text("%s", to_string(event.physical).c_str());
     draw_modifiers(event);
 }
 
@@ -345,8 +348,8 @@ void ApplicationDebugger::draw_input_debugger() {
         ImGui::Text("Pressed keys");
         ImGui::Separator();
         bool any_key_down = false;
-        for (size_t i = 0; i < enum_count<Key>; ++i) {
-            Key key = static_cast<Key>(i);
+        for (size_t i = 0; i < enum_count<PhysicalKey>; ++i) {
+            auto key = static_cast<PhysicalKey>(i);
             if (!input.key_down(key)) continue;
             any_key_down = true;
             ImGui::PushStyleColor(ImGuiCol_Text,
@@ -379,8 +382,8 @@ void ApplicationDebugger::draw_input_debugger() {
     }
 
     bool any_key_down = false;
-    for (size_t i = 0; i < enum_count<Key>; ++i) {
-        if (input.key_down(static_cast<Key>(i))) {
+    for (size_t i = 0; i < enum_count<PhysicalKey>; ++i) {
+        if (input.key_down(static_cast<PhysicalKey>(i))) {
             any_key_down = true;
             break;
         }

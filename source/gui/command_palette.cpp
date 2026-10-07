@@ -27,7 +27,7 @@ Command const* CommandPalette::add(Command cmd) {
     cmd.m_key_comb.mod_flags = canonicalize(cmd.m_key_comb.mod_flags);
     auto* result = &m_name_map.insert({cmd.name(), cmd}).first->second;
     auto key_comb = cmd.key_combination();
-    if (key_comb.key != Key::unkown) {
+    if (key_comb.key != Key::unknown) {
         auto& list = m_key_map[key_comb.key];
         list.push_back({canonicalize(key_comb.mod_flags), cmd});
     }
@@ -63,9 +63,8 @@ void CommandPalette::on_input(InputEvent const& event) const {
             if (list_itr == m_key_map.end()) return false;
             auto& list = list_itr->second;
             /// Sometimes numlock gets set even if not held
-            auto mod_flags = event.modifier_flags & ~ModFlags::num_lock;
             auto itr = std::find_if(list.begin(), list.end(), [&](auto& p) {
-                return p.mod_flags == mod_flags;
+                return p.mod_flags == event.modifier_flags;
             });
             if (itr == list.end()) return false;
             if (itr->command.enabled()) itr->command.execute();

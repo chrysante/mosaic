@@ -1,5 +1,7 @@
 
-
+// =============================================================================
+// InputEvent types
+// =============================================================================
 
 #ifndef MOSAIC_INPUT_EVENT
 #define MOSAIC_INPUT_EVENT(name, base_class, corporeality) 
@@ -29,121 +31,201 @@
 
 
 
+// =============================================================================
+// Keys, physical and logical
+// =============================================================================
+
 #ifndef MOSAIC_INPUT_KEY
 #define MOSAIC_INPUT_KEY(key, label)
 #endif
-    MOSAIC_INPUT_KEY(unkown,             "Unkown")
-    MOSAIC_INPUT_KEY(A,                  "A")
-    MOSAIC_INPUT_KEY(S,                  "S")
-    MOSAIC_INPUT_KEY(D,                  "D")
-    MOSAIC_INPUT_KEY(F,                  "F")
-    MOSAIC_INPUT_KEY(H,                  "H")
-    MOSAIC_INPUT_KEY(G,                  "G")
-    MOSAIC_INPUT_KEY(Z,                  "Z")
-    MOSAIC_INPUT_KEY(X,                  "X")
-    MOSAIC_INPUT_KEY(C,                  "C")
-    MOSAIC_INPUT_KEY(V,                  "V")
-    MOSAIC_INPUT_KEY(B,                  "B")
-    MOSAIC_INPUT_KEY(Q,                  "Q")
-    MOSAIC_INPUT_KEY(W,                  "W")
-    MOSAIC_INPUT_KEY(E,                  "E")
-    MOSAIC_INPUT_KEY(R,                  "R")
-    MOSAIC_INPUT_KEY(Y,                  "Y")
-    MOSAIC_INPUT_KEY(T,                  "T")
-    MOSAIC_INPUT_KEY(O,                  "O")
-    MOSAIC_INPUT_KEY(U,                  "U")
-    MOSAIC_INPUT_KEY(I,                  "I")
-    MOSAIC_INPUT_KEY(P,                  "P")
-    MOSAIC_INPUT_KEY(L,                  "L")
-    MOSAIC_INPUT_KEY(J,                  "J")
-    MOSAIC_INPUT_KEY(K,                  "K")
-    MOSAIC_INPUT_KEY(N,                  "N")
-    MOSAIC_INPUT_KEY(M,                  "M")
-    MOSAIC_INPUT_KEY(num1,               "Num1")
-    MOSAIC_INPUT_KEY(num2,               "Num2")
-    MOSAIC_INPUT_KEY(num3,               "Num3")
-    MOSAIC_INPUT_KEY(num4,               "Num4")
-    MOSAIC_INPUT_KEY(num5,               "Num5")
-    MOSAIC_INPUT_KEY(num6,               "Num6")
-    MOSAIC_INPUT_KEY(num7,               "Num7")
-    MOSAIC_INPUT_KEY(num8,               "Num8")
-    MOSAIC_INPUT_KEY(num9,               "Num9")
-    MOSAIC_INPUT_KEY(num0,               "Num0")
-    MOSAIC_INPUT_KEY(equal,              "Equal")
-    MOSAIC_INPUT_KEY(minus,              "Minus")
-    MOSAIC_INPUT_KEY(plus,               "Plus")
-    MOSAIC_INPUT_KEY(right_bracket,      "Right Bracket")
-    MOSAIC_INPUT_KEY(left_bracket,       "Left Bracket")
-    MOSAIC_INPUT_KEY(apostrophe,         "Apostrophe")
-    MOSAIC_INPUT_KEY(semicolon,          "Semicolon")
-    MOSAIC_INPUT_KEY(backslash,          "Backslash")
-    MOSAIC_INPUT_KEY(comma,              "Comma")
-    MOSAIC_INPUT_KEY(slash,              "Slash")
-    MOSAIC_INPUT_KEY(period,             "Period")
-    MOSAIC_INPUT_KEY(circumflex,         "Circumflex")
-    MOSAIC_INPUT_KEY(accent,             "Accent")
-    MOSAIC_INPUT_KEY(grave_accent,       "Grave Accent")
-    MOSAIC_INPUT_KEY(hash,               "Hash")
-    MOSAIC_INPUT_KEY(angle_bracket_open, "Angle Bracket Open")
-    MOSAIC_INPUT_KEY(keypad_decimal,     "Keypad Decimal")
-    MOSAIC_INPUT_KEY(keypad_multiply,    "Keypad Multiply")
-    MOSAIC_INPUT_KEY(keypad_add,         "Keypad Add")
-    MOSAIC_INPUT_KEY(num_lock,           "Num Lock")
-    MOSAIC_INPUT_KEY(keypad_divide,      "Keypad Divide")
-    MOSAIC_INPUT_KEY(keypad_enter,       "Keypad Enter")
-    MOSAIC_INPUT_KEY(keypad_subtract,    "Keypad Subtract")
-    MOSAIC_INPUT_KEY(keypad_equal,       "Keypad Equal")
-    MOSAIC_INPUT_KEY(keypad0,            "Keypad 0")
-    MOSAIC_INPUT_KEY(keypad1,            "Keypad 1")
-    MOSAIC_INPUT_KEY(keypad2,            "Keypad 2")
-    MOSAIC_INPUT_KEY(keypad3,            "Keypad 3")
-    MOSAIC_INPUT_KEY(keypad4,            "Keypad 4")
-    MOSAIC_INPUT_KEY(keypad5,            "Keypad 5")
-    MOSAIC_INPUT_KEY(keypad6,            "Keypad 6")
-    MOSAIC_INPUT_KEY(keypad7,            "Keypad 7")
-    MOSAIC_INPUT_KEY(keypad8,            "Keypad 8")
-    MOSAIC_INPUT_KEY(keypad9,            "Keypad 9")
-    MOSAIC_INPUT_KEY(enter,              "Enter")
-    MOSAIC_INPUT_KEY(tab,                "Tab")
-    MOSAIC_INPUT_KEY(space,              "Space")
-    MOSAIC_INPUT_KEY(backspace,          "Backspace")
-    MOSAIC_INPUT_KEY(escape,             "Escape")
-    MOSAIC_INPUT_KEY(caps_lock,          "Caps Lock")
-    MOSAIC_INPUT_KEY(left_ctrl,          "Left Ctrl")
-    MOSAIC_INPUT_KEY(left_shift,         "Left Shift")
-    MOSAIC_INPUT_KEY(left_alt,           "Left Alt")
-    MOSAIC_INPUT_KEY(left_super,         "Left Super")
-    MOSAIC_INPUT_KEY(right_ctrl,         "Right Ctrl")
-    MOSAIC_INPUT_KEY(right_shift,        "Right Shift")
-    MOSAIC_INPUT_KEY(right_alt,          "Right Alt")
-    MOSAIC_INPUT_KEY(right_super,        "Right Super")
-    MOSAIC_INPUT_KEY(F1,                 "F1")
-    MOSAIC_INPUT_KEY(F2,                 "F2")
-    MOSAIC_INPUT_KEY(F3,                 "F3")
-    MOSAIC_INPUT_KEY(F4,                 "F4")
-    MOSAIC_INPUT_KEY(F5,                 "F5")
-    MOSAIC_INPUT_KEY(F6,                 "F6")
-    MOSAIC_INPUT_KEY(F7,                 "F7")
-    MOSAIC_INPUT_KEY(F8,                 "F8")
-    MOSAIC_INPUT_KEY(F9,                 "F9")
-    MOSAIC_INPUT_KEY(F10,                "F10")
-    MOSAIC_INPUT_KEY(F11,                "F11")
-    MOSAIC_INPUT_KEY(F12,                "F12")
-    MOSAIC_INPUT_KEY(print_screen,       "Print Screen")
-    MOSAIC_INPUT_KEY(menu,               "Menu")
-    MOSAIC_INPUT_KEY(insert,             "Insert")
-    MOSAIC_INPUT_KEY(home,               "Home")
-    MOSAIC_INPUT_KEY(page_up,            "Page Up")
-    MOSAIC_INPUT_KEY(Delete,             "Delete")
-    MOSAIC_INPUT_KEY(end,                "End")
-    MOSAIC_INPUT_KEY(page_down,          "Page Down")
-    MOSAIC_INPUT_KEY(left_arrow,         "Left Arrow")
-    MOSAIC_INPUT_KEY(right_arrow,        "Right Arrow")
-    MOSAIC_INPUT_KEY(down_arrow,         "Down Arrow")
-    MOSAIC_INPUT_KEY(up_arrow,           "Up Arrow")
+
+MOSAIC_INPUT_KEY(unknown, "Unknown")
+
+// Letter keys. Defined for physical and logical keys
+#ifndef MOSAIC_INPUT_KEY_LETTER
+#define MOSAIC_INPUT_KEY_LETTER(key, label) MOSAIC_INPUT_KEY(key, label)
+#endif
+    MOSAIC_INPUT_KEY_LETTER(A, "A")
+    MOSAIC_INPUT_KEY_LETTER(S, "S")
+    MOSAIC_INPUT_KEY_LETTER(D, "D")
+    MOSAIC_INPUT_KEY_LETTER(F, "F")
+    MOSAIC_INPUT_KEY_LETTER(H, "H")
+    MOSAIC_INPUT_KEY_LETTER(G, "G")
+    MOSAIC_INPUT_KEY_LETTER(Z, "Z")
+    MOSAIC_INPUT_KEY_LETTER(X, "X")
+    MOSAIC_INPUT_KEY_LETTER(C, "C")
+    MOSAIC_INPUT_KEY_LETTER(V, "V")
+    MOSAIC_INPUT_KEY_LETTER(B, "B")
+    MOSAIC_INPUT_KEY_LETTER(Q, "Q")
+    MOSAIC_INPUT_KEY_LETTER(W, "W")
+    MOSAIC_INPUT_KEY_LETTER(E, "E")
+    MOSAIC_INPUT_KEY_LETTER(R, "R")
+    MOSAIC_INPUT_KEY_LETTER(Y, "Y")
+    MOSAIC_INPUT_KEY_LETTER(T, "T")
+    MOSAIC_INPUT_KEY_LETTER(O, "O")
+    MOSAIC_INPUT_KEY_LETTER(U, "U")
+    MOSAIC_INPUT_KEY_LETTER(I, "I")
+    MOSAIC_INPUT_KEY_LETTER(P, "P")
+    MOSAIC_INPUT_KEY_LETTER(L, "L")
+    MOSAIC_INPUT_KEY_LETTER(J, "J")
+    MOSAIC_INPUT_KEY_LETTER(K, "K")
+    MOSAIC_INPUT_KEY_LETTER(N, "N")
+    MOSAIC_INPUT_KEY_LETTER(M, "M")
+#undef MOSAIC_INPUT_KEY_LETTER
+
+// Number row keys. Defined only for physical keys
+#ifndef MOSAIC_INPUT_KEY_NUMROW
+#if MOSAIC_PHYSICAL_KEYS
+#define MOSAIC_INPUT_KEY_NUMROW(key, label) MOSAIC_INPUT_KEY(key, label)
+#else
+#define MOSAIC_INPUT_KEY_NUMROW(key, label)
+#endif
+#endif
+    MOSAIC_INPUT_KEY_NUMROW(num1, "Num 1")
+    MOSAIC_INPUT_KEY_NUMROW(num2, "Num 2")
+    MOSAIC_INPUT_KEY_NUMROW(num3, "Num 3")
+    MOSAIC_INPUT_KEY_NUMROW(num4, "Num 4")
+    MOSAIC_INPUT_KEY_NUMROW(num5, "Num 5")
+    MOSAIC_INPUT_KEY_NUMROW(num6, "Num 6")
+    MOSAIC_INPUT_KEY_NUMROW(num7, "Num 7")
+    MOSAIC_INPUT_KEY_NUMROW(num8, "Num 8")
+    MOSAIC_INPUT_KEY_NUMROW(num9, "Num 9")
+    MOSAIC_INPUT_KEY_NUMROW(num0, "Num 0")
+#undef MOSAIC_INPUT_KEY_NUMROW
+
+// Keypad number keys. Defined only for physical keys
+#ifndef MOSAIC_INPUT_KEY_KEYPADNUM
+#if MOSAIC_PHYSICAL_KEYS
+#define MOSAIC_INPUT_KEY_KEYPADNUM(key, label) MOSAIC_INPUT_KEY(key, label)
+#else
+#define MOSAIC_INPUT_KEY_KEYPADNUM(key, label)
+#endif
+#endif
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad1,      "Keypad 1")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad2,      "Keypad 2")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad3,      "Keypad 3")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad4,      "Keypad 4")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad5,      "Keypad 5")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad6,      "Keypad 6")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad7,      "Keypad 7")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad8,      "Keypad 8")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad9,      "Keypad 9")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad0,      "Keypad 0")
+    MOSAIC_INPUT_KEY_KEYPADNUM(keypad_enter, "Keypad Enter")
+#undef MOSAIC_INPUT_KEY_KEYPADNUM
+
+// Other keypad keys. Defined for physical and logical keys
+#ifndef MOSAIC_INPUT_KEY_KEYPAD
+#define MOSAIC_INPUT_KEY_KEYPAD(key, label) MOSAIC_INPUT_KEY(key, label)
+#endif
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_decimal,  "Keypad Decimal")
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_multiply, "Keypad Multiply")
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_add,      "Keypad Add")
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_divide,   "Keypad Divide")
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_subtract, "Keypad Subtract")
+    MOSAIC_INPUT_KEY_KEYPAD(keypad_equal,    "Keypad Equal")
+    MOSAIC_INPUT_KEY_KEYPAD(num_lock,        "Num Lock")
+#undef MOSAIC_INPUT_KEY_KEYPAD
+
+// Number keys, number row and keypad. Defined only for logical keys
+#ifndef MOSAIC_INPUT_KEY_DIGIT
+#if !MOSAIC_PHYSICAL_KEYS
+#define MOSAIC_INPUT_KEY_DIGIT(key, label) MOSAIC_INPUT_KEY(key, label)
+#else
+#define MOSAIC_INPUT_KEY_DIGIT(key, label)
+#endif
+#endif
+    MOSAIC_INPUT_KEY_DIGIT(_1, "1")
+    MOSAIC_INPUT_KEY_DIGIT(_2, "2")
+    MOSAIC_INPUT_KEY_DIGIT(_3, "3")
+    MOSAIC_INPUT_KEY_DIGIT(_4, "4")
+    MOSAIC_INPUT_KEY_DIGIT(_5, "5")
+    MOSAIC_INPUT_KEY_DIGIT(_6, "6")
+    MOSAIC_INPUT_KEY_DIGIT(_7, "7")
+    MOSAIC_INPUT_KEY_DIGIT(_8, "8")
+    MOSAIC_INPUT_KEY_DIGIT(_9, "9")
+    MOSAIC_INPUT_KEY_DIGIT(_0, "0")
+#undef MOSAIC_INPUT_KEY_DIGIT
+
+// Symbol keys. Defined for both for physical and logical keys
+#ifndef MOSAIC_INPUT_KEY_SYMBOL
+#define MOSAIC_INPUT_KEY_SYMBOL(key, label) MOSAIC_INPUT_KEY(key, label)
+#endif
+    MOSAIC_INPUT_KEY_SYMBOL(equal,              "Equal")
+    MOSAIC_INPUT_KEY_SYMBOL(minus,              "Minus")
+    MOSAIC_INPUT_KEY_SYMBOL(plus,               "Plus")
+    MOSAIC_INPUT_KEY_SYMBOL(right_bracket,      "Right Bracket")
+    MOSAIC_INPUT_KEY_SYMBOL(left_bracket,       "Left Bracket")
+    MOSAIC_INPUT_KEY_SYMBOL(apostrophe,         "Apostrophe")
+    MOSAIC_INPUT_KEY_SYMBOL(semicolon,          "Semicolon")
+    MOSAIC_INPUT_KEY_SYMBOL(backslash,          "Backslash")
+    MOSAIC_INPUT_KEY_SYMBOL(comma,              "Comma")
+    MOSAIC_INPUT_KEY_SYMBOL(slash,              "Slash")
+    MOSAIC_INPUT_KEY_SYMBOL(period,             "Period")
+    MOSAIC_INPUT_KEY_SYMBOL(circumflex,         "Circumflex")
+    MOSAIC_INPUT_KEY_SYMBOL(accent,             "Accent")
+    MOSAIC_INPUT_KEY_SYMBOL(grave_accent,       "Grave Accent")
+    MOSAIC_INPUT_KEY_SYMBOL(hash,               "Hash")
+    MOSAIC_INPUT_KEY_SYMBOL(angle_bracket_open, "Angle Bracket Open")
+#undef MOSAIC_INPUT_KEY_SYMBOL
+
+// Non-character keys. Defined for both for physical and logical keys
+#ifndef MOSAIC_INPUT_KEY_NONCHAR
+#define MOSAIC_INPUT_KEY_NONCHAR(key, label) MOSAIC_INPUT_KEY(key, label)
+#endif
+    MOSAIC_INPUT_KEY_NONCHAR(enter,        "Enter")
+    MOSAIC_INPUT_KEY_NONCHAR(tab,          "Tab")
+    MOSAIC_INPUT_KEY_NONCHAR(space,        "Space")
+    MOSAIC_INPUT_KEY_NONCHAR(backspace,    "Backspace")
+    MOSAIC_INPUT_KEY_NONCHAR(escape,       "Escape")
+    MOSAIC_INPUT_KEY_NONCHAR(caps_lock,    "Caps Lock")
+    MOSAIC_INPUT_KEY_NONCHAR(print_screen, "Print Screen")
+    MOSAIC_INPUT_KEY_NONCHAR(menu,         "Menu")
+    MOSAIC_INPUT_KEY_NONCHAR(insert,       "Insert")
+    MOSAIC_INPUT_KEY_NONCHAR(home,         "Home")
+    MOSAIC_INPUT_KEY_NONCHAR(page_up,      "Page Up")
+    MOSAIC_INPUT_KEY_NONCHAR(Delete,       "Delete")
+    MOSAIC_INPUT_KEY_NONCHAR(end,          "End")
+    MOSAIC_INPUT_KEY_NONCHAR(page_down,    "Page Down")
+    MOSAIC_INPUT_KEY_NONCHAR(left_arrow,   "Left Arrow")
+    MOSAIC_INPUT_KEY_NONCHAR(right_arrow,  "Right Arrow")
+    MOSAIC_INPUT_KEY_NONCHAR(down_arrow,   "Down Arrow")
+    MOSAIC_INPUT_KEY_NONCHAR(up_arrow,     "Up Arrow")
+#undef MOSAIC_INPUT_KEY_NONCHAR
+
+// Function keys. Defined for both for physical and logical keys
+#ifndef MOSAIC_INPUT_KEY_FUNCTION
+#define MOSAIC_INPUT_KEY_FUNCTION(key, label) MOSAIC_INPUT_KEY(key, label)
+#endif
+    MOSAIC_INPUT_KEY_FUNCTION(F1,  "F1")
+    MOSAIC_INPUT_KEY_FUNCTION(F2,  "F2")
+    MOSAIC_INPUT_KEY_FUNCTION(F3,  "F3")
+    MOSAIC_INPUT_KEY_FUNCTION(F4,  "F4")
+    MOSAIC_INPUT_KEY_FUNCTION(F5,  "F5")
+    MOSAIC_INPUT_KEY_FUNCTION(F6,  "F6")
+    MOSAIC_INPUT_KEY_FUNCTION(F7,  "F7")
+    MOSAIC_INPUT_KEY_FUNCTION(F8,  "F8")
+    MOSAIC_INPUT_KEY_FUNCTION(F9,  "F9")
+    MOSAIC_INPUT_KEY_FUNCTION(F10, "F10")
+    MOSAIC_INPUT_KEY_FUNCTION(F11, "F11")
+    MOSAIC_INPUT_KEY_FUNCTION(F12, "F12")
+    MOSAIC_INPUT_KEY_FUNCTION(F13, "F13")
+    MOSAIC_INPUT_KEY_FUNCTION(F14, "F14")
+    MOSAIC_INPUT_KEY_FUNCTION(F15, "F15")
+    MOSAIC_INPUT_KEY_FUNCTION(F16, "F16")
+    MOSAIC_INPUT_KEY_FUNCTION(F17, "F17")
+    MOSAIC_INPUT_KEY_FUNCTION(F18, "F18")
+    MOSAIC_INPUT_KEY_FUNCTION(F19, "F19")
+#undef MOSAIC_INPUT_KEY_FUNCTION
+
+#undef MOSAIC_PHYSICAL_KEYS
 #undef MOSAIC_INPUT_KEY
 
 
+
+// =============================================================================
+// Mouse buttons
+// =============================================================================
 
 #ifndef MOSAIC_INPUT_MOUSE_BUTTON
 #define MOSAIC_INPUT_MOUSE_BUTTON(button, label)

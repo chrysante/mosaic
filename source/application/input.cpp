@@ -35,8 +35,22 @@ std::ostream& mosaic::operator<<(std::ostream& str, ModFlags flags) {
     return str << to_string(flags);
 }
 
+std::string mosaic::to_string(PhysicalKey key) {
+    static constexpr std::array data{
+#define MOSAIC_PHYSICAL_KEYS 1
+#define MOSAIC_INPUT_KEY(key, label) std::string_view(label),
+#include "application/input.def"
+    };
+    return std::string(data[(std::size_t)key]);
+}
+
+std::ostream& mosaic::operator<<(std::ostream& str, PhysicalKey key) {
+    return str << to_string(key);
+}
+
 std::string mosaic::to_string(Key key) {
     static constexpr std::array data{
+#define MOSAIC_PHYSICAL_KEYS 0
 #define MOSAIC_INPUT_KEY(key, label) std::string_view(label),
 #include "application/input.def"
     };
