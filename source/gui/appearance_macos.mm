@@ -1,6 +1,7 @@
 #include "gui/appearance.h"
 
 #include <AppKit/Appkit.h>
+#include <vml/ext.hpp>
 
 #include "gui/appearance_internal.h"
 
@@ -21,6 +22,12 @@ static vml::float4 convert_color(NSColor* color) {
     CIColor* tmp = [[CIColor alloc] initWithColor:color];
     return {(float)tmp.red, (float)tmp.green, (float)tmp.blue,
             (float)tmp.alpha};
+}
+
+static vml::float4 desaturate(vml::float4 color, float value) {
+    auto hsva = vml::rgba_to_hsva(color);
+    hsva.saturation *= value;
+    return vml::hsva_to_rgba(hsva);
 }
 
 static mosaic::Style make_style_impl(AppearanceType type) {
@@ -59,7 +66,7 @@ static mosaic::Style make_style_impl(AppearanceType type) {
             .control_frame_down = COL(selectedControlColor),
             .highlight_control_frame = COL(controlAccentColor),
             .highlight_control_frame_hovered = COL(controlAccentColor),
-            .highlight_control_frame_down = COL(selectedControlColor),
+            .highlight_control_frame_down = desaturate(COL(controlAccentColor), 0.75),
             .check_mark = COL(controlAccentColor),
             .window_title_bar = COL(windowBackgroundColor),
             .active_window_title_bar = COL(windowBackgroundColor),

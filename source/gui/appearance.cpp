@@ -54,6 +54,7 @@ static void apply_style_to_imgui(Style const& style) {
     colors[ImGuiCol_ResizeGripActive] = style.colors.separator;
     colors[ImGuiCol_TableBorderLight] = style.colors.separator;
     colors[ImGuiCol_TableBorderStrong] = style.colors.separator;
+    colors[ImGuiCol_InputTextCursor] = style.colors.text;
     colors[ImGuiCol_Tab] = style.colors.tab;
     colors[ImGuiCol_TabHovered] = style.colors.tab_hovered;
     colors[ImGuiCol_TabActive] = style.colors.tab_active;
@@ -62,6 +63,7 @@ static void apply_style_to_imgui(Style const& style) {
     colors[ImGuiCol_DockingPreview] = style.colors.docking_preview;
     colors[ImGuiCol_DockingEmptyBg] = style.colors.window_bg;
     colors[ImGuiCol_DragDropTarget] = style.colors.drag_drop_target;
+    colors[ImGuiCol_UnsavedMarker] = style.colors.text;
     imgui_style.WindowBorderSize = style.vars.window_border ? 1.0 : 0.0;
     imgui_style.ChildBorderSize = style.vars.child_window_border ? 1.0 : 0.0;
     imgui_style.PopupBorderSize = style.vars.popup_border ? 1.0 : 0.0;
