@@ -42,13 +42,34 @@ function(mosaic_enable_warnings TARGET)
     endif()
 endfunction()
 
-function(mosaic_enable_tsan TARGET)
-    if(not MSVC)
-        target_compile_options(${TARGET} PRIVATE
+# Sanitizers
+set(MOSAIC_SANITIZER "" CACHE STRING
+    "Sanitizer to use: none, asan, tsan")
+
+set_property(CACHE MOSAIC_SANITIZER PROPERTY STRINGS
+    none asan tsan)
+
+add_library(mosaic_sanitizer INTERFACE)
+if(NOT MSVC)
+    if(MOSAIC_SANITIZER STREQUAL "asan")
+        target_compile_options(mosaic_sanitizer INTERFACE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+        )
+        target_link_options(mosaic_sanitizer INTERFACE
+            -fsanitize=address,undefined
+        )
+    elseif(MOSAIC_SANITIZER STREQUAL "tsan")
+        target_compile_options(mosaic_sanitizer INTERFACE
+            -fsanitize=thread
+            -fno-omit-frame-pointer
+        )
+        target_link_options(mosaic_sanitizer INTERFACE
             -fsanitize=thread
         )
     endif()
-endfunction()
+endif()
+
 
 # Platform
 set(MOSAIC_PLATFORM_WINDOWS 0)
@@ -76,6 +97,7 @@ FetchContent_Declare(
     vml
     GIT_REPOSITORY https://github.com/chrysante/vml.git
     GIT_TAG 53a15c7fff7665d528904d76508693984279e3be
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(vml)
 
@@ -84,6 +106,7 @@ FetchContent_Declare(
     utility
     GIT_REPOSITORY https://github.com/chrysante/utility.git
     GIT_TAG v1.1.1
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(utility)
 
@@ -92,6 +115,7 @@ FetchContent_Declare(
     csp
     GIT_REPOSITORY https://github.com/chrysante/csp.git
     GIT_TAG v0.0.2
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(csp)
 
@@ -100,6 +124,7 @@ FetchContent_Declare(
     termfmt
     GIT_REPOSITORY https://github.com/chrysante/termfmt.git
     GIT_TAG 0.0.1
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(termfmt)
 
@@ -108,6 +133,7 @@ FetchContent_Declare(
     json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG v3.12.0
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(json)
 
@@ -116,6 +142,7 @@ FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/catch2.git
     GIT_TAG v3.16.0
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(Catch2)
 
@@ -124,6 +151,7 @@ FetchContent_Declare(
     magic_enum
     GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
     GIT_TAG v0.9.8
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(magic_enum)
 
@@ -132,6 +160,7 @@ FetchContent_Declare(
   yaml-cpp
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
   GIT_TAG yaml-cpp-0.9.0
+  GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(yaml-cpp)
 
@@ -163,7 +192,6 @@ PRIVATE
 
 # Library
 add_library(mosaic ${MOSAIC_LIBRARY_TYPE})
-
 mosaic_enable_warnings(mosaic)
 
 generate_export_header(mosaic
@@ -173,6 +201,7 @@ generate_export_header(mosaic
 
 target_link_libraries(mosaic
     PUBLIC
+        mosaic_sanitizer
         vml
         utility
         csp

@@ -13,15 +13,12 @@ namespace {
 
 using namespace std::chrono_literals;
 
-// Adjust this helper if your ThreadPool constructor has a different API.
 struct DispatcherFixture {
     explicit DispatcherFixture(std::size_t workers = 4)
         : pool(workers)
         , dispatcher(pool) {}
 
-    ~DispatcherFixture() {
-        dispatcher.shutdown();
-    }
+    ~DispatcherFixture() { dispatcher.shutdown(); }
 
     ThreadPool pool;
     WorkDispatcher dispatcher;
@@ -114,19 +111,8 @@ TEST_CASE("dispatch executes submitted work", "[dispatcher][dispatch]") {
     std::atomic<int> value{0};
     fixture.dispatcher.dispatch(
         [&] { value.fetch_add(1, std::memory_order_relaxed); });
-    // Use a waitable task as a synchronization point. The ThreadPool may
-    // execute the fire-and-forget task before or after this call, so don't
-    // inspect value immediately.
-    Completion barrier = fixture.dispatcher.dispatch_waitable([] {});
-    barrier.wait();
-    // The preceding fire-and-forget task may not necessarily have completed
-    // before the barrier unless the pool guarantees FIFO ordering.
-    //
-    // Instead, use an explicit completion for the actual operation when
-    // synchronization is required.
-    //
-    // This assertion is intentionally weak.
-    REQUIRE(value.load(std::memory_order_relaxed) >= 0);
+    fixture.dispatcher.shutdown();
+    REQUIRE(value.load(std::memory_order_relaxed) == 1);
 }
 
 // ============================================================================

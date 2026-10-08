@@ -200,9 +200,7 @@ ThreadPool::ThreadPool(std::size_t thread_count) {
     }
 }
 
-ThreadPool::~ThreadPool() noexcept {
-    shutdown();
-}
+ThreadPool::~ThreadPool() noexcept { shutdown(); }
 
 bool ThreadPool::submit(std::function<void()> task) noexcept {
     bool const is_worker = current_pool == this;
@@ -255,9 +253,7 @@ void ThreadPool::shutdown() noexcept {
         if (thread.joinable()) thread.join();
 }
 
-std::size_t ThreadPool::worker_count() const {
-    return m_threads.size();
-}
+std::size_t ThreadPool::worker_count() const { return m_threads.size(); }
 
 void ThreadPool::enqueue_task(Task* task) {
     if (current_pool == this) {

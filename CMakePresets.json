@@ -17,6 +17,24 @@
       }
     },
     {
+        "name": "asan",
+        "displayName": "Debug + ASan/UBSan",
+        "inherits": "debug",
+        "binaryDir": "${sourceDir}/build/asan",
+        "cacheVariables": {
+            "MOSAIC_SANITIZER": "asan"
+        }
+    },
+    {
+        "name": "tsan",
+        "displayName": "Debug + TSan",
+        "inherits": "debug",
+        "binaryDir": "${sourceDir}/build/tsan",
+        "cacheVariables": {
+            "MOSAIC_SANITIZER": "tsan"
+        }
+    },
+    {
       "name": "release",
       "displayName": "Release",
       "description": "Optimized release build",
@@ -41,6 +59,14 @@
     {
       "name": "debug",
       "configurePreset": "debug"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan"
     },
     {
       "name": "release",
