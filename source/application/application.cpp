@@ -44,6 +44,14 @@ Application::Application()
         },
         .command = [d = m_impl->debugger.get()] { d->toggle_open(); }
     });
+    command_palette().add({
+        .name = "Toggle Debug Overlays",
+        .key_comb = {
+            .key = Key::D, 
+            .mod_flags = ModFlags::shift | ModFlags::alt
+        },
+        .command = [] { toggle_want_debug_overlays(); }
+    });
     // clang-format on
 #endif
 }

@@ -10,6 +10,10 @@ namespace mosaic {
 
 class Application;
 
+void set_want_debug_overlays(bool value);
+
+void toggle_want_debug_overlays();
+
 template <typename T> class FixedQueue {
 public:
     explicit FixedQueue(std::size_t capacity)
@@ -48,6 +52,7 @@ public:
     void on_input(InputEventUnion event) { m_input_queue.push(event); }
 
 private:
+    void display_debuggers();
     void draw_window_debugger();
     void draw_event_debugger();
     void draw_input_debugger();

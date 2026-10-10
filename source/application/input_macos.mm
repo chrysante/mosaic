@@ -444,6 +444,12 @@ static NSEvent* handle_event(NSEvent* event) {
 static void create_global_monitors() {
     NSEventMask mask = 0;
     mask |= NSEventMaskMouseMoved;
+    mask |= NSEventMaskLeftMouseUp;
+    mask |= NSEventMaskRightMouseUp;
+    mask |= NSEventMaskOtherMouseUp;
+    mask |= NSEventMaskLeftMouseDragged;
+    mask |= NSEventMaskRightMouseDragged;
+    mask |= NSEventMaskOtherMouseDragged;
     mask |= NSEventMaskKeyDown;
     mask |= NSEventMaskKeyUp;
     mask |= NSEventMaskFlagsChanged;

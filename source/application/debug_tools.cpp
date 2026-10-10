@@ -9,6 +9,7 @@
 
 #include "application/application.h"
 #include "application/application_impl.h"
+#include "application/debug_settings.h"
 #include "application/input_event.h"
 #include "application/window.h"
 #include "application/window_impl.h"
@@ -19,31 +20,47 @@ using namespace mosaic;
 
 using internal::ApplicationImpl;
 
+static bool& want_debug_overlays_flag() {
+    static bool flag;
+    return flag;
+}
+
+bool mosaic::want_debug_overlays() { return want_debug_overlays_flag(); }
+
+void mosaic::set_want_debug_overlays(bool value) {
+    want_debug_overlays_flag() = value;
+}
+
+void mosaic::toggle_want_debug_overlays() {
+    want_debug_overlays_flag() ^= true;
+}
+
 void ApplicationDebugger::display() {
     if (!m_open) return;
+    display_debuggers();
+    display_native_window_style_inspector();
+}
+
+void ApplicationDebugger::display_debuggers() {
     ImGui::SetNextWindowSize(ImVec2(900.0f, 600.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Application Debugger", &m_open)) {
-        ImGui::End();
-        return;
-    }
-    if (ImGui::BeginTabBar("DebuggerTabs")) {
-        if (ImGui::BeginTabItem("Windows")) {
-            draw_window_debugger();
-            ImGui::EndTabItem();
+    if (ImGui::Begin("Application Debugger", &m_open)) {
+        if (ImGui::BeginTabBar("DebuggerTabs")) {
+            if (ImGui::BeginTabItem("Windows")) {
+                draw_window_debugger();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Input Events")) {
+                draw_event_debugger();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Input")) {
+                draw_input_debugger();
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
         }
-        if (ImGui::BeginTabItem("Input Events")) {
-            draw_event_debugger();
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Input")) {
-            draw_input_debugger();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
     }
     ImGui::End();
-
-    display_native_window_style_inspector();
 }
 
 // =============================================================================

@@ -226,8 +226,10 @@ target_sources(mosaic PRIVATE
     source/gui/ui_context.cpp
     source/gui/toolbar.cpp
     source/gui/view.cpp
+    source/gui/view_demo.cpp
     source/gui/view_manager.cpp
     source/gui/view_registry.cpp
+    source/gui/view_renderer.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp

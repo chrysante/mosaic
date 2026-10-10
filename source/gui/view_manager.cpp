@@ -4,172 +4,279 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <utl/strcat.hpp>
-#include <vml/vml.hpp>
 
-#include "application/application.h"
+#include "application/debug_settings.h"
 #include "application/input_event.h"
-#include "application/window.h"
 #include "gui/view.h"
 #include "gui/view_registry.h"
+#include "gui/view_renderer.h"
 #include "service/service_context.h"
 #include "support/logger.h"
 
 using namespace mosaic;
-using namespace vml::short_types;
 
-struct ViewManager::Impl {
-    static void display_debug_info(View const& view) {
-        auto* im_window = (ImGuiWindow*)view.m_data.imgui_window;
-        auto* window = view.m_data.window;
-        if (!im_window || !window) return;
-        ImGui::Begin(view.m_data.title_id.c_str());
-        ImGui::SetCursorPos({});
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, 0);
-        ImGui::BeginChild("Debug Overlay", {}, ImGuiChildFlags_None,
-                          ImGuiWindowFlags_NoInputs);
-        ImGui::PopStyleColor();
-        auto* DL = ImGui::GetWindowDrawList();
-        float2 pos =
-            (float2)im_window->Pos + (float2)ImGui::GetStyle().WindowPadding;
-        pos.y += window->titlebar_height();
-        ImU32 color = IM_COL32(255, 0, 255, 255);
-        auto field = [&](std::string_view label, auto const&... args) {
-            DL->AddText(pos, color, utl::strcat(label, ": ", args...).c_str());
-            pos.y += ImGui::GetFontSize();
-        };
-        field("System window position: ", window->position());
-        field("System window size: ", window->size());
-        field("ImGui window position: ", (float2)im_window->Pos);
-        field("ImGui window size: ", (float2)im_window->Size);
-        field("Title: ", view.m_data.title);
-        field("Docked: ", view.m_data.docked ? "YES" : "NO");
-        field("Padding X: ", view.m_data.padding.x
-                                 ? utl::strcat(*view.m_data.padding.x)
-                                 : "Default");
-        field("Padding X: ", view.m_data.padding.y
-                                 ? utl::strcat(*view.m_data.padding.y)
-                                 : "Default");
-        field("Is focused: ", view.m_data.is_focused ? "YES" : "NO");
-        ImGui::EndChild();
-        ImGui::End();
-    }
-};
+namespace {
+
+struct DeferredClose { View* view; };
+
+} // namespace
 
 ViewManager::ViewManager(ServiceContext& service_context)
-    : event_receiver(service_context.make_event_receiver())
-    , service_context(service_context) {
-    event_receiver.listen([this](OpenCommand const& cmd) {
-        auto* view = open_view(cmd.name, cmd.completion);
-        if (cmd.result) *cmd.result = view;
+    : service_context(service_context)
+    , event_receiver(service_context.make_event_receiver())
+    , renderer(std::make_unique<ImGuiViewRenderer>(*this)) {
+    event_receiver.listen([this](OpenCommand const& command) {
+        open_view(command.name, command.completion);
     });
     event_receiver.listen([this](CloseAllCommand) { close_all(); });
-    event_receiver.listen(
-        [this](ToggleDebugView) { display_debugger ^= true; });
 }
 
-ViewManager::~ViewManager() = default;
+ViewManager::~ViewManager() { views.clear(); }
 
-View* ViewManager::open_view(ViewRegistryEntry const& reg_entry) {
-    views.push_back(reg_entry.create_view(service_context));
-    auto* view = views.back().get();
-    view->m_data.position = {250, 250};
-    view->do_init();
-    return view;
+uint64_t ViewManager::allocate_instance_id(std::string_view type) {
+    auto& next = next_instance_ids[std::string(type)];
+    return next++;
+}
+
+View* ViewManager::open_view(ViewRegistryEntry const& entry,
+                             std::function<void(View&)> completion) {
+    if (auto* existing = find_by_type(entry.name())) {
+        focus(*existing);
+        if (completion) completion(*existing);
+        return existing;
+    }
+    auto view = entry.create_view(service_context);
+    auto id = ViewId{
+        .type = entry.name(),
+        .instance = allocate_instance_id(entry.name()),
+    };
+    view->initialize(id, service_context);
+    /*
+     * Default position for newly created views.
+     *
+     * This is manager/layout policy rather than View construction.
+     */
+    view->layout().position = {250, 250};
+    auto* result = view.get();
+    views.push_back(std::move(view));
+    focus(*result);
+    return result;
 }
 
 View* ViewManager::open_view(std::string_view name,
                              std::function<void(View&)> completion) {
-    auto* view = [&]() -> View* {
-        if (auto* view = find_by_static_name(name)) {
-            view->set_focused();
-            return view;
-        }
-        auto reg_entry = ViewRegistry::get(name);
-        if (!reg_entry) {
-            Logger::error("View does not exist: ", name);
-            return nullptr;
-        }
-        return open_view(*reg_entry);
-    }();
-    if (view && completion) completion(*view);
-    return view;
+    auto entry = ViewRegistry::get(name);
+    if (!entry) {
+        Logger::error("View does not exist: ", name);
+        return nullptr;
+    }
+    return open_view(*entry, std::move(completion));
 }
 
-View* ViewManager::find_by_static_name(std::string_view name) {
+View* ViewManager::find_by_id(ViewId const& id) {
     auto itr = std::ranges::find_if(
-        views, [&](auto& view) { return view->static_name() == name; });
+        views, [&](auto const& view) { return view->id() == id; });
     return itr != views.end() ? itr->get() : nullptr;
 }
 
-void ViewManager::close_focused_view() {
-    if (auto* view = focused_view()) {
-        /// Will be closed by the next call to `display()`
-        view->m_data.open = false;
-    }
+View const* ViewManager::find_by_id(ViewId const& id) const {
+    auto itr = std::ranges::find_if(
+        views, [&](auto const& view) { return view->id() == id; });
+    return itr != views.end() ? itr->get() : nullptr;
 }
 
-void ViewManager::close_all() { views.clear(); }
+View* ViewManager::find_by_type(std::string_view type) {
+    auto itr = std::ranges::find_if(
+        views, [&](auto const& view) { return view->type_name() == type; });
+    return itr != views.end() ? itr->get() : nullptr;
+}
+
+View const* ViewManager::find_by_type(std::string_view type) const {
+    auto itr = std::ranges::find_if(
+        views, [&](auto const& view) { return view->type_name() == type; });
+    return itr != views.end() ? itr->get() : nullptr;
+}
+
+void ViewManager::focus(View& view) {
+    auto view_itr = std::ranges::find_if(
+        views, [&](auto const& candidate) { return candidate.get() == &view; });
+    if (view_itr == views.end()) return;
+    focused = &view;
+
+    /*
+     * The actual ImGui focus is deliberately performed by the renderer.
+     *
+     * The renderer can add:
+     *
+     *     ImGui::FocusWindow(...)
+     *
+     * when the view has an existing ImGui window.
+     */
+}
+
+void ViewManager::close(View& view) {
+    view.request_close();
+    if (focused == &view) focused = nullptr;
+}
+
+void ViewManager::close_focused_view() {
+    if (focused) close(*focused);
+}
+
+void ViewManager::close_all() {
+    for (auto& view : views)
+        view->request_close();
+    focused = nullptr;
+}
+
+void ViewManager::process_deferred_operations() {
+    /*
+     * No View is destroyed while display() is iterating.
+     */
+    std::erase_if(views,
+                  [](auto const& view) { return view->close_requested(); });
+    bool clear_focused =
+        focused && std::ranges::none_of(views, [&](auto const& view) {
+            return view.get() == focused;
+        });
+    if (clear_focused) focused = nullptr;
+}
 
 void ViewManager::display() {
-    /// Clear closing views
-    views.erase(std::remove_if(views.begin(), views.end(),
-                               [](auto& view) { return !view->m_data.open; }),
-                views.end());
-    /// If we have a maximized view we only display that. This is wrong because
-    /// for multiple displays it would hide the views on other displays but we
-    /// leave it for now
-    auto max =
-        std::ranges::find_if(views, [](auto&& v) { return v->maximized(); });
-    if (max != views.end()) {
-        auto& maximized_view = **max;
-        maximized_view.do_frame();
-        return;
+    if (want_debug_overlays()) display_debugger();
+
+    /*
+     * Remove views requested for close before rendering.
+     */
+    process_deferred_operations();
+    renderer->begin_frame();
+
+    /*
+     * Clear the renderer's frame-local observations.
+     *
+     * The actual implementation should add:
+     *
+     *     renderer->begin_frame();
+     *
+     * which clears RuntimeView entries for views no longer alive.
+     */
+    for (auto& view : views)
+        renderer->render_view(*view);
+
+    /*
+     * VERY IMPORTANT:
+     *
+     * Do this only after every View has submitted its ImGui window.
+     *
+     * At this point we know which Views ended up in each viewport.
+     */
+    renderer->update_platform_window_styles();
+
+    /*
+     * Cleanup after rendering, not during rendering.
+     */
+    process_deferred_operations();
+}
+
+void ViewManager::display_debugger() {
+    if (ImGui::Begin("View Manager Debugger")) {
+        ImGui::Text("Views: %zu", views.size());
+        ImGui::Separator();
+        for (std::size_t i = 0; i < views.size(); ++i) {
+            auto const* view = views[i].get();
+            if (!view) {
+                ImGui::BulletText("[%zu] NULL", i);
+                continue;
+            }
+            ImGui::PushID(static_cast<int>(i));
+            ImGui::Bullet();
+            ImGui::SameLine();
+            ImGui::Text("[%zu] %s", i, view->title().c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%p)", static_cast<void const*>(view));
+            ImGui::PopID();
+        }
     }
-    for (auto& view : views) {
-        if (view->is_hidden()) continue;
-        view->do_frame();
-        if (display_debugger) Impl::display_debug_info(*view);
-    }
+    ImGui::End();
 }
 
 bool ViewManager::on_input(InputEvent& event) {
-#if 0
-    /// Give to focused view
-    if (auto* focused = focused_view()) {
-        focused->do_on_input(event);
-        if (event.handled()) return true;
-    }
-    /// Give to all unfocused views
-    for (auto& view : views) {
-        if (view->focused()) continue;
-        view->do_on_input(event);
-        if (event.handled()) return true;
-    }
-#endif
+    /*
+     * I would keep input routing here rather than in View.
+     *
+     * The manager knows which View is focused.
+     *
+     * This can later become:
+     *
+     *     if (focused && focused->on_input(event))
+     *         return true;
+     *
+     * without Views knowing about the global input dispatcher.
+     */
+
+    (void)event;
     return false;
 }
 
 YAML::Node ViewManager::serialize() const {
     YAML::Node root;
-    for (auto& view : views)
-        root.push_back(view->do_serialize());
+    for (auto const& view : views) {
+        YAML::Node node;
+        node["Type"] = std::string(view->type_name());
+        node["Instance"] = view->id().instance;
+        node["Layout"]["Position"] = view->layout().position;
+        node["Layout"]["Size"] = view->layout().size;
+        node["Layout"]["Hidden"] = view->hidden();
+        node["Layout"]["Maximized"] = view->maximized();
+        node["State"] = view->serialize_state();
+        root.push_back(std::move(node));
+    }
+
     return root;
 }
 
-void ViewManager::deserialize(YAML::Node const& node) {
+void ViewManager::deserialize(YAML::Node const& root) {
     views.clear();
-    for (auto view_data : node) {
-        auto owner = View::do_deserialize(view_data, service_context);
-        if (!owner) continue;
-        auto* view = owner.get();
-        views.push_back(std::move(owner));
-        view->do_init();
+    focused = nullptr;
+    if (!root || !root.IsSequence()) return;
+    for (auto const& node : root) {
+        try {
+            auto type = node["Type"].as<std::string>();
+            auto instance = node["Instance"].as<uint64_t>();
+            auto entry = ViewRegistry::get(type);
+            if (!entry) {
+                Logger::error("Failed to deserialize view: unknown type: ",
+                              type);
+                continue;
+            }
+            auto view = entry->create_view(service_context);
+            view->initialize(
+                ViewId{
+                    .type = type,
+                    .instance = instance,
+                },
+                service_context);
+            if (auto layout_node = node["Layout"]) {
+                auto& layout = view->layout();
+                layout.position =
+                    layout_node["Position"].as<vml::float2>(layout.position);
+                layout.size = layout_node["Size"].as<vml::float2>(layout.size);
+                layout.hidden = layout_node["Hidden"].as<bool>(false);
+                layout.maximized = layout_node["Maximized"].as<bool>(false);
+            }
+            view->deserialize_state(node["State"]);
+            /*
+             * Keep future newly-created IDs above restored IDs.
+             */
+            auto& next = next_instance_ids[type];
+            next = std::max(next, instance + 1);
+            views.push_back(std::move(view));
+        } catch (std::exception const& e) {
+            Logger::error("Failed to deserialize view: ", e.what());
+        }
     }
 }
 
-View const* ViewManager::focused_view() const {
-    auto itr =
-        std::ranges::find_if(views, [](auto& v) { return v->focused(); });
-    return itr != views.end() ? itr->get() : nullptr;
-}
+View* ViewManager::focused_view() { return focused; }
+
+View const* ViewManager::focused_view() const { return focused; }

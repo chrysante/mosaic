@@ -1,4 +1,3 @@
-#include "mosaic/application/window_desc.h"
 #include <string>
 
 #include <imgui.h>
@@ -45,24 +44,6 @@ private:
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
 
-static bool full_size = true;
-
-static void test_view() {
-    ImGuiWindow* window = ImGui::FindWindowByName("test-view");
-    bool docked = window && window->DockNode != nullptr;
-    ImGui::SetNextWindowFlags(ImGuiWindowFlags_NoMove, !docked);
-    ImGui::Begin("test-view");
-    if (auto* viewport = ImGui::GetCurrentWindow()->Viewport) {
-        if (auto* window = (Window*)viewport->PlatformHandle) {
-            window->set_style({.decoration = WindowDecoration::normal,
-                               .full_size_content = full_size,
-                               .large_titlebar = full_size});
-        }
-    }
-    ImGui::Checkbox("Full Size", &full_size);
-    ImGui::End();
-}
-
 class ExampleApp : public Application {
 public:
     ExampleApp()
@@ -74,36 +55,40 @@ public:
             .key_comb = {.key = Key::K, .mod_flags = ModFlags::control},
             .command = [this] { main_window()->zoom(); }
         });
-        command_palette().add({
-            .name = "My Command",
-            .key_comb = {.key = Key::F, .mod_flags = ModFlags::control},
-            .command = [] { full_size = !full_size; }
-        });
         dockspace.set_left_toolbar({
             ToolbarIconButton("plus")
                 .on_click([this] { text = "Clicked toolbar button"; })
         });
         dockspace.set_center_toolbar({
-            ToolbarIconButton("info")
-                .on_click([this] { text = "Clicked toolbar button"; })
+            ToolbarIconButton("attention")
+                .on_click([this] { show_demo_window = true; })
+                .enabled([this] { return !show_demo_window; })
         });
         dockspace.set_right_toolbar({
             ToolbarIconButton("bell")
                 .on_click([this] { 
-                    text = "Clicked toolbar button"; 
                     event_emitter.publish(ViewManager::OpenCommand{
                         .name = "ExampleView"
+                    });
+                }),
+            ToolbarSpacer(),
+            ToolbarIconButton("plus")
+                .on_click([this] { 
+                    event_emitter.publish(ViewManager::OpenCommand{
+                        .name = "MosaicDemoView"
                     });
                 })
         });
         // clang-format on
+        event_emitter.publish(
+            ViewManager::OpenCommand{.name = "MosaicDemoView"});
     }
 
 private:
     void frame() override {
         dockspace.display(main_window());
 
-        ImGui::ShowDemoWindow();
+        if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
 
         ImGui::Begin("Hello");
         auto* font =
@@ -118,8 +103,6 @@ private:
         ImGui::PopFont();
         ImGui::Text("%s", text.c_str());
         ImGui::End();
-
-        test_view();
 
         display_icon_viewer();
 
@@ -167,6 +150,7 @@ private:
     EventReceiver event_receiver;
     EventEmitter event_emitter;
     std::string text;
+    bool show_demo_window = true;
 };
 
 int main() {

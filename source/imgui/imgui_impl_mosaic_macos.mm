@@ -1114,6 +1114,12 @@ static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view) {
     // We receive the mouse down events from the view to get proper hit-testing
     // of native UI elements first.
     eventMask |= NSEventMaskMouseMoved;
+    eventMask |= NSEventMaskLeftMouseUp;
+    eventMask |= NSEventMaskRightMouseUp;
+    eventMask |= NSEventMaskOtherMouseUp;
+    eventMask |= NSEventMaskLeftMouseDragged;
+    eventMask |= NSEventMaskRightMouseDragged;
+    eventMask |= NSEventMaskOtherMouseDragged;
     eventMask |= NSEventMaskFlagsChanged;
     eventMask |= NSEventMaskKeyUp | NSEventMaskKeyDown;
     auto handler = ^NSEvent* _Nullable(NSEvent* event) {
@@ -1158,8 +1164,6 @@ static SizeConstraints translate_size_constraints(ImRect c) {
     return {min, max};
 }
 
-namespace mosaic::internal { void set_view_closing(ImGuiViewport* viewport); }
-
 namespace {
 
 struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
@@ -1174,13 +1178,8 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
     void on_move(vml::int2) override { viewport->PlatformRequestMove = true; }
 
     bool should_close() override {
-        mosaic::internal::set_view_closing(viewport);
-        return true;
-    }
-
-    void on_destroy() override {
-        viewport->PlatformHandle = nullptr;
-        viewport->PlatformHandleRaw = nullptr;
+        viewport->PlatformRequestClose = true;
+        return false;
     }
 
     ImGuiViewport* viewport;
@@ -1292,9 +1291,8 @@ static ImVec2 ImGui_Impl_Mosaic_MacOS_GetWindowSize(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
         (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
     IM_ASSERT(vd->NativeWindow != 0);
-
     NSWindow* window = vd->NativeWindow;
-    NSSize size = window.contentLayoutRect.size;
+    NSSize size = window.contentView.frame.size;
     return ImVec2(size.width, size.height);
 }
 

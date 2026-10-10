@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <mosaic/service/event_receiver.h>
@@ -13,71 +14,73 @@ namespace mosaic {
 class ServiceContext;
 class View;
 class ViewRegistryEntry;
+class ImGuiViewRenderer;
 struct InputEvent;
+struct ViewId;
 
-/// Creates and destroys all `View` instances in the application
 class ViewManager {
 public:
-    struct ToggleDebugView {};
-
     struct OpenCommand {
         std::string name;
-        View** result = nullptr;
-        std::function<void(View&)> completion = {};
+        std::function<void(View&)> completion;
     };
 
     struct CloseAllCommand {};
+    struct ToggleDebugView {};
 
     explicit ViewManager(ServiceContext& service_context);
-    ViewManager(ViewManager const&) = delete;
-    ViewManager& operator=(ViewManager const&) = delete;
     ~ViewManager();
 
-    /// Creates an instance of the view \p entry
-    View* open_view(ViewRegistryEntry const& entry);
+    ViewManager(ViewManager const&) = delete;
+    ViewManager& operator=(ViewManager const&) = delete;
 
-    /// Focuses the existing view with static name \p name or, if nonesuch
-    /// exists, finds the view registry entry with name \p name and creates a
-    /// new view
+    View* open_view(ViewRegistryEntry const& entry,
+                    std::function<void(View&)> completion = {});
+
     View* open_view(std::string_view name,
                     std::function<void(View&)> completion = {});
 
-    /// Finds and returns the first open view with static name \p name or null
-    /// if none exists
-    View* find_by_static_name(std::string_view name);
+    View* find_by_id(ViewId const& id);
+    View const* find_by_id(ViewId const& id) const;
 
-    /// Closes all open views
+    View* find_by_type(std::string_view type);
+    View const* find_by_type(std::string_view type) const;
+
+    void focus(View& view);
+
+    void close(View& view);
+    void close_focused_view();
     void close_all();
 
-    ///
-    void close_focused_view();
-
-    /// Displays all views
     void display();
 
-    ///
     bool on_input(InputEvent& event);
 
-    /// Serializes the currently open views
     YAML::Node serialize() const;
-
-    /// Recreates the views stored in \p node
     void deserialize(YAML::Node const& node);
 
-    /// \returns the currently focused view if any view is focused or null
-    View* focused_view() {
-        return const_cast<View*>(std::as_const(*this).focused_view());
-    }
-
-    /// \overload
+    View* focused_view();
     View const* focused_view() const;
 
 private:
-    struct Impl;
-    EventReceiver event_receiver;
+    friend class ImGuiViewRenderer;
+
+    uint64_t allocate_instance_id(std::string_view type);
+
+    void process_deferred_operations();
+
+    void display_debugger();
+
     ServiceContext& service_context;
+    EventReceiver event_receiver;
+
     std::vector<std::unique_ptr<View>> views;
-    bool display_debugger = false;
+
+    View* focused = nullptr;
+
+    std::unordered_map<std::string, uint64_t> next_instance_ids;
+
+    std::unique_ptr<ImGuiViewRenderer> renderer;
 };
 
 } // namespace mosaic

@@ -230,27 +230,11 @@ static void forward_event(Window const* window, NSEvent* event) {
 }
 - (void)mouseUp:(NSEvent*)event {
     handle_window_drag_end(*_mosaic_window, event);
-    forward_event(_mosaic_window, event);
-}
-- (void)mouseDragged:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
 }
 - (void)rightMouseDown:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
-- (void)rightMouseUp:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
-}
-- (void)rightMouseDragged:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
-}
 - (void)otherMouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
-}
-- (void)otherMouseUp:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
-}
-- (void)otherMouseDragged:(NSEvent*)event {
     forward_event(_mosaic_window, event);
 }
 - (void)keyDown:(NSEvent*)event {
@@ -406,6 +390,9 @@ void Window::apply_style() {
         if (m_impl->style.large_titlebar) {
             window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
             window.toolbar = [[NSToolbar alloc] init];
+        } else {
+            window.toolbarStyle = NSWindowToolbarStyleAutomatic;
+            window.toolbar = nil;
         }
         window.hasShadow = m_impl->style.has_shadow;
     }
