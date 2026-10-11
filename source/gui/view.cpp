@@ -9,7 +9,7 @@ using namespace mosaic;
 using namespace vml::short_types;
 
 View::View(ViewDescription desc)
-    : m_padding{std::nullopt, std::nullopt} {
+    : m_padding{-1, -1} {
     m_layout.size = desc.default_size;
     m_layout.min_size = desc.min_size;
 }
@@ -36,10 +36,8 @@ void View::toggle_maximize() { m_layout.maximized = !m_layout.maximized; }
 
 vml::float2 View::padding() const {
     auto const& style = ImGui::GetStyle();
-    return {
-        m_padding.x.value_or(style.WindowPadding.x),
-        m_padding.y.value_or(style.WindowPadding.y),
-    };
+    return {m_padding.x >= 0 ? m_padding.x : style.WindowPadding.x,
+            m_padding.y >= 0 ? m_padding.y : style.WindowPadding.y};
 }
 
 vml::float2 View::screen_space_to_view_space(vml::float2 p) const {

@@ -84,13 +84,8 @@ public:
     /// Padding used by the ImGui renderer.
     vml::float2 padding() const;
 
-    void set_padding(vml::vector<std::optional<float>, 2> padding) {
-        m_padding = padding;
-    }
-
-    void set_padding_x(std::optional<float> value) { m_padding.x = value; }
-
-    void set_padding_y(std::optional<float> value) { m_padding.y = value; }
+    /// Use a negative value for the default value
+    void set_padding(vml::float2 padding) { m_padding = padding; }
 
     void set_bg_color(std::optional<vml::float4> color) { m_bg_color = color; }
 
@@ -150,7 +145,7 @@ private:
     std::string m_title;
     ViewLayout m_layout;
 
-    vml::vector<std::optional<float>, 2> m_padding;
+    vml::float2 m_padding;
     std::optional<vml::float4> m_bg_color;
 
     bool m_close_requested = false;

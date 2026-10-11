@@ -24,7 +24,7 @@ struct DeferredClose { View* view; };
 ViewManager::ViewManager(ServiceContext& service_context)
     : service_context(service_context)
     , event_receiver(service_context.make_event_receiver())
-    , renderer(std::make_unique<ImGuiViewRenderer>(*this)) {
+    , renderer(std::make_unique<ImGuiViewRenderer>()) {
     event_receiver.listen([this](OpenCommand const& command) {
         open_view(command.name, command.completion);
     });
@@ -144,37 +144,12 @@ void ViewManager::process_deferred_operations() {
 
 void ViewManager::display() {
     if (want_debug_overlays()) display_debugger();
-
-    /*
-     * Remove views requested for close before rendering.
-     */
     process_deferred_operations();
     renderer->begin_frame();
-
-    /*
-     * Clear the renderer's frame-local observations.
-     *
-     * The actual implementation should add:
-     *
-     *     renderer->begin_frame();
-     *
-     * which clears RuntimeView entries for views no longer alive.
-     */
     for (auto& view : views)
         renderer->render_view(*view);
 
-    /*
-     * VERY IMPORTANT:
-     *
-     * Do this only after every View has submitted its ImGui window.
-     *
-     * At this point we know which Views ended up in each viewport.
-     */
-    renderer->update_platform_window_styles();
-
-    /*
-     * Cleanup after rendering, not during rendering.
-     */
+    renderer->end_frame();
     process_deferred_operations();
 }
 
