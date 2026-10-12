@@ -903,6 +903,10 @@ void ImGui_Impl_Mosaic_MacOS_NewFrame(mosaic::Window& main_window) {
     ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement();
 }
 
+// =============================================================================
+// Event handling
+// =============================================================================
+
 // Must only be called for a mouse event, otherwise an exception occurs
 // (Note that NSEventTypeScrollWheel is considered "other input". Oddly enough
 // an exception does not occur with it, but the value will sometimes be wrong!)
@@ -988,165 +992,180 @@ static NSWindow* find_window_under_mouse(NSPoint mouse_point,
     return nil;
 }
 
+static bool handle_mouse_down(NSEvent* event) {
+    ImGuiIO& io = ImGui::GetIO();
+    int button = (int)[event buttonNumber];
+    if (button >= 0 && button < ImGuiMouseButton_COUNT) {
+        io.AddMouseSourceEvent(GetMouseSource(event));
+        io.AddMouseButtonEvent(button, true);
+    }
+    return io.WantCaptureMouse;
+}
+
+static bool handle_mouse_up(NSEvent* event) {
+    ImGuiIO& io = ImGui::GetIO();
+    int button = (int)[event buttonNumber];
+    if (button >= 0 && button < ImGuiMouseButton_COUNT) {
+        io.AddMouseSourceEvent(GetMouseSource(event));
+        io.AddMouseButtonEvent(button, false);
+    }
+    return io.WantCaptureMouse;
+}
+
+static NSPoint get_mouse_pos() {
+    NSPoint pos = NSEvent.mouseLocation;
+    pos.y = CGDisplayPixelsHigh(kCGDirectMainDisplay) - pos.y;
+    return pos;
+}
+
+static ImGuiViewport* find_hovered_viewport(NSEvent* event,
+                                            ImGuiViewport* event_viewport) {
+    ImGuiContext* context = ImGui::GetCurrentContext();
+    if (!context || !context->DragDropActive) return event_viewport;
+    NSPoint mouse_pos = get_mouse_pos();
+    bool is_moving_this_window =
+        context->MovingWindow &&
+        context->MovingWindow->Viewport == event_viewport;
+    NSWindow* dragged_window = is_moving_this_window ? event.window : nil;
+    NSWindow* hovered_window =
+        find_window_under_mouse(mouse_pos, dragged_window);
+    return find_viewport(hovered_window);
+}
+
+static bool handle_mouse_moved(NSEvent* event, ImGuiViewport* viewport) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseSourceEvent(GetMouseSource(event));
+    NSPoint mouse_pos = get_mouse_pos();
+    io.AddMousePosEvent((float)mouse_pos.x, (float)mouse_pos.y);
+    ImGuiViewport* hovered_viewport = find_hovered_viewport(event, viewport);
+    io.AddMouseViewportEvent(hovered_viewport ? hovered_viewport->ID : 0);
+    return io.WantCaptureMouse;
+}
+
+static bool handle_scroll_wheel(NSEvent* event) {
+    ImGuiIO& io = ImGui::GetIO();
+    // Ignore canceled events.
+    //
+    // From macOS 12.1, scrolling with two fingers and then decelerating
+    // by tapping two fingers results in two events appearing:
+    //
+    // 1. A scroll wheel NSEvent, with a phase == NSEventPhaseMayBegin, when
+    // the user taps two fingers to decelerate or stop the scroll events.
+    //
+    // 2. A scroll wheel NSEvent, with a phase == NSEventPhaseCancelled,
+    // when the user releases the two-finger tap. It is this event that
+    // sometimes contains large values for scrollingDeltaX and
+    // scrollingDeltaY. When these are added to the current x and y
+    // positions of the scrolling view, it appears to jump up or down. It
+    // can be observed in Preview, various JetBrains IDEs and here.
+    if (event.phase == NSEventPhaseCancelled) return false;
+    double wheel_dx = [event scrollingDeltaX];
+    double wheel_dy = [event scrollingDeltaY];
+    if ([event hasPreciseScrollingDeltas]) {
+        wheel_dx *= 0.01;
+        wheel_dy *= 0.01;
+    }
+    if (wheel_dx != 0.0 || wheel_dy != 0.0)
+        io.AddMouseWheelEvent((float)wheel_dx, (float)wheel_dy);
+    return io.WantCaptureMouse;
+}
+
+static bool handle_key(NSEvent* event) {
+    auto& io = ImGui::GetIO();
+    if ([event isARepeat]) return io.WantCaptureKeyboard;
+    int key_code = (int)[event keyCode];
+    ImGuiKey key = ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(key_code);
+    io.AddKeyEvent(key, event.type == NSEventTypeKeyDown);
+    io.SetKeyEventNativeData(
+        key, key_code, -1); // To support legacy indexing (<1.87 user code)
+
+    return io.WantCaptureKeyboard;
+}
+
+static bool handle_flags_changed(NSEvent* event) {
+    unsigned short key_code = [event keyCode];
+    auto& io = ImGui::GetIO();
+    NSEventModifierFlags modifier_flags = [event modifierFlags];
+    io.AddKeyEvent(ImGuiMod_Shift,
+                   (modifier_flags & NSEventModifierFlagShift) != 0);
+    io.AddKeyEvent(ImGuiMod_Ctrl,
+                   (modifier_flags & NSEventModifierFlagControl) != 0);
+    io.AddKeyEvent(ImGuiMod_Alt,
+                   (modifier_flags & NSEventModifierFlagOption) != 0);
+    io.AddKeyEvent(ImGuiMod_Super,
+                   (modifier_flags & NSEventModifierFlagCommand) != 0);
+    ImGuiKey key = ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(key_code);
+    if (key != ImGuiKey_None) {
+        // macOS does not generate down/up event for modifiers. We're trying
+        // to use hardware dependent masks to extract that information.
+        // 'imgui_mask' is left as a fallback.
+        NSEventModifierFlags mask = 0;
+        switch (key) {
+        case ImGuiKey_LeftCtrl:
+            mask = 0x0001;
+            break;
+        case ImGuiKey_RightCtrl:
+            mask = 0x2000;
+            break;
+        case ImGuiKey_LeftShift:
+            mask = 0x0002;
+            break;
+        case ImGuiKey_RightShift:
+            mask = 0x0004;
+            break;
+        case ImGuiKey_LeftSuper:
+            mask = 0x0008;
+            break;
+        case ImGuiKey_RightSuper:
+            mask = 0x0010;
+            break;
+        case ImGuiKey_LeftAlt:
+            mask = 0x0020;
+            break;
+        case ImGuiKey_RightAlt:
+            mask = 0x0040;
+            break;
+        default:
+            return io.WantCaptureKeyboard;
+        }
+        io.AddKeyEvent(key, (modifier_flags & mask) != 0);
+        // To support legacy indexing (<1.87 user code)
+        io.SetKeyEventNativeData(key, key_code, -1);
+    }
+    return io.WantCaptureKeyboard;
+}
+
 static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
     // Only process events from the window containing ImGui view
     ImGuiViewport* viewport = find_viewport(event.window);
     if (!viewport) return false;
-
-    ImGuiIO& io = ImGui::GetIO();
-    if (event.type == NSEventTypeLeftMouseDown ||
-        event.type == NSEventTypeRightMouseDown ||
-        event.type == NSEventTypeOtherMouseDown) {
-        int button = (int)[event buttonNumber];
-        if (button >= 0 && button < ImGuiMouseButton_COUNT) {
-            io.AddMouseSourceEvent(GetMouseSource(event));
-            io.AddMouseButtonEvent(button, true);
-        }
-        return io.WantCaptureMouse;
+    switch (event.type) {
+    case NSEventTypeLeftMouseDown:
+    case NSEventTypeRightMouseDown:
+    case NSEventTypeOtherMouseDown:
+        return handle_mouse_down(event);
+    case NSEventTypeLeftMouseUp:
+    case NSEventTypeRightMouseUp:
+    case NSEventTypeOtherMouseUp:
+        return handle_mouse_up(event);
+    case NSEventTypeMouseMoved:
+    case NSEventTypeLeftMouseDragged:
+    case NSEventTypeRightMouseDragged:
+    case NSEventTypeOtherMouseDragged:
+        return handle_mouse_moved(event, viewport);
+    case NSEventTypeScrollWheel:
+        return handle_scroll_wheel(event);
+    case NSEventTypeKeyDown:
+    case NSEventTypeKeyUp:
+        return handle_key(event);
+    case NSEventTypeFlagsChanged:
+        return handle_flags_changed(event);
+    default:
+        return false;
     }
-
-    if (event.type == NSEventTypeLeftMouseUp ||
-        event.type == NSEventTypeRightMouseUp ||
-        event.type == NSEventTypeOtherMouseUp) {
-        int button = (int)[event buttonNumber];
-        if (button >= 0 && button < ImGuiMouseButton_COUNT) {
-            io.AddMouseSourceEvent(GetMouseSource(event));
-            io.AddMouseButtonEvent(button, false);
-        }
-        return io.WantCaptureMouse;
-    }
-
-    if (event.type == NSEventTypeMouseMoved ||
-        event.type == NSEventTypeLeftMouseDragged ||
-        event.type == NSEventTypeRightMouseDragged ||
-        event.type == NSEventTypeOtherMouseDragged) {
-        io.AddMouseSourceEvent(GetMouseSource(event));
-        NSPoint mouse_point = NSEvent.mouseLocation;
-        mouse_point.y =
-            CGDisplayPixelsHigh(kCGDirectMainDisplay) - mouse_point.y;
-        io.AddMousePosEvent((float)mouse_point.x, (float)mouse_point.y);
-        ImGuiViewport* hovered_viewport = [&] -> ImGuiViewport* {
-            ImGuiContext* context = ImGui::GetCurrentContext();
-            if (!context || !context->DragDropActive) return viewport;
-            bool is_moving_this_window =
-                context->MovingWindow &&
-                context->MovingWindow->Viewport == viewport;
-            NSWindow* dragged_window =
-                is_moving_this_window ? event.window : nil;
-            NSWindow* hovered_window =
-                find_window_under_mouse(mouse_point, dragged_window);
-            return find_viewport(hovered_window);
-        }();
-        io.AddMouseViewportEvent(hovered_viewport ? hovered_viewport->ID : 0);
-        return io.WantCaptureMouse;
-    }
-
-    if (event.type == NSEventTypeScrollWheel) {
-        // Ignore canceled events.
-        //
-        // From macOS 12.1, scrolling with two fingers and then decelerating
-        // by tapping two fingers results in two events appearing:
-        //
-        // 1. A scroll wheel NSEvent, with a phase == NSEventPhaseMayBegin, when
-        // the user taps two fingers to decelerate or stop the scroll events.
-        //
-        // 2. A scroll wheel NSEvent, with a phase == NSEventPhaseCancelled,
-        // when the user releases the two-finger tap. It is this event that
-        // sometimes contains large values for scrollingDeltaX and
-        // scrollingDeltaY. When these are added to the current x and y
-        // positions of the scrolling view, it appears to jump up or down. It
-        // can be observed in Preview, various JetBrains IDEs and here.
-        if (event.phase == NSEventPhaseCancelled) return false;
-        double wheel_dx = [event scrollingDeltaX];
-        double wheel_dy = [event scrollingDeltaY];
-        if ([event hasPreciseScrollingDeltas]) {
-            wheel_dx *= 0.01;
-            wheel_dy *= 0.01;
-        }
-        if (wheel_dx != 0.0 || wheel_dy != 0.0)
-            io.AddMouseWheelEvent((float)wheel_dx, (float)wheel_dy);
-
-        return io.WantCaptureMouse;
-    }
-
-    if (event.type == NSEventTypeKeyDown || event.type == NSEventTypeKeyUp) {
-        if ([event isARepeat]) return io.WantCaptureKeyboard;
-        int key_code = (int)[event keyCode];
-        ImGuiKey key = ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(key_code);
-        io.AddKeyEvent(key, event.type == NSEventTypeKeyDown);
-        io.SetKeyEventNativeData(
-            key, key_code, -1); // To support legacy indexing (<1.87 user code)
-
-        return io.WantCaptureKeyboard;
-    }
-
-    if (event.type == NSEventTypeFlagsChanged) {
-        unsigned short key_code = [event keyCode];
-        NSEventModifierFlags modifier_flags = [event modifierFlags];
-
-        io.AddKeyEvent(ImGuiMod_Shift,
-                       (modifier_flags & NSEventModifierFlagShift) != 0);
-        io.AddKeyEvent(ImGuiMod_Ctrl,
-                       (modifier_flags & NSEventModifierFlagControl) != 0);
-        io.AddKeyEvent(ImGuiMod_Alt,
-                       (modifier_flags & NSEventModifierFlagOption) != 0);
-        io.AddKeyEvent(ImGuiMod_Super,
-                       (modifier_flags & NSEventModifierFlagCommand) != 0);
-
-        ImGuiKey key = ImGui_Impl_Mosaic_MacOS_KeyCodeToImGuiKey(key_code);
-        if (key != ImGuiKey_None) {
-            // macOS does not generate down/up event for modifiers. We're trying
-            // to use hardware dependent masks to extract that information.
-            // 'imgui_mask' is left as a fallback.
-            NSEventModifierFlags mask = 0;
-            switch (key) {
-            case ImGuiKey_LeftCtrl:
-                mask = 0x0001;
-                break;
-            case ImGuiKey_RightCtrl:
-                mask = 0x2000;
-                break;
-            case ImGuiKey_LeftShift:
-                mask = 0x0002;
-                break;
-            case ImGuiKey_RightShift:
-                mask = 0x0004;
-                break;
-            case ImGuiKey_LeftSuper:
-                mask = 0x0008;
-                break;
-            case ImGuiKey_RightSuper:
-                mask = 0x0010;
-                break;
-            case ImGuiKey_LeftAlt:
-                mask = 0x0020;
-                break;
-            case ImGuiKey_RightAlt:
-                mask = 0x0040;
-                break;
-            default:
-                return io.WantCaptureKeyboard;
-            }
-            io.AddKeyEvent(key, (modifier_flags & mask) != 0);
-            io.SetKeyEventNativeData(
-                key, key_code,
-                -1); // To support legacy indexing (<1.87 user code)
-        }
-
-        return io.WantCaptureKeyboard;
-    }
-
-    return false;
 }
 
 static void ImGui_Impl_Mosaic_MacOS_AddTrackingArea(NSView* _Nonnull view) {
-    // If we want to receive key events, we either need to be in the responder
-    // chain of the key view, or else we can install a local monitor. The
-    // consequence of this heavy-handed approach is that we receive events for
-    // all controls, not just Dear ImGui widgets. If we had native controls in
-    // our window, we'd want to be much more careful than just ingesting the
-    // complete event stream. To match the behavior of other backends, we pass
-    // every event down to the OS.
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
     if (bd->Monitor) return;
     NSEventMask eventMask = 0;
