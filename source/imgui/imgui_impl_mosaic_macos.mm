@@ -45,6 +45,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <utl/hashtable.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "application/application.h"
 #include "application/window.h"
@@ -923,18 +924,73 @@ static ImGuiMouseSource GetMouseSource(NSEvent* event) {
     }
 }
 
-static ImGuiViewport*
-find_viewport_by_platform_handle_raw(void* platform_handle_raw) {
+static ImGuiViewport* find_viewport(NSWindow* window) {
+    if (window == nil) return nullptr;
+    void* platform_handle_raw = (__bridge void*)window;
     ImGuiContext& g = *GImGui;
     for (ImGuiViewportP* viewport : g.Viewports)
         if (viewport->PlatformHandleRaw == platform_handle_raw) return viewport;
-    return NULL;
+    return nullptr;
+}
+
+static NSWindow* get_native_window_from_cg_window_id(CGWindowID window_id) {
+    for (NSWindow* window in NSApp.windows)
+        if ((CGWindowID)window.windowNumber == window_id) return window;
+    return nil;
+}
+
+// mouse_point uses the same top-left-origin screen coordinates as
+// the mouse position passed to ImGui.
+//
+// dragged_window is the native window currently being moved by ImGui.
+// Pass nil when no ImGui platform window is being dragged.
+static NSWindow* find_window_under_mouse(NSPoint mouse_point,
+                                         NSWindow* dragged_window) {
+    CGWindowListOption options =
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements;
+    CFArrayRef window_list =
+        CGWindowListCopyWindowInfo(options, kCGNullWindowID);
+    if (window_list == nullptr) return nullptr;
+    utl::scope_guard guard = [&] { CFRelease(window_list); };
+
+    const CGPoint point = CGPointMake(mouse_point.x, mouse_point.y);
+    for (CFIndex i = 0, count = CFArrayGetCount(window_list); i < count; ++i) {
+        NSDictionary* info =
+            (__bridge NSDictionary*)CFArrayGetValueAtIndex(window_list, i);
+        NSNumber* window_number = info[(__bridge NSString*)kCGWindowNumber];
+        NSNumber* window_alpha = info[(__bridge NSString*)kCGWindowAlpha];
+        NSNumber* window_layer = info[(__bridge NSString*)kCGWindowLayer];
+        id bounds_value = info[(__bridge NSString*)kCGWindowBounds];
+        if (![window_number isKindOfClass:[NSNumber class]] ||
+            ![bounds_value isKindOfClass:[NSDictionary class]])
+            continue;
+        // Ignore fully transparent windows.
+        if (window_alpha != nil && window_alpha.doubleValue <= 0.0) continue;
+        // Ignore windows that cannot participate in ordinary app-window
+        // docking. Remove this filter if you want menus/popovers to block
+        // docking as well.
+        if (window_layer != nil && window_layer.intValue != 0) continue;
+        CGRect bounds;
+        if (!CGRectMakeWithDictionaryRepresentation(
+                (__bridge CFDictionaryRef)bounds_value, &bounds))
+            continue;
+        if (!CGRectContainsPoint(bounds, point)) continue;
+        const CGWindowID window_id = (CGWindowID)window_number.unsignedIntValue;
+        // Look through the source window being dragged, but not through
+        // any unrelated window that happens to be in front of it.
+        if (dragged_window != nil &&
+            window_id == (CGWindowID)dragged_window.windowNumber)
+            continue;
+        // The first remaining window containing the mouse is the
+        // frontmost candidate. If it's foreign, stop: don't look through it.
+        return get_native_window_from_cg_window_id(window_id);
+    }
+    return nil;
 }
 
 static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
     // Only process events from the window containing ImGui view
-    ImGuiViewport* viewport =
-        find_viewport_by_platform_handle_raw((__bridge void*)event.window);
+    ImGuiViewport* viewport = find_viewport(event.window);
     if (!viewport) return false;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -964,29 +1020,24 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
         event.type == NSEventTypeLeftMouseDragged ||
         event.type == NSEventTypeRightMouseDragged ||
         event.type == NSEventTypeOtherMouseDragged) {
-        NSPoint mousePoint;
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            mousePoint = NSEvent.mouseLocation;
-            mousePoint.y =
-                CGDisplayPixelsHigh(kCGDirectMainDisplay) -
-                mousePoint
-                    .y; // Normalize y coordinate to top-left of main display.
-        } else {
-            mousePoint = event.locationInWindow;
-            if (event.window == nil)
-                mousePoint = [[view window] convertPointFromScreen:mousePoint];
-            mousePoint =
-                [view convertPoint:mousePoint
-                          fromView:nil]; // Convert to local coordinates of view
-            if ([view isFlipped])
-                mousePoint = NSMakePoint(mousePoint.x, mousePoint.y);
-            else
-                mousePoint = NSMakePoint(mousePoint.x, view.bounds.size.height -
-                                                           mousePoint.y);
-        }
         io.AddMouseSourceEvent(GetMouseSource(event));
-        io.AddMousePosEvent((float)mousePoint.x, (float)mousePoint.y);
-        io.AddMouseViewportEvent(viewport ? viewport->ID : 0);
+        NSPoint mouse_point = NSEvent.mouseLocation;
+        mouse_point.y =
+            CGDisplayPixelsHigh(kCGDirectMainDisplay) - mouse_point.y;
+        io.AddMousePosEvent((float)mouse_point.x, (float)mouse_point.y);
+        ImGuiViewport* hovered_viewport = [&] -> ImGuiViewport* {
+            ImGuiContext* context = ImGui::GetCurrentContext();
+            if (!context || !context->DragDropActive) return viewport;
+            bool is_moving_this_window =
+                context->MovingWindow &&
+                context->MovingWindow->Viewport == viewport;
+            NSWindow* dragged_window =
+                is_moving_this_window ? event.window : nil;
+            NSWindow* hovered_window =
+                find_window_under_mouse(mouse_point, dragged_window);
+            return find_viewport(hovered_window);
+        }();
+        io.AddMouseViewportEvent(hovered_viewport ? hovered_viewport->ID : 0);
         return io.WantCaptureMouse;
     }
 
@@ -1006,23 +1057,11 @@ static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
         // positions of the scrolling view, it appears to jump up or down. It
         // can be observed in Preview, various JetBrains IDEs and here.
         if (event.phase == NSEventPhaseCancelled) return false;
-
-        double wheel_dx = 0.0;
-        double wheel_dy = 0.0;
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-        if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) {
-            wheel_dx = [event scrollingDeltaX];
-            wheel_dy = [event scrollingDeltaY];
-            if ([event hasPreciseScrollingDeltas]) {
-                wheel_dx *= 0.01;
-                wheel_dy *= 0.01;
-            }
-        } else
-#endif // MAC_OS_X_VERSION_MAX_ALLOWED
-        {
-            wheel_dx = [event deltaX] * 0.1;
-            wheel_dy = [event deltaY] * 0.1;
+        double wheel_dx = [event scrollingDeltaX];
+        double wheel_dy = [event scrollingDeltaY];
+        if ([event hasPreciseScrollingDeltas]) {
+            wheel_dx *= 0.01;
+            wheel_dy *= 0.01;
         }
         if (wheel_dx != 0.0 || wheel_dy != 0.0)
             io.AddMouseWheelEvent((float)wheel_dx, (float)wheel_dy);
@@ -1197,7 +1236,7 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
         .position = (vml::int2)viewport->Pos,
         .size = (vml::int2)viewport->Size,
         .title = "Untitled",
-        .visible = false,
+        .visible = true,
         .focused = !(viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing),
         .topmost = (viewport->Flags & ImGuiViewportFlags_TopMost) != 0,
         .style =
