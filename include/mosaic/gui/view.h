@@ -99,16 +99,24 @@ public:
 
     void send_data(std::any data) { receive_data(std::move(data)); }
 
-    Toolbar const* toolbar() const { return m_toolbar ? &*m_toolbar : nullptr; }
+    Toolbar const& toolbar() const { return m_toolbar; }
+
+    bool uses_toolbar() const { return m_uses_toolbar; }
 
 protected:
     explicit View(ViewDescription desc = {});
 
     CommandPalette& command_palette_write() { return m_command_palette; }
 
-    void set_toolbar(Toolbar toolbar) { m_toolbar = std::move(toolbar); }
+    void set_toolbar(Toolbar toolbar) {
+        m_toolbar = std::move(toolbar);
+        m_uses_toolbar = true;
+    }
 
-    void remove_toolbar() { m_toolbar.reset(); }
+    void remove_toolbar() {
+        m_toolbar = {};
+        m_uses_toolbar = false;
+    }
 
     /// Called once after construction and framework initialization.
     virtual void on_create() {}
@@ -154,7 +162,8 @@ private:
     EventReceiver m_event_receiver;
     EventEmitter m_event_emitter;
     CommandPalette m_command_palette;
-    std::optional<Toolbar> m_toolbar;
+    Toolbar m_toolbar;
+    bool m_uses_toolbar = false;
     RuntimeState m_runtime;
 };
 

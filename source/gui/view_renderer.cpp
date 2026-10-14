@@ -10,6 +10,7 @@
 #include "application/debug_settings.h"
 #include "application/window.h"
 #include "application/window_desc.h"
+#include "gui/toolbar_renderer.h"
 #include "gui/view.h"
 #include "gui/view_manager.h"
 #include "vml/fwd.hpp"
@@ -85,6 +86,7 @@ struct mosaic::RuntimeViewState {
     struct Persistent {
         bool apply_initial_geometry = true;
         bool window_dragging = false;
+        ToolbarRenderer toolbar_renderer;
     } persistent;
 };
 
@@ -112,60 +114,28 @@ namespace {
 struct ToolbarGeometry {
     vml::float2 position;
     vml::float2 size;
-    vml::float2 padding;
 };
 
 } // namespace
 
-static void debug_draw_geometry(ToolbarGeometry geometry) {
-    ImDrawList* draw_list = ImGui::GetForegroundDrawList();
-    float2 pos = (float2)ImGui::GetWindowPos() + geometry.position;
-    float2 max = pos + geometry.size;
-    float2 paddedmin = pos + geometry.padding;
-    float2 paddedmax = max - geometry.padding;
-    // Padded bounds
-    draw_list->AddRect(paddedmin, paddedmax, IM_COL32(255, 180, 0, 220), 0.0f,
-                       0, 1.5f);
-    // Toolbar bounds
-    draw_list->AddRect(pos, max, IM_COL32(0, 220, 120, 255), 0.0f, 0, 2.0f);
-    // Geometry information.
-    char label[256];
-    ImFormatString(
-        label, IM_ARRAYSIZE(label),
-        "Pos: (%.1f, %.1f)\nSize: (%.1f, %.1f)\nPadding:(% .1f,% .1f) ",
-        geometry.position.x, geometry.position.y, geometry.size.x,
-        geometry.size.y, geometry.padding.x, geometry.padding.y);
-    draw_list->AddText({pos.x, max.y}, IM_COL32(255, 255, 255, 255), label);
-}
-
 static ToolbarGeometry compute_toolbar_geometry(RuntimeViewState state) {
-    float2 padding = {6, 6};
-
     auto* imgui_window = ImGui::GetCurrentWindowRead();
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
     float offset_y = ImGui::GetCursorPosY() - imgui_window->WindowPadding.y;
     if (!window || !state.frame.wants_native_toolbar)
-        return {.position = {0.0f, offset_y},
-                .size = {width, 26.0f + 2 * padding.y},
-                .padding = padding};
+        return {.position = {0.0f, offset_y}, .size = {width, 38.0f}};
     auto height = window->titlebar_height();
     float left_inset = compute_left_inset(*window);
     return {.position = {left_inset, offset_y},
-            .size = {width - left_inset, height},
-            .padding = padding};
+            .size = {width - left_inset, height}};
 }
 
-static void display_toolbar(Toolbar& toolbar, ToolbarGeometry geometry,
-                            RuntimeViewState state) {
-    toolbar.set_padding({.top = geometry.padding.y,
-                         .bottom = geometry.padding.y,
-                         .left = geometry.padding.x,
-                         .right = geometry.padding.x});
+static void display_toolbar(ToolbarRenderer& toolbar_renderer,
+                            ToolbarGeometry geometry, RuntimeViewState state) {
     vml::float2 screen_pos = (float2)ImGui::GetWindowPos() + geometry.position;
     ImGui::SetCursorScreenPos(screen_pos);
-    toolbar.display(geometry.size);
-
+    toolbar_renderer.display(geometry.size);
     ImGui::SetCursorPos({0, geometry.position.y + geometry.size.y + 1});
     if (state.frame.docked || state.persistent.window_dragging) {
         ImRect toolbar_rect(screen_pos, screen_pos + geometry.size);
@@ -177,7 +147,7 @@ void ImGuiViewRenderer::render_view(View& view) {
     auto layout = view.layout();
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-    if (view.toolbar()) {
+    if (view.uses_toolbar()) {
         flags |= ImGuiWindowFlags_NoTitleBar;
         auto const& state = runtime_state(view);
         if (!state.frame.docked_last_frame && !state.persistent.window_dragging)
@@ -200,17 +170,17 @@ void ImGuiViewRenderer::render_view(View& view) {
 
     auto& state = update_and_get_runtime_state(view);
     if (visible) {
-        auto geometry = view.toolbar() ? compute_toolbar_geometry(state)
-                                       : ToolbarGeometry{};
-        if (want_debug_overlays()) debug_draw_geometry(geometry);
+        auto geometry = view.uses_toolbar() ? compute_toolbar_geometry(state)
+                                            : ToolbarGeometry{};
         float toolbar_height =
-            view.toolbar() ? geometry.size.y
-                           : ImGui::GetCurrentWindowRead()->TitleBarHeight;
+            view.uses_toolbar() ? geometry.size.y
+                                : ImGui::GetCurrentWindowRead()->TitleBarHeight;
         float2 cursor_pos =
             float2{0.0f, geometry.position.y + toolbar_height} + view_padding;
         ImGui::SetCursorPos(cursor_pos);
         view.display();
-        if (view.toolbar()) display_toolbar(*view.m_toolbar, geometry, state);
+        if (view.uses_toolbar())
+            display_toolbar(state.persistent.toolbar_renderer, geometry, state);
     }
     ImGui::End();
 }
@@ -230,7 +200,7 @@ ImGuiViewRenderer::update_and_get_runtime_state(View const& view) {
     bool in_main_viewport = viewport == ImGui::GetMainViewport();
     frame.wants_native_toolbar =
         !in_main_viewport && imgui_window == imgui_window->Viewport->Window &&
-        view.toolbar() != nullptr;
+        view.uses_toolbar();
     if (frame.wants_native_toolbar)
         m_viewports_with_native_toolbar.insert(viewport);
     return state;
@@ -263,5 +233,10 @@ void ImGuiViewRenderer::end_frame() {
 }
 
 RuntimeViewState& ImGuiViewRenderer::runtime_state(View const& view) {
-    return m_runtime[&view];
+    auto itr = m_runtime.find(&view);
+    if (itr == m_runtime.end()) {
+        itr = m_runtime.insert({&view, RuntimeViewState{}}).first;
+        itr->second.persistent.toolbar_renderer.set_toolbar(&view.toolbar());
+    }
+    return itr->second;
 }

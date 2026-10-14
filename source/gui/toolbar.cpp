@@ -1,8 +1,6 @@
 #include "gui/toolbar.h"
 
-#include <algorithm>
 #include <cstring>
-#include <numeric>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -16,22 +14,23 @@
 using namespace mosaic;
 using namespace vml::short_types;
 
-static bool toolbar_button_impl(ToolbarStyle const& style, char const* label,
-                                ImFont* font, int id, int flags, float2 size,
-                                bool enabled, bool open) {
+static bool toolbar_button_impl(ToolbarButtonStyle const& style,
+                                char const* label, ImFont* font, int id,
+                                int flags, float2 size, bool enabled,
+                                bool open) {
     ImGui::PushFont(font);
     utl::scope_guard guard = [] { ImGui::PopFont(); };
     ImGui::BeginDisabled(!enabled);
     auto& imgui_style = ImGui::GetStyle();
     float4 color =
         imgui_style.Colors[open ? ImGuiCol_ButtonActive : ImGuiCol_Button];
-    color.a *= style.button_alpha;
+    color.a *= style.alpha;
     float4 color_hovered =
         imgui_style
             .Colors[open ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered];
-    color_hovered.a *= style.button_alpha_hovered;
+    color_hovered.a *= style.alpha_hovered;
     float4 color_active = imgui_style.Colors[ImGuiCol_ButtonActive];
-    color_active.a *= style.button_alpha_active;
+    color_active.a *= style.alpha_active;
     ImGui::PushStyleColor(ImGuiCol_Button, color);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color_hovered);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, color_active);
@@ -45,7 +44,7 @@ static bool toolbar_button_impl(ToolbarStyle const& style, char const* label,
     return result;
 }
 
-bool toolbar_button(ToolbarStyle const& style, char const* label, int id,
+bool toolbar_button(ToolbarButtonStyle const& style, char const* label, int id,
                     int flags, float2 size, bool enabled = true,
                     bool open = false) {
     return toolbar_button_impl(style, label,
@@ -53,7 +52,7 @@ bool toolbar_button(ToolbarStyle const& style, char const* label, int id,
                                id, flags, size, enabled, open);
 }
 
-bool toolbar_icon_button(ToolbarStyle const& style, IconData icon, int id,
+bool toolbar_icon_button(ToolbarButtonStyle const& style, IconData icon, int id,
                          int flags, float2 size, char const* tooltip,
                          bool enabled = true, bool open = false) {
     bool result = toolbar_button_impl(style, icon.utf8_rep.data(), icon.font,
@@ -73,9 +72,10 @@ bool toolbar_icon_button(ToolbarStyle const& style, IconData icon, int id,
 }
 
 void ToolbarButtonDisplay::display(ToolbarButton const& button,
-                                   ToolbarDisplayData data) {
-    bool active = toolbar_button(data.style, button.m_label.c_str(), data.ID,
-                                 button.m_button_flags, data.actual_size);
+                                   ToolbarItemDisplayData data) {
+    bool active =
+        toolbar_button(data.button_style, button.m_label.c_str(), data.ID,
+                       button.m_button_flags, data.actual_size);
     if (active && button.m_action) button.m_action();
 }
 
@@ -100,9 +100,9 @@ ToolbarIconButton::ToolbarIconButton(Command const* command,
 }
 
 void ToolbarIconButtonDisplay::display(ToolbarIconButton const& button,
-                                       ToolbarDisplayData data) {
+                                       ToolbarItemDisplayData data) {
     bool active = toolbar_icon_button(
-        data.style, ui::icon_data({IconSize::_16}, button.m_icon_name()),
+        data.button_style, ui::icon_data({IconSize::_16}, button.m_icon_name()),
         data.ID, button.m_button_flags, data.actual_size, tooltip(button));
     if (active && button.m_action) button.m_action();
 }
@@ -117,8 +117,8 @@ float ToolbarIconButtonDisplay::calc_width(ToolbarIconButton const&,
 ToolbarDropdownMenu::ToolbarDropdownMenu()
     : m_string_id(utl::uuid::generate().to_string()) {}
 
-bool ToolbarDropdownMenu::Display::begin_combo(ToolbarDropdownMenu const& item,
-                                               ToolbarDisplayData const& data) {
+bool ToolbarDropdownMenu::Display::begin_combo(
+    ToolbarDropdownMenu const& item, ToolbarItemDisplayData const& data) {
     float2 cursor_pos_screen = ImGui::GetCursorScreenPos();
     float2 size = {data.actual_size.x,
                    data.actual_size.y + ImGui::GetStyle().ItemSpacing.y};
@@ -129,15 +129,15 @@ bool ToolbarDropdownMenu::Display::begin_combo(ToolbarDropdownMenu const& item,
     bool popup_open = ImGui::IsPopupOpen(popup_id, ImGuiPopupFlags_None);
     bool pressed = [&] {
         if (item.m_preview)
-            return toolbar_button(data.style, item.m_preview().c_str(), data.ID,
-                                  0, size, enabled(item), popup_open);
+            return toolbar_button(data.button_style, item.m_preview().c_str(),
+                                  data.ID, 0, size, enabled(item), popup_open);
         char const* icon_name =
             item.m_icon_name ? item.m_icon_name() : "down-open";
         int flags = ImGuiButtonFlags_PressedOnClick |
                     ImGuiButtonFlags_PressedOnDragDropHold;
         return toolbar_icon_button(
-            data.style, ui::icon_data({IconSize::_16}, icon_name), data.ID,
-            flags, size, tooltip(item), enabled(item), popup_open);
+            data.button_style, ui::icon_data({IconSize::_16}, icon_name),
+            data.ID, flags, size, tooltip(item), enabled(item), popup_open);
     }();
     if (pressed && !popup_open) {
         ImGui::OpenPopupEx(popup_id, ImGuiPopupFlags_None);
@@ -153,7 +153,7 @@ bool ToolbarDropdownMenu::Display::begin_combo(ToolbarDropdownMenu const& item,
 }
 
 void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
-                                           ToolbarDisplayData const& data) {
+                                           ToolbarItemDisplayData const& data) {
     if (!begin_combo(item, data)) return;
     if (item.m_content) item.m_content();
     ImGui::EndCombo();
@@ -170,7 +170,7 @@ float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,
 }
 
 void ToolbarTextItem::Display::display(ToolbarTextItem const& item,
-                                       ToolbarDisplayData const&) {
+                                       ToolbarItemDisplayData const&) {
     auto* font = ui::font(item.get_font_desc());
     auto* DL = ImGui::GetWindowDrawList();
     float2 pos = ImGui::GetCursorScreenPos();
@@ -194,142 +194,10 @@ FontDesc ToolbarTextItem::get_font_desc() const {
 }
 
 void ToolbarEmptyItem::Display::display(ToolbarEmptyItem,
-                                        ToolbarDisplayData const& data) {
+                                        ToolbarItemDisplayData const& data) {
     ImGui::Dummy(data.actual_size);
 }
 
 float ToolbarEmptyItem::Display::calc_width(ToolbarEmptyItem item, float) {
     return item.m_width;
-}
-
-float Toolbar::get_width_without_spacers() const {
-    float raw_width = std::accumulate(
-        blocks.begin(), blocks.end(), 0.0f,
-        [](float acc, Block const& block) { return acc + block.width; });
-    float spacing = std::max(0.0f, (float)blocks.size() - 1.0f) *
-                    ImGui::GetStyle().ItemSpacing.x;
-    ToolbarPadding padding = get_resolved_padding();
-    return raw_width + spacing + padding.left + padding.right;
-}
-
-void Toolbar::display(vml::float2 size) noexcept {
-    ToolbarPadding padding = get_resolved_padding();
-    float item_height = size.y - padding.top - padding.bottom;
-    /// We actually cook every frame because performance is really not an issue
-    /// and it solves some caching issues
-    cook(item_height);
-    float item_space_y = size.x - padding.left - padding.right;
-    float2 position = ImGui::GetCursorPos();
-    /// Display blocks
-    calc_offsets(item_space_y);
-    for (auto const& block : blocks) {
-        if (block.visible) {
-            float2 cursor_pos = {position.x + padding.left + block.offset,
-                                 position.y + padding.top};
-            ImGui::SetCursorPos(cursor_pos);
-            display_block(block, item_height);
-        }
-    }
-    ImGui::SetCursorPos(position + float2(0, size.y));
-    /// Draw separator
-    if (!(style.flags & ToolbarFlags::no_decoration)) {
-        auto* window = ImGui::GetCurrentWindowRead();
-        float2 pos =
-            (float2)ImGui::GetWindowPos() + float2(0, window->TitleBarHeight);
-        float2 from = pos + float2(0, size.y);
-        float2 to = from + float2(ImGui::GetWindowWidth(), 0);
-        auto* DL = ImGui::GetWindowDrawList();
-        DL->PushClipRect(window->Rect().Min, window->Rect().Max);
-        DL->AddLine(from, to, ImGui::GetColorU32(ImGuiCol_Separator), 1);
-        DL->PopClipRect();
-    }
-}
-
-void Toolbar::display_block(Block const& block, float item_height) {
-    float cursor_pos_y = ImGui::GetCursorPos().y;
-    for (size_t i = block.item_begin_index; i < block.item_end_index; ++i) {
-        auto* item = all_items[i].get();
-        ImGui::BeginDisabled(!item->enabled());
-        item->display({.style = style,
-                       .actual_size = {item->width(), item_height},
-                       .ID = item->ID()});
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::SetCursorPosY(cursor_pos_y);
-    }
-}
-
-void Toolbar::cook(float item_height) {
-    blocks.clear();
-    if (all_items.empty()) return;
-    /// Partition into blocks
-    blocks.emplace_back();
-    blocks.back().item_begin_index = 0;
-    for (size_t index = 0; auto& item : all_items) {
-        if (item->is_spacer()) {
-            blocks.back().item_end_index = index + 1;
-            blocks.emplace_back();
-            blocks.back().item_begin_index = index + 1;
-        }
-        ++index;
-    }
-    blocks.back().item_end_index = all_items.size();
-    /// Calculate item widths
-    for (auto& item : all_items)
-        item->calc_width(item_height);
-    /// Calculate block widths
-    for (auto& block : blocks) {
-        float acc_items_width = std::accumulate(
-            all_items.begin() + block.item_begin_index,
-            all_items.begin() + block.item_end_index, 0.0f,
-            [](float acc, auto& item) { return acc + item->width(); });
-        int num_items = utl::narrow_cast<int>(block.item_end_index -
-                                              block.item_begin_index);
-        float spacing =
-            std::max(0, num_items - 1) * ImGui::GetStyle().ItemSpacing.x;
-        block.width = acc_items_width + spacing;
-    }
-}
-
-void Toolbar::calc_offsets(float total_width) {
-    if (blocks.size() == 0) return;
-    for (auto& block : blocks)
-        block.visible = false;
-    float cursor = 0;
-    float width_avail = total_width;
-    blocks[0].offset = cursor;
-    blocks[0].visible = true;
-    if (blocks.size() == 1) return;
-    cursor += blocks[0].width;
-    width_avail -= blocks[0].width;
-    auto& last_block = blocks.back();
-    if (last_block.width > width_avail) return;
-    last_block.visible = true;
-    last_block.offset = total_width - last_block.width;
-    width_avail -= last_block.width;
-    if (blocks.size() == 2) return;
-    if (blocks[1].width > width_avail) return;
-    blocks[1].visible = true;
-    blocks[1].offset = cursor + (width_avail - blocks[1].width) / 2;
-}
-
-ToolbarPadding Toolbar::get_resolved_padding() const {
-    auto value_or = [](float value, float fallback) {
-        return value >= 0.0f ? value : fallback;
-    };
-    auto& imgui_style = ImGui::GetStyle();
-    return {
-        .top = value_or(style.padding.top, imgui_style.WindowPadding.y),
-        .bottom = value_or(style.padding.bottom, imgui_style.WindowPadding.y),
-        .left = value_or(style.padding.left, imgui_style.WindowPadding.x),
-        .right = value_or(style.padding.right, imgui_style.WindowPadding.x),
-    };
-}
-
-void Toolbar::set_padding(ToolbarPaddingIndex index, float value) {
-    float data[4];
-    static_assert(sizeof(style.padding) == sizeof(data));
-    std::memcpy(data, &style.padding, sizeof(data));
-    data[static_cast<std::size_t>(index)] = value;
-    std::memcpy(&style.padding, data, sizeof(data));
 }

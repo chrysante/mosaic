@@ -3,7 +3,6 @@
 #include <concepts>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <string>
 
 #include <utl/common.hpp>
@@ -42,12 +41,16 @@ struct ToolbarPadding {
     float right;
 };
 
+// Alpha multipliers for different button states
+struct ToolbarButtonStyle {
+    float alpha = 0.0f;
+    float alpha_hovered = 0.5f;
+    float alpha_active = 0.5f;
+};
+
 /// Style options to assign to a toolbar
 struct ToolbarStyle {
-    // Alpha multipliers for different button states
-    float button_alpha = 0.0f;
-    float button_alpha_hovered = 0.5f;
-    float button_alpha_active = 0.5f;
+    ToolbarButtonStyle button;
 
     /// -1 means default to `ImGui::GetStyle().WindowPadding`
     ToolbarPadding padding = {-1.0f, -1.0f, -1.0f, -1.0f};
@@ -56,9 +59,8 @@ struct ToolbarStyle {
     ToolbarFlags flags = ToolbarFlags::none;
 };
 
-struct ToolbarDisplayData {
-    ToolbarStyle style;
-
+struct ToolbarItemDisplayData {
+    ToolbarButtonStyle button_style;
     vml::float2 actual_size;
     int ID;
 };
@@ -68,7 +70,7 @@ class ToolbarItem {
 public:
     virtual ~ToolbarItem() = default;
 
-    void display(ToolbarDisplayData const& data) { do_display(data); }
+    void display(ToolbarItemDisplayData const& data) const { do_display(data); }
 
     /// \returns a unique id.
     /// This is simply the index of the item in the toolbar
@@ -94,7 +96,7 @@ protected:
         : m_id(ID) {}
 
 private:
-    virtual void do_display(ToolbarDisplayData const& data) const = 0;
+    virtual void do_display(ToolbarItemDisplayData const& data) const = 0;
     virtual float do_calc_width(float height) = 0;
     virtual bool do_enabled() const = 0;
     virtual char const* do_tooltip() const = 0;
@@ -105,8 +107,9 @@ private:
 };
 
 template <typename ItemDisplay, typename State>
-concept ToolbarItemDisplay = requires(
-    State const state, ToolbarDisplayData const display_data, float height) {
+concept ToolbarItemDisplay =
+    requires(State const state, ToolbarItemDisplayData const display_data,
+             float height) {
     ItemDisplay::display(state, display_data);
     {ItemDisplay::calc_width(state, height)}->std::convertible_to<float>;
 };
@@ -140,7 +143,7 @@ public:
 private:
     using Display = State::Display;
 
-    void do_display(ToolbarDisplayData const& data) const final {
+    void do_display(ToolbarItemDisplayData const& data) const final {
         Display::display(m_state, data);
     }
 
@@ -266,7 +269,8 @@ private:
 };
 
 struct ToolbarButtonDisplay : ToolbarItemDisplayBase<ToolbarButton> {
-    static void display(ToolbarButton const& button, ToolbarDisplayData data);
+    static void display(ToolbarButton const& button,
+                        ToolbarItemDisplayData data);
     static float calc_width(ToolbarButton const& button, float height);
 };
 
@@ -296,7 +300,7 @@ private:
 
 struct ToolbarIconButtonDisplay : ToolbarItemDisplayBase<ToolbarIconButton> {
     static void display(ToolbarIconButton const& button,
-                        ToolbarDisplayData data);
+                        ToolbarItemDisplayData data);
     static float calc_width(ToolbarIconButton const& button, float height);
 };
 
@@ -305,9 +309,9 @@ class ToolbarDropdownMenu : public ToolbarItemState<ToolbarDropdownMenu> {
 public:
     struct Display : ToolbarItemDisplayBase<ToolbarDropdownMenu> {
         static bool begin_combo(ToolbarDropdownMenu const&,
-                                ToolbarDisplayData const&);
+                                ToolbarItemDisplayData const&);
         static void display(ToolbarDropdownMenu const&,
-                            ToolbarDisplayData const&);
+                            ToolbarItemDisplayData const&);
         static float calc_width(ToolbarDropdownMenu const&, float height);
     };
 
@@ -365,7 +369,7 @@ private:
 ///
 struct ToolbarSeparator {
     struct Display {
-        static void display(ToolbarSeparator, ToolbarDisplayData const&) {}
+        static void display(ToolbarSeparator, ToolbarItemDisplayData const&) {}
         static float calc_width(ToolbarSeparator, float) { return 0.0f; }
     };
 };
@@ -374,7 +378,7 @@ struct ToolbarSeparator {
 /// used to split a toolbar into multiple sections
 struct ToolbarSpacer {
     struct Display {
-        static void display(ToolbarSpacer, ToolbarDisplayData const&) {}
+        static void display(ToolbarSpacer, ToolbarItemDisplayData const&) {}
         static float calc_width(ToolbarSpacer, float) { return 0.0f; }
         static bool is_spacer(ToolbarSpacer) { return true; }
     };
@@ -384,7 +388,8 @@ struct ToolbarSpacer {
 class ToolbarTextItem {
 public:
     struct Display {
-        static void display(ToolbarTextItem const&, ToolbarDisplayData const&);
+        static void display(ToolbarTextItem const&,
+                            ToolbarItemDisplayData const&);
         static float calc_width(ToolbarTextItem const&, float height);
     };
 
@@ -426,7 +431,7 @@ private:
 class ToolbarEmptyItem {
 public:
     struct Display {
-        static void display(ToolbarEmptyItem, ToolbarDisplayData const&);
+        static void display(ToolbarEmptyItem, ToolbarItemDisplayData const&);
         static float calc_width(ToolbarEmptyItem, float height);
     };
 
@@ -444,7 +449,7 @@ class CustomToolbarElement {
 public:
     struct Display {
         static void display(CustomToolbarElement const&,
-                            ToolbarDisplayData const&) {}
+                            ToolbarItemDisplayData const&) {}
         static float calc_width(CustomToolbarElement const& item, float) {
             return item.m_custom_width;
         }
@@ -476,59 +481,33 @@ private:
 class Toolbar {
 public:
     template <ToolbarItemConcept... ItemTypes> Toolbar(ItemTypes... items) {
+        m_items.reserve(sizeof...(items));
         (add_item(std::move(items)), ...);
     }
 
-    /// \returns the acccumulated width of all items including padding but
-    /// ignoring all spacers. This is used by the dockspace for the triple
-    /// toolbar layout
-    float get_width_without_spacers() const;
+    ToolbarStyle const& style() const { return m_style; }
 
-    /// Displays the toolbar
-    void display(vml::float2 size) noexcept;
+    void set_style(ToolbarStyle const& value) { m_style = value; }
 
-    ///
-    ToolbarStyle const& get_style() const { return style; }
+    std::size_t num_items() const { return m_items.size(); }
 
-    ///
-    void set_style(ToolbarStyle const& value) { style = value; }
-
-    /// \returns the resolved padding values
-    ToolbarPadding get_resolved_padding() const;
-
-    /// Overrides the padding values
-    void set_padding(ToolbarPadding padding) { style.padding = padding; }
-
-    /// \overload
-    void set_padding(ToolbarPaddingIndex index, float value);
-
-private:
-    /// A block is a list of items without spacers
-    struct Block {
-        float width = 0;
-        float offset = 0;
-        size_t item_begin_index = 0;
-        size_t item_end_index = 0;
-        bool visible;
-    };
-
-    template <typename ItemState> void add_item(ItemState&& item) {
-        all_items.push_back(internal::make_toolbar_item(
-            std::forward<ItemState>(item), static_cast<int>(all_items.size())));
+    ToolbarItem const& item_at(std::size_t index) const {
+        assert(index < num_items());
+        return *m_items[index];
     }
 
-    void display_block(Block const&, float item_height);
+    ToolbarItem& item_at(std::size_t index) {
+        return const_cast<ToolbarItem&>(std::as_const(*this).item_at(index));
+    }
 
-    /// Must be called after adding items
-    void cook(float item_height);
+private:
+    template <typename ItemState> void add_item(ItemState&& item) {
+        m_items.push_back(internal::make_toolbar_item(
+            std::forward<ItemState>(item), static_cast<int>(m_items.size())));
+    }
 
-    /// Called every frame
-    void calc_offsets(float total_width);
-
-    std::vector<std::unique_ptr<ToolbarItem>> all_items;
-    std::vector<ToolbarItem*> active_items;
-    std::vector<Block> blocks;
-    ToolbarStyle style;
+    std::vector<std::unique_ptr<ToolbarItem>> m_items;
+    ToolbarStyle m_style;
 };
 
 } // namespace mosaic

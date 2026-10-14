@@ -38,6 +38,11 @@ static void with_window_size_constraints(vml::float2 min_size, auto&& block) {
     block();
 }
 
+Dockspace::Dockspace() {
+    for (std::size_t i = 0; i < 3; ++i)
+        toolbar_renderers[i].set_toolbar(&toolbars[i]);
+}
+
 void Dockspace::display(Window* window) {
     if (!window) return;
     window->set_style({.full_size_content = true, .large_titlebar = true});
@@ -248,22 +253,22 @@ struct ToolbarLayout {
 } // namespace
 
 static void toolbar_layout_one(ToolbarLayout layout,
-                               std::span<Toolbar> toolbars,
+                               std::span<ToolbarRenderer> renderers,
                                std::span<int const> /* spacing */) {
-    float t0_width = toolbars[0].get_width_without_spacers();
-    float t2_width = toolbars[2].get_width_without_spacers();
+    float t0_width = renderers[0].get_width_without_spacers();
+    float t2_width = renderers[2].get_width_without_spacers();
     ImGui::SetCursorPos({layout.left_inset, 0.0f});
-    toolbars[0].display({t0_width, layout.height});
+    renderers[0].display({t0_width, layout.height});
     ImGui::SetCursorPos({layout.left_inset + t0_width, 0.0f});
-    toolbars[1].display(
+    renderers[1].display(
         {layout.total_width - layout.left_inset - t0_width - t2_width,
          layout.height});
     ImGui::SetCursorPos({layout.total_width - t2_width, 0.0f});
-    toolbars[2].display({t2_width, layout.height});
+    renderers[2].display({t2_width, layout.height});
 }
 
 static void toolbar_layout_two(ToolbarLayout layout,
-                               std::span<Toolbar> toolbars,
+                               std::span<ToolbarRenderer> renderers,
                                std::span<int const> spacing) {
     float spacer = spacing[0];
     float position[2] = {0, spacer};
@@ -271,31 +276,31 @@ static void toolbar_layout_two(ToolbarLayout layout,
     if (spacer >= layout.total_width / 2) {
         // Left section is big
         // 1. section
-        float t0_width = toolbars[0].get_width_without_spacers();
+        float t0_width = renderers[0].get_width_without_spacers();
         ImGui::SetCursorPos({position[0] + layout.left_inset, 0.0f});
-        toolbars[0].display({t0_width, layout.height});
+        renderers[0].display({t0_width, layout.height});
         ImGui::SetCursorPos({position[0] + layout.left_inset + t0_width, 0.0f});
-        toolbars[1].display(
+        renderers[1].display(
             {width[0] - t0_width - layout.left_inset, layout.height});
         // 2. section
         ImGui::SetCursorPos({position[1], 0.0f});
-        toolbars[2].display({width[1], layout.height});
+        renderers[2].display({width[1], layout.height});
     } else {
         // Right section is big
         // 1. section
         ImGui::SetCursorPos({position[0] + layout.left_inset, 0.0f});
-        toolbars[0].display({width[0] - layout.left_inset, layout.height});
+        renderers[0].display({width[0] - layout.left_inset, layout.height});
         // 2. section
-        float t2_width = toolbars[2].get_width_without_spacers();
+        float t2_width = renderers[2].get_width_without_spacers();
         ImGui::SetCursorPos({position[1], 0.0f});
-        toolbars[1].display({width[1] - t2_width, layout.height});
+        renderers[1].display({width[1] - t2_width, layout.height});
         ImGui::SetCursorPos({layout.total_width - t2_width, 0.0f});
-        toolbars[2].display({t2_width, layout.height});
+        renderers[2].display({t2_width, layout.height});
     }
 }
 
 static void toolbar_layout_three(ToolbarLayout layout,
-                                 std::span<Toolbar> toolbars,
+                                 std::span<ToolbarRenderer> renderers,
                                  std::span<int const> spacing) {
     float position[3] = {layout.left_inset, (float)spacing[0],
                          (float)spacing[1]};
@@ -304,7 +309,7 @@ static void toolbar_layout_three(ToolbarLayout layout,
                       layout.total_width - spacing[1]};
     for (std::size_t i = 0; i < 3; ++i) {
         ImGui::SetCursorPos({position[i], 0.0f});
-        toolbars[i].display({width[i], layout.height});
+        renderers[i].display({width[i], layout.height});
     }
 }
 
@@ -329,6 +334,6 @@ void Dockspace::display_toolbars(Window& window) {
         toolbar_layout_fn({.height = height,
                            .total_width = (float)window.size().x,
                            .left_inset = compute_left_inset(window)},
-                          toolbars, spacing);
+                          toolbar_renderers, spacing);
     });
 }
