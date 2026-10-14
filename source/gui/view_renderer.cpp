@@ -12,6 +12,7 @@
 #include "application/window_desc.h"
 #include "gui/view.h"
 #include "gui/view_manager.h"
+#include "vml/fwd.hpp"
 #include "vml/shapes.hpp"
 
 using namespace mosaic;
@@ -116,19 +117,41 @@ struct ToolbarGeometry {
 
 } // namespace
 
+static void debug_draw_geometry(ToolbarGeometry geometry) {
+    ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+    float2 pos = (float2)ImGui::GetWindowPos() + geometry.position;
+    float2 max = pos + geometry.size;
+    float2 paddedmin = pos + geometry.padding;
+    float2 paddedmax = max - geometry.padding;
+    // Padded bounds
+    draw_list->AddRect(paddedmin, paddedmax, IM_COL32(255, 180, 0, 220), 0.0f,
+                       0, 1.5f);
+    // Toolbar bounds
+    draw_list->AddRect(pos, max, IM_COL32(0, 220, 120, 255), 0.0f, 0, 2.0f);
+    // Geometry information.
+    char label[256];
+    ImFormatString(
+        label, IM_ARRAYSIZE(label),
+        "Pos: (%.1f, %.1f)\nSize: (%.1f, %.1f)\nPadding:(% .1f,% .1f) ",
+        geometry.position.x, geometry.position.y, geometry.size.x,
+        geometry.size.y, geometry.padding.x, geometry.padding.y);
+    draw_list->AddText({pos.x, max.y}, IM_COL32(255, 255, 255, 255), label);
+}
+
 static ToolbarGeometry compute_toolbar_geometry(RuntimeViewState state) {
     float2 padding = {6, 6};
 
     auto* imgui_window = ImGui::GetCurrentWindowRead();
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
+    float offset_y = ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y;
     if (!window || !state.frame.wants_native_toolbar)
-        return {.position = {0.0f, 0.0f},
+        return {.position = {0.0f, offset_y},
                 .size = {width, 25.0f},
                 .padding = padding};
     auto height = window->titlebar_height() - 2.0f * padding.y;
     float left_inset = compute_left_inset(*window);
-    return {.position = {left_inset, 0.0f},
+    return {.position = {left_inset, offset_y},
             .size = {width - left_inset, height},
             .padding = padding};
 }
@@ -160,12 +183,8 @@ void ImGuiViewRenderer::render_view(View& view) {
             flags |= ImGuiWindowFlags_NoMove;
     }
     ImGui::SetNextWindowSizeConstraints(layout.min_size, {FLT_MAX, FLT_MAX});
-    auto& persistent = runtime_state(view).persistent;
-    if (persistent.apply_initial_geometry) {
-        ImGui::SetNextWindowPos(layout.position);
-        ImGui::SetNextWindowSize(layout.size);
-        persistent.apply_initial_geometry = false;
-    }
+    ImGui::SetNextWindowPos(layout.position, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(layout.size, ImGuiCond_FirstUseEver);
 
     vml::float2 view_padding = view.padding();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, view_padding);
@@ -182,10 +201,12 @@ void ImGuiViewRenderer::render_view(View& view) {
     if (visible) {
         auto geometry = view.toolbar() ? compute_toolbar_geometry(state)
                                        : ToolbarGeometry{};
+        if (want_debug_overlays()) debug_draw_geometry(geometry);
         float toolbar_height =
             view.toolbar() ? geometry.size.y + 2 * geometry.padding.y
                            : ImGui::GetCurrentWindowRead()->TitleBarHeight;
-        float2 cursor_pos = float2{0, toolbar_height} + view_padding;
+        float2 cursor_pos =
+            float2{0, geometry.position.y + toolbar_height} + view_padding;
         ImGui::SetCursorPos(cursor_pos);
         view.display();
         if (view.toolbar()) display_toolbar(*view.m_toolbar, geometry, state);
