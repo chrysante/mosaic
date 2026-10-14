@@ -57,12 +57,17 @@ public:
         });
         dockspace.set_left_toolbar({
             ToolbarIconButton("plus")
-                .on_click([this] { text = "Clicked toolbar button"; })
+                .on_click([this] { text = "Clicked toolbar button"; }),
+            ToolbarSpacer(), 
+            ToolbarIconButton("play")
+                .on_click([this] { text = "Clicked toolbar button"; }),
         });
         dockspace.set_center_toolbar({
             ToolbarIconButton("attention")
                 .on_click([this] { show_demo_window = true; })
-                .enabled([this] { return !show_demo_window; })
+                .enabled([this] { return !show_demo_window; }),
+            ToolbarSpacer(),
+            ToolbarButton("Other Button")
         });
         dockspace.set_right_toolbar({
             ToolbarIconButton("bell")

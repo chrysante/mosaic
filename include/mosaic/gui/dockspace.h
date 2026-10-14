@@ -22,37 +22,37 @@ public:
     /// For example if there is a window on the left and on the right side of
     /// the dock space which are not larger than one third of the dockspace, the
     /// toolbars are aligned to these windows:
-    /// ```
-    /// ┌──────────────┬──────────────────┬───────────────┐
-    /// │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
-    /// ├──────────────┼──────────────────┼───────────────┤
-    /// │              │                  │               │
-    /// │ Left Window  │ Center Window(s) │ Right Window  │
-    /// │              │                  │               │
-    /// └──────────────┴──────────────────┴───────────────┘
-    /// ┌──────────────┬──────────────────┬───────────────┐
-    /// │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
-    /// ├──────────────┼──────────────────┴───────────────┤
-    /// │              │                                  │
-    /// │ Left Window  │        Other Windows             │
-    /// │              │                                  │
-    /// └──────────────┴──────────────────────────────────┘
-    /// ┌──────────────┬──────────────────┬───────────────┐
-    /// │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
-    /// ├──────────────┴──────────────────┼───────────────┤
-    /// │                                 │               │
-    /// │          Left Windows           │ Right Window  │
-    /// │                                 │               │
-    /// └─────────────────────────────────┴───────────────┘
-    /// ┌──────────────┬──────────────────┬───────────────┐
-    /// │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
-    /// ├──────────────┴──────────────────┴───────────────┤
-    /// │                                                 │
-    /// │ Single window or windows that don't meet the    │
-    /// │ requirements                                    │
-    /// │                                                 │
-    /// └─────────────────────────────────────────────────┘
-    /// ```
+    ///
+    ///     ┌──────────────┬──────────────────┬───────────────┐
+    ///     │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
+    ///     ├──────────────┼──────────────────┼───────────────┤
+    ///     │              │                  │               │
+    ///     │ Left Window  │ Center Window(s) │ Right Window  │
+    ///     │              │                  │               │
+    ///     └──────────────┴──────────────────┴───────────────┘
+    ///     ┌──────────────┬──────────────────┬───────────────┐
+    ///     │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
+    ///     ├──────────────┼──────────────────┴───────────────┤
+    ///     │              │                                  │
+    ///     │ Left Window  │        Other Windows             │
+    ///     │              │                                  │
+    ///     └──────────────┴──────────────────────────────────┘
+    ///     ┌──────────────┬──────────────────┬───────────────┐
+    ///     │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
+    ///     ├──────────────┴──────────────────┼───────────────┤
+    ///     │                                 │               │
+    ///     │          Left Windows           │ Right Window  │
+    ///     │                                 │               │
+    ///     └─────────────────────────────────┴───────────────┘
+    ///     ┌──────────────┬──────────────────┬───────────────┐
+    ///     │ Left Toolbar │ Center Toolbar   │ Right Toolbar │
+    ///     ├──────────────┴──────────────────┴───────────────┤
+    ///     │                                                 │
+    ///     │ Single window or windows that don't meet the    │
+    ///     │ requirements                                    │
+    ///     │                                                 │
+    ///     └─────────────────────────────────────────────────┘
+    ///
 
     /// Assigns the left toolbar
     void set_left_toolbar(Toolbar toolbar);
@@ -67,7 +67,7 @@ public:
     void take_focus();
 
 private:
-    void main_window();
+    void main_window(float toolbar_height);
 
     void display_toolbars(Window& window);
 

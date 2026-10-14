@@ -16,19 +16,41 @@ namespace mosaic {
 class Command;
 
 ///
-enum class ToolbarFlags { none = 0, no_decoration = 1 << 0 };
+enum class ToolbarFlags {
+    none = 0,
+    // If set, no separator line is drawn beneath the toolbar
+    no_decoration = 1 << 0
+};
 
 UTL_ENUM_OPERATORS(ToolbarFlags)
 
-///
+// Toolbar
+// ┌───────────────────────────────────────────────────────────────┐ ┬
+// │                | padding.top                                  │ │
+// │ ├──────────┤ ┌──────┐                  ┌──────┐ ├───────────┤ │ │
+// │ padding.left │ Item │     <spacer>     │ Item │ padding.right │ height
+// │              └──────┘                  └──────┘               │ │
+// │                | padding.bottom                               │ │
+// └───────────────────────────────────────────────────────────────┘ ┴
+
+enum class ToolbarPaddingIndex : std::size_t { top, bottom, left, right };
+
+struct ToolbarPadding {
+    float top;
+    float bottom;
+    float left;
+    float right;
+};
+
+/// Style options to assign to a toolbar
 struct ToolbarStyle {
-    float height = 26.0f;
+    // Alpha multipliers for different button states
     float button_alpha = 0.0f;
     float button_alpha_hovered = 0.5f;
     float button_alpha_active = 0.5f;
 
     /// -1 means default to `ImGui::GetStyle().WindowPadding`
-    vml::float2 padding = {-1.0f, -1.0f};
+    ToolbarPadding padding = {-1.0f, -1.0f, -1.0f, -1.0f};
 
     ///
     ToolbarFlags flags = ToolbarFlags::none;
@@ -462,15 +484,8 @@ public:
     /// toolbar layout
     float get_width_without_spacers() const;
 
-    /// Displays the toolbar. Will fill available width unless parameter
-    /// \p width is provided
-    void display(std::optional<float> width = std::nullopt) noexcept;
-
-    /// \returns the actual height of the toolbar including padding
-    float get_height() const;
-
-    ///
-    void set_height(float value) { style.height = value; }
+    /// Displays the toolbar
+    void display(vml::float2 size) noexcept;
 
     ///
     ToolbarStyle const& get_style() const { return style; }
@@ -478,11 +493,14 @@ public:
     ///
     void set_style(ToolbarStyle const& value) { style = value; }
 
-    /// \returns the resolved padding value
-    vml::float2 get_padding() const;
+    /// \returns the resolved padding values
+    ToolbarPadding get_resolved_padding() const;
 
-    /// Overrides the padding
-    void set_padding(vml::float2 value) { style.padding = value; }
+    /// Overrides the padding values
+    void set_padding(ToolbarPadding padding) { style.padding = padding; }
+
+    /// \overload
+    void set_padding(ToolbarPaddingIndex index, float value);
 
 private:
     /// A block is a list of items without spacers
@@ -499,10 +517,10 @@ private:
             std::forward<ItemState>(item), static_cast<int>(all_items.size())));
     }
 
-    void display_block(Block const&, float actual_height);
+    void display_block(Block const&, float item_height);
 
     /// Must be called after adding items
-    void cook(float actual_height);
+    void cook(float item_height);
 
     /// Called every frame
     void calc_offsets(float total_width);
@@ -510,7 +528,7 @@ private:
     std::vector<std::unique_ptr<ToolbarItem>> all_items;
     std::vector<ToolbarItem*> active_items;
     std::vector<Block> blocks;
-    ToolbarStyle style{};
+    ToolbarStyle style;
 };
 
 } // namespace mosaic

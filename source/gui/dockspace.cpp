@@ -12,7 +12,6 @@
 #include <vml/vml.hpp>
 
 #include "application/window.h"
-#include "application/window_impl.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -42,36 +41,40 @@ static void with_window_size_constraints(vml::float2 min_size, auto&& block) {
 void Dockspace::display(Window* window) {
     if (!window) return;
     window->set_style({.full_size_content = true, .large_titlebar = true});
-    main_window();
-    float height = window->titlebar_height();
-    for (auto& toolbar : toolbars)
-        toolbar.set_height(height);
+    main_window(window->titlebar_height());
     display_toolbars(*window);
 }
 
-ToolbarStyle const tb_style{.padding = float2(0, 0),
-                            .flags = ToolbarFlags::no_decoration};
+ToolbarStyle const toolbar_style{.padding = {6.0f, 6.0f, 6.0f, 6.0f},
+                                 .flags = ToolbarFlags::no_decoration};
 
-void Dockspace::set_left_toolbar(Toolbar tb) {
-    tb.set_style(tb_style);
-    toolbars[0] = std::move(tb);
+void Dockspace::set_left_toolbar(Toolbar toolbar) {
+    auto style = toolbar_style;
+    style.padding.right = 0.0f;
+    toolbar.set_style(style);
+    toolbars[0] = std::move(toolbar);
 }
 
-void Dockspace::set_center_toolbar(Toolbar tb) {
-    tb.set_style(tb_style);
-    toolbars[1] = std::move(tb);
+void Dockspace::set_center_toolbar(Toolbar toolbar) {
+    auto style = toolbar_style;
+    style.padding.left = 0.0f;
+    style.padding.right = 0.0f;
+    toolbar.set_style(style);
+    toolbars[1] = std::move(toolbar);
 }
 
-void Dockspace::set_right_toolbar(Toolbar tb) {
-    tb.set_style(tb_style);
-    toolbars[2] = std::move(tb);
+void Dockspace::set_right_toolbar(Toolbar toolbar) {
+    auto style = toolbar_style;
+    style.padding.left = 0.0f;
+    toolbar.set_style(style);
+    toolbars[2] = std::move(toolbar);
 }
 
 void Dockspace::take_focus() {
-    if (main_imgui_window)
-        ImGui::FocusWindow((ImGuiWindow*)main_imgui_window,
-                           ImGuiFocusRequestFlags_RestoreFocusedChild |
-                               ImGuiFocusRequestFlags_UnlessBelowModal);
+    if (!main_imgui_window) return;
+    auto flags = ImGuiFocusRequestFlags_RestoreFocusedChild |
+                 ImGuiFocusRequestFlags_UnlessBelowModal;
+    ImGui::FocusWindow((ImGuiWindow*)main_imgui_window, flags);
 }
 
 static ImGuiID submit_dockspace() {
@@ -84,9 +87,9 @@ static ImGuiID submit_dockspace() {
     return id;
 }
 
-void Dockspace::main_window() {
+void Dockspace::main_window(float toolbar_height) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float2 local_pos = float2(0, toolbars[0].get_height() + 1);
+    float2 local_pos = float2(0, toolbar_height + 1);
     auto window_position = (float2)viewport->Pos + local_pos;
     auto window_size = (float2)viewport->Size - local_pos;
     ImGui::SetNextWindowPos(window_position);
@@ -237,6 +240,7 @@ static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,
 namespace {
 
 struct ToolbarLayout {
+    float height;
     float total_width;
     float left_inset;
 };
@@ -246,24 +250,21 @@ struct ToolbarLayout {
 static void toolbar_layout_one(ToolbarLayout layout,
                                std::span<Toolbar> toolbars,
                                std::span<int const> /* spacing */) {
-    float2 padding = ImGui::GetCurrentWindow()->WindowPadding;
     float t0_width = toolbars[0].get_width_without_spacers();
     float t2_width = toolbars[2].get_width_without_spacers();
-    ImGui::SetCursorPos(float2(padding.x + layout.left_inset, padding.y));
-    toolbars[0].display(t0_width);
-    ImGui::SetCursorPos(float2(
-        padding.x + layout.left_inset + t0_width + padding.x, padding.y));
-    toolbars[1].display(layout.total_width - layout.left_inset - t0_width -
-                        t2_width - 4 * padding.x);
-    ImGui::SetCursorPos(
-        float2(layout.total_width - t2_width - padding.x, padding.y));
-    toolbars[2].display(t2_width);
+    ImGui::SetCursorPos({layout.left_inset, 0.0f});
+    toolbars[0].display({t0_width, layout.height});
+    ImGui::SetCursorPos({layout.left_inset + t0_width, 0.0f});
+    toolbars[1].display(
+        {layout.total_width - layout.left_inset - t0_width - t2_width,
+         layout.height});
+    ImGui::SetCursorPos({layout.total_width - t2_width, 0.0f});
+    toolbars[2].display({t2_width, layout.height});
 }
 
 static void toolbar_layout_two(ToolbarLayout layout,
                                std::span<Toolbar> toolbars,
                                std::span<int const> spacing) {
-    float2 padding = ImGui::GetCurrentWindow()->WindowPadding;
     float spacer = spacing[0];
     float position[2] = {0, spacer};
     float width[2] = {spacer, layout.total_width - spacer};
@@ -271,45 +272,39 @@ static void toolbar_layout_two(ToolbarLayout layout,
         // Left section is big
         // 1. section
         float t0_width = toolbars[0].get_width_without_spacers();
-        ImGui::SetCursorPos(
-            float2(position[0] + padding.x + layout.left_inset, padding.y));
-        toolbars[0].display(t0_width);
-        ImGui::SetCursorPos(float2(position[0] + padding.x + layout.left_inset +
-                                       t0_width + padding.x,
-                                   padding.y));
-        toolbars[1].display(width[0] - t0_width - layout.left_inset -
-                            3 * padding.x);
+        ImGui::SetCursorPos({position[0] + layout.left_inset, 0.0f});
+        toolbars[0].display({t0_width, layout.height});
+        ImGui::SetCursorPos({position[0] + layout.left_inset + t0_width, 0.0f});
+        toolbars[1].display(
+            {width[0] - t0_width - layout.left_inset, layout.height});
         // 2. section
-        ImGui::SetCursorPos(float2(position[1] + padding.x, padding.y));
-        toolbars[2].display(width[1] - 2 * padding.x);
+        ImGui::SetCursorPos({position[1], 0.0f});
+        toolbars[2].display({width[1], layout.height});
     } else {
         // Right section is big
         // 1. section
-        ImGui::SetCursorPos(
-            float2(position[0] + padding.x + layout.left_inset, padding.y));
-        toolbars[0].display(width[0] - layout.left_inset - 2 * padding.x);
+        ImGui::SetCursorPos({position[0] + layout.left_inset, 0.0f});
+        toolbars[0].display({width[0] - layout.left_inset, layout.height});
         // 2. section
         float t2_width = toolbars[2].get_width_without_spacers();
-        ImGui::SetCursorPos(float2(position[1] + padding.x, padding.y));
-        toolbars[1].display(width[1] - t2_width - 3 * padding.x);
-        ImGui::SetCursorPos(
-            float2(layout.total_width - padding.x - t2_width, padding.y));
-        toolbars[2].display(t2_width);
+        ImGui::SetCursorPos({position[1], 0.0f});
+        toolbars[1].display({width[1] - t2_width, layout.height});
+        ImGui::SetCursorPos({layout.total_width - t2_width, 0.0f});
+        toolbars[2].display({t2_width, layout.height});
     }
 }
 
 static void toolbar_layout_three(ToolbarLayout layout,
                                  std::span<Toolbar> toolbars,
                                  std::span<int const> spacing) {
-    float2 padding = ImGui::GetCurrentWindow()->WindowPadding;
     float position[3] = {layout.left_inset, (float)spacing[0],
                          (float)spacing[1]};
     float width[3] = {(float)spacing[0] - layout.left_inset,
                       (float)(spacing[1] - spacing[0]),
                       layout.total_width - spacing[1]};
     for (std::size_t i = 0; i < 3; ++i) {
-        ImGui::SetCursorPos(float2(position[i] + padding.x, padding.y));
-        toolbars[i].display(width[i] - 2 * padding.x);
+        ImGui::SetCursorPos({position[i], 0.0f});
+        toolbars[i].display({width[i], layout.height});
     }
 }
 
@@ -320,7 +315,7 @@ static float compute_left_inset(Window const& window) {
 }
 
 void Dockspace::display_toolbars(Window& window) {
-    float height = toolbars[0].get_height();
+    float height = window.titlebar_height();
     auto spacing = get_toolbar_spacing(window, main_dock_id);
     float width = window.size().x;
     erase_if(spacing, [&](int pos) {
@@ -331,7 +326,8 @@ void Dockspace::display_toolbars(Window& window) {
         auto* toolbar_layout_fn =
             std::array{toolbar_layout_one, toolbar_layout_two,
                        toolbar_layout_three}[spacing.size()];
-        toolbar_layout_fn({.total_width = (float)window.size().x,
+        toolbar_layout_fn({.height = height,
+                           .total_width = (float)window.size().x,
                            .left_inset = compute_left_inset(window)},
                           toolbars, spacing);
     });

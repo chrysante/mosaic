@@ -1,6 +1,7 @@
 #include "gui/toolbar.h"
 
 #include <algorithm>
+#include <cstring>
 #include <numeric>
 
 #include <imgui.h>
@@ -202,40 +203,40 @@ float ToolbarEmptyItem::Display::calc_width(ToolbarEmptyItem item, float) {
 }
 
 float Toolbar::get_width_without_spacers() const {
-    return std::accumulate(blocks.begin(), blocks.end(), 0.0f,
-                           [](float acc, Block const& block) {
-                               return acc + block.width;
-                           }) +
-           std::max(0.0f, (float)blocks.size() - 1.0f) *
-               GImGui->Style.ItemSpacing.x;
+    float raw_width = std::accumulate(
+        blocks.begin(), blocks.end(), 0.0f,
+        [](float acc, Block const& block) { return acc + block.width; });
+    float spacing = std::max(0.0f, (float)blocks.size() - 1.0f) *
+                    ImGui::GetStyle().ItemSpacing.x;
+    ToolbarPadding padding = get_resolved_padding();
+    return raw_width + spacing + padding.left + padding.right;
 }
 
-void Toolbar::display(std::optional<float> width) noexcept {
-    float2 padding = get_padding();
-    float actual_height =
-        std::min(ImGui::GetContentRegionAvail().y, style.height);
+void Toolbar::display(vml::float2 size) noexcept {
+    ToolbarPadding padding = get_resolved_padding();
+    float item_height = size.y - padding.top - padding.bottom;
     /// We actually cook every frame because performance is really not an issue
     /// and it solves some caching issues
-    cook(actual_height);
-    if (!width) width = ImGui::GetContentRegionAvail().x;
-    *width -= 2 * padding.x;
+    cook(item_height);
+    float item_space_y = size.x - padding.left - padding.right;
     float2 position = ImGui::GetCursorPos();
     /// Display blocks
-    calc_offsets(*width);
+    calc_offsets(item_space_y);
     for (auto const& block : blocks) {
         if (block.visible) {
-            ImGui::SetCursorPos(position + padding + float2(block.offset, 0));
-            display_block(block, actual_height);
+            float2 cursor_pos = {position.x + padding.left + block.offset,
+                                 position.y + padding.top};
+            ImGui::SetCursorPos(cursor_pos);
+            display_block(block, item_height);
         }
     }
-    float height_with_padding = actual_height + 2 * padding.y;
-    ImGui::SetCursorPos(position + float2(0, height_with_padding));
+    ImGui::SetCursorPos(position + float2(0, size.y));
     /// Draw separator
     if (!(style.flags & ToolbarFlags::no_decoration)) {
         auto* window = ImGui::GetCurrentWindowRead();
         float2 pos =
             (float2)ImGui::GetWindowPos() + float2(0, window->TitleBarHeight);
-        float2 from = pos + float2(0, height_with_padding);
+        float2 from = pos + float2(0, size.y);
         float2 to = from + float2(ImGui::GetWindowWidth(), 0);
         auto* DL = ImGui::GetWindowDrawList();
         DL->PushClipRect(window->Rect().Min, window->Rect().Max);
@@ -244,13 +245,13 @@ void Toolbar::display(std::optional<float> width) noexcept {
     }
 }
 
-void Toolbar::display_block(Block const& block, float actual_height) {
+void Toolbar::display_block(Block const& block, float item_height) {
     float cursor_pos_y = ImGui::GetCursorPos().y;
     for (size_t i = block.item_begin_index; i < block.item_end_index; ++i) {
         auto* item = all_items[i].get();
         ImGui::BeginDisabled(!item->enabled());
         item->display({.style = style,
-                       .actual_size = {item->width(), actual_height},
+                       .actual_size = {item->width(), item_height},
                        .ID = item->ID()});
         ImGui::EndDisabled();
         ImGui::SameLine();
@@ -258,7 +259,7 @@ void Toolbar::display_block(Block const& block, float actual_height) {
     }
 }
 
-void Toolbar::cook(float actual_height) {
+void Toolbar::cook(float item_height) {
     blocks.clear();
     if (all_items.empty()) return;
     /// Partition into blocks
@@ -275,7 +276,7 @@ void Toolbar::cook(float actual_height) {
     blocks.back().item_end_index = all_items.size();
     /// Calculate item widths
     for (auto& item : all_items)
-        item->calc_width(actual_height);
+        item->calc_width(item_height);
     /// Calculate block widths
     for (auto& block : blocks) {
         float acc_items_width = std::accumulate(
@@ -312,13 +313,23 @@ void Toolbar::calc_offsets(float total_width) {
     blocks[1].offset = cursor + (width_avail - blocks[1].width) / 2;
 }
 
-float Toolbar::get_height() const { return style.height + 2 * get_padding().y; }
-
-float2 Toolbar::get_padding() const {
-    auto& style = ImGui::GetStyle();
-    auto padding = this->style.padding;
-    return {
-        padding.x < 0.0f ? style.WindowPadding.x : padding.x,
-        padding.y < 0.0f ? style.WindowPadding.y : padding.y,
+ToolbarPadding Toolbar::get_resolved_padding() const {
+    auto value_or = [](float value, float fallback) {
+        return value >= 0.0f ? value : fallback;
     };
+    auto& imgui_style = ImGui::GetStyle();
+    return {
+        .top = value_or(style.padding.top, imgui_style.WindowPadding.y),
+        .bottom = value_or(style.padding.bottom, imgui_style.WindowPadding.y),
+        .left = value_or(style.padding.left, imgui_style.WindowPadding.x),
+        .right = value_or(style.padding.right, imgui_style.WindowPadding.x),
+    };
+}
+
+void Toolbar::set_padding(ToolbarPaddingIndex index, float value) {
+    float data[4];
+    static_assert(sizeof(style.padding) == sizeof(data));
+    std::memcpy(data, &style.padding, sizeof(data));
+    data[static_cast<std::size_t>(index)] = value;
+    std::memcpy(&style.padding, data, sizeof(data));
 }

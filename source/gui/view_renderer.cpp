@@ -144,12 +144,12 @@ static ToolbarGeometry compute_toolbar_geometry(RuntimeViewState state) {
     auto* imgui_window = ImGui::GetCurrentWindowRead();
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
-    float offset_y = ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y;
+    float offset_y = ImGui::GetCursorPosY() - imgui_window->WindowPadding.y;
     if (!window || !state.frame.wants_native_toolbar)
         return {.position = {0.0f, offset_y},
-                .size = {width, 25.0f},
+                .size = {width, 26.0f + 2 * padding.y},
                 .padding = padding};
-    auto height = window->titlebar_height() - 2.0f * padding.y;
+    auto height = window->titlebar_height();
     float left_inset = compute_left_inset(*window);
     return {.position = {left_inset, offset_y},
             .size = {width - left_inset, height},
@@ -158,14 +158,15 @@ static ToolbarGeometry compute_toolbar_geometry(RuntimeViewState state) {
 
 static void display_toolbar(Toolbar& toolbar, ToolbarGeometry geometry,
                             RuntimeViewState state) {
-    toolbar.set_padding(geometry.padding);
-    toolbar.set_height(geometry.size.y);
-
+    toolbar.set_padding({.top = geometry.padding.y,
+                         .bottom = geometry.padding.y,
+                         .left = geometry.padding.x,
+                         .right = geometry.padding.x});
     vml::float2 screen_pos = (float2)ImGui::GetWindowPos() + geometry.position;
     ImGui::SetCursorScreenPos(screen_pos);
-    toolbar.display(geometry.size.x);
+    toolbar.display(geometry.size);
 
-    ImGui::SetCursorPos({0, geometry.position.y + toolbar.get_height() + 1});
+    ImGui::SetCursorPos({0, geometry.position.y + geometry.size.y + 1});
     if (state.frame.docked || state.persistent.window_dragging) {
         ImRect toolbar_rect(screen_pos, screen_pos + geometry.size);
         dock_titlebar_behaviour(toolbar_rect, state.persistent.window_dragging);
@@ -203,10 +204,10 @@ void ImGuiViewRenderer::render_view(View& view) {
                                        : ToolbarGeometry{};
         if (want_debug_overlays()) debug_draw_geometry(geometry);
         float toolbar_height =
-            view.toolbar() ? geometry.size.y + 2 * geometry.padding.y
+            view.toolbar() ? geometry.size.y
                            : ImGui::GetCurrentWindowRead()->TitleBarHeight;
         float2 cursor_pos =
-            float2{0, geometry.position.y + toolbar_height} + view_padding;
+            float2{0.0f, geometry.position.y + toolbar_height} + view_padding;
         ImGui::SetCursorPos(cursor_pos);
         view.display();
         if (view.toolbar()) display_toolbar(*view.m_toolbar, geometry, state);
