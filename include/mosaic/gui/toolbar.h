@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -26,109 +27,188 @@ struct ToolbarStyle {
     float button_alpha_hovered = 0.5f;
     float button_alpha_active = 0.5f;
 
-    /// Padding. Defaults to `ImGui::GetStyle().WindowPadding`
-    std::optional<vml::float2> padding;
+    /// -1 means default to `ImGui::GetStyle().WindowPadding`
+    vml::float2 padding = {-1.0f, -1.0f};
 
     ///
     ToolbarFlags flags = ToolbarFlags::none;
-
-    /// Computed by `Toolbar`
-    float actual_height;
 };
 
-/// Base class of all toolbar items
+struct ToolbarDisplayData {
+    ToolbarStyle style;
+
+    vml::float2 actual_size;
+    int ID;
+};
+
+/// Interface for all toolbar items
 class ToolbarItem {
 public:
-    ToolbarItem() = default;
-    ToolbarItem(ToolbarItem const&) = default;
-    ToolbarItem(ToolbarItem&&) = default;
     virtual ~ToolbarItem() = default;
+
+    void display(ToolbarDisplayData const& data) { do_display(data); }
 
     /// \returns a unique id.
     /// This is simply the index of the item in the toolbar
-    int id() const {
-        return m_id;
-    }
+    int ID() const { return m_id; }
 
     ///
-    float get_width() const {
-        return m_width;
-    }
+    float width() const { return m_width; }
+
+    ///
+    void calc_width(float height) { m_width = do_calc_width(height); }
 
     /// \returns `true` is this item is enabled. Disabled items are not
     /// displayed
-    bool is_enabled() const {
-        return do_is_enabled();
-    }
+    bool enabled() const { return do_enabled(); }
 
     ///  \returns an optional tooltip string for this item
-    char const* get_tooltip() const {
-        return do_get_tooltip();
-    }
+    char const* tooltip() const { return do_tooltip(); }
+
+    bool is_spacer() const { return do_is_spacer(); }
+
+protected:
+    ToolbarItem(int ID)
+        : m_id(ID) {}
 
 private:
-    friend class Toolbar;
-
-    virtual void display(ToolbarStyle const& style) = 0;
-    virtual float calc_width(float height) const = 0;
-    virtual bool do_is_enabled() const {
-        return true;
-    }
-    virtual char const* do_get_tooltip() const {
-        return nullptr;
-    }
+    virtual void do_display(ToolbarDisplayData const& data) const = 0;
+    virtual float do_calc_width(float height) = 0;
+    virtual bool do_enabled() const = 0;
+    virtual char const* do_tooltip() const = 0;
+    virtual bool do_is_spacer() const = 0;
 
     int m_id;
     float m_width;
 };
 
-/// Mixin class that provides common functionality of toolbar items
-template <typename Derived> class ToolbarItemMixin : public ToolbarItem {
+template <typename ItemDisplay, typename State>
+concept ToolbarItemDisplay = requires(
+    State const state, ToolbarDisplayData const display_data, float height) {
+    ItemDisplay::display(state, display_data);
+    {ItemDisplay::calc_width(state, height)}->std::convertible_to<float>;
+};
+
+template <typename State>
+concept ToolbarItemConcept = ToolbarItemDisplay<typename State::Display, State>;
+
+namespace internal {
+
+template <typename ItemState>
+constexpr bool has_enabled = requires(ItemState const state) {
+    {ItemState::Display::enabled(state)}->std::convertible_to<bool>;
+};
+
+template <typename ItemState>
+constexpr bool has_tooltip = requires(ItemState const state) {
+    {ItemState::Display::tooltip(state)}->std::convertible_to<char const*>;
+};
+
+template <typename ItemState>
+constexpr bool has_is_spacer = requires(ItemState const state) {
+    {ItemState::Display::is_spacer(state)}->std::convertible_to<bool>;
+};
+
+template <typename State> class ToolbarItemImpl : public ToolbarItem {
+public:
+    ToolbarItemImpl(State state, int ID)
+        : ToolbarItem(ID)
+        , m_state(std::move(state)) {}
+
+private:
+    using Display = State::Display;
+
+    void do_display(ToolbarDisplayData const& data) const final {
+        Display::display(m_state, data);
+    }
+
+    float do_calc_width(float height) final {
+        return Display::calc_width(m_state, height);
+    }
+
+    bool do_enabled() const final {
+        if constexpr (has_enabled<State>) return Display::enabled(m_state);
+        else return true;
+    }
+
+    char const* do_tooltip() const final {
+        if constexpr (has_tooltip<State>) return Display::tooltip(m_state);
+        else return nullptr;
+    }
+
+    bool do_is_spacer() const final {
+        if constexpr (has_is_spacer<State>) return Display::is_spacer(m_state);
+        else return false;
+    }
+
+    State m_state;
+};
+
+template <typename ItemState>
+std::unique_ptr<ToolbarItem> make_toolbar_item(ItemState&& state, int ID) {
+    return std::make_unique<ToolbarItemImpl<ItemState>>(std::move(state), ID);
+}
+
+} // namespace internal
+
+template <typename ItemState> struct ToolbarItemDisplayBase;
+
+/// Base class that provides common functionality for toolbar item
+/// implementations
+template <typename Derived> class ToolbarItemState {
 public:
     /// Specifies a tooltip that will be displayed when this item is hovered
     Derived& tooltip(std::string text) {
-        this->m_tooltip = [text] { return text.c_str(); };
+        m_tooltip = [text = std::move(text)] { return text.c_str(); };
         return as_derived();
     }
 
     /// \overload
     Derived& tooltip(std::function<char const*()> text) {
-        this->m_tooltip = text;
+        m_tooltip = std::move(text);
         return as_derived();
     }
 
     /// Specifies whether this item is disabled
     Derived& enabled(bool value) {
-        this->m_enabled = [value] { return value; };
+        m_enabled = [value] { return value; };
         return as_derived();
     }
 
     /// \overload
     Derived& enabled(std::function<bool()> value) {
-        this->m_enabled = value;
+        m_enabled = std::move(value);
         return as_derived();
     }
 
 protected:
-    Derived& as_derived() {
-        return *static_cast<Derived*>(this);
-    }
+    Derived& as_derived() { return *static_cast<Derived*>(this); }
 
 private:
-    bool do_is_enabled() const override {
-        return !m_enabled || m_enabled();
-    }
-    char const* do_get_tooltip() const override {
-        return m_tooltip ? m_tooltip() : nullptr;
-    }
+    friend struct ToolbarItemDisplayBase<Derived>;
 
     std::function<char const*()> m_tooltip;
     std::function<bool()> m_enabled;
 };
 
+template <typename ItemState> struct ToolbarItemDisplayBase {
+    static char const* tooltip(ItemState const& state) {
+        return state.m_tooltip ? state.m_tooltip() : nullptr;
+    }
+
+    static bool enabled(ItemState const& state) {
+        return state.m_enabled ? state.m_enabled() : true;
+    }
+
+    static bool is_spacer(ItemState const&) { return false; }
+};
+
+struct ToolbarButtonDisplay;
+struct ToolbarIconButtonDisplay;
+
 /// Common base class of toolbar buttons
 template <typename Derived>
-class ToolbarButtonMixin : public ToolbarItemMixin<Derived> {
+class ToolbarButtonState : public ToolbarItemState<Derived> {
 public:
     /// Specify the action to perform when this button is clicked
     Derived& on_click(std::function<void()> action) {
@@ -141,75 +221,97 @@ public:
         return this->as_derived();
     }
 
-protected:
-    void do_action() const;
-
-    int m_button_flags = 0;
-
 private:
+    friend struct ToolbarButtonDisplay;
+    friend struct ToolbarIconButtonDisplay;
+
     std::function<void()> m_action;
+    int m_button_flags = 0;
 };
 
 /// Toolbar text button
-class ToolbarButton : public ToolbarButtonMixin<ToolbarButton> {
+class ToolbarButton : public ToolbarButtonState<ToolbarButton> {
 public:
-    ToolbarButton(std::string label)
+    using Display = ToolbarButtonDisplay;
+
+    explicit ToolbarButton(std::string label)
         : m_label(std::move(label)) {}
 
 private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
+    friend struct ToolbarButtonDisplay;
 
     std::string m_label;
 };
 
+struct ToolbarButtonDisplay : ToolbarItemDisplayBase<ToolbarButton> {
+    static void display(ToolbarButton const& button, ToolbarDisplayData data);
+    static float calc_width(ToolbarButton const& button, float height);
+};
+
 ///
-class ToolbarIconButton : public ToolbarButtonMixin<ToolbarIconButton> {
+class ToolbarIconButton : public ToolbarButtonState<ToolbarIconButton> {
 public:
+    using Display = ToolbarIconButtonDisplay;
+
     /// Construct from an icon name
-    ToolbarIconButton(std::string icon_name)
-        : m_icon([=] { return icon_name.c_str(); }) {}
+    explicit ToolbarIconButton(std::string icon_name)
+        : m_icon_name([icon_name = std::move(icon_name)] {
+            return icon_name.c_str();
+        }) {}
 
     /// Construct from a function that returns an icon name
-    ToolbarIconButton(std::function<char const*()> icon_name_fn)
-        : m_icon(icon_name_fn) {}
+    explicit ToolbarIconButton(std::function<char const*()> icon_name_fn)
+        : m_icon_name(std::move(icon_name_fn)) {}
 
     /// Construct from an command and an icon name
-    ToolbarIconButton(Command const* command, std::string icon_name);
+    explicit ToolbarIconButton(Command const* command, std::string icon_name);
 
 private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
+    friend struct ToolbarIconButtonDisplay;
 
-    std::function<char const*()> m_icon;
+    std::function<char const*()> m_icon_name;
+};
+
+struct ToolbarIconButtonDisplay : ToolbarItemDisplayBase<ToolbarIconButton> {
+    static void display(ToolbarIconButton const& button,
+                        ToolbarDisplayData data);
+    static float calc_width(ToolbarIconButton const& button, float height);
 };
 
 /// A toolbar button that opens a dropdown menu
-class ToolbarDropdownMenu : public ToolbarItemMixin<ToolbarDropdownMenu> {
+class ToolbarDropdownMenu : public ToolbarItemState<ToolbarDropdownMenu> {
 public:
+    struct Display : ToolbarItemDisplayBase<ToolbarDropdownMenu> {
+        static bool begin_combo(ToolbarDropdownMenu const&,
+                                ToolbarDisplayData const&);
+        static void display(ToolbarDropdownMenu const&,
+                            ToolbarDisplayData const&);
+        static float calc_width(ToolbarDropdownMenu const&, float height);
+    };
+
     ToolbarDropdownMenu();
 
-    ToolbarDropdownMenu(char const* icon_name)
+    explicit ToolbarDropdownMenu(char const* icon_name)
         : ToolbarDropdownMenu() {
         icon(icon_name);
     }
 
     /// Specifies the content callback
     ToolbarDropdownMenu& content(std::function<void()> content) {
-        this->m_content = std::move(content);
+        m_content = std::move(content);
         return *this;
     }
 
     /// The preview value should be the active option of the dropdown menu. If
     /// this is not set a down arrow will be used instead
-    ToolbarDropdownMenu& previewValue(std::function<std::string()> value) {
-        m_preview = value;
+    ToolbarDropdownMenu& preview_value(std::function<std::string()> value) {
+        m_preview = std::move(value);
         return *this;
     }
 
     ///
     ToolbarDropdownMenu& icon(std::function<char const*()> icon_name_fn) {
-        m_icon = icon_name_fn;
+        m_icon_name = std::move(icon_name_fn);
         return *this;
     }
 
@@ -219,53 +321,54 @@ public:
     }
 
     ///
-    ToolbarDropdownMenu& minSize(vml::float2 size) {
+    ToolbarDropdownMenu& min_size(vml::float2 size) {
         m_min_size = size;
         return *this;
     }
 
     ///
-    ToolbarDropdownMenu& minWidth(float width) {
+    ToolbarDropdownMenu& min_width(float width) {
         m_min_size.x = width;
         return *this;
     }
 
-protected:
-    bool begin_combo(ToolbarStyle const& style);
-
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
-
+private:
     std::function<void()> m_content;
     std::function<std::string()> m_preview;
-    std::function<char const*()> m_icon;
-    std::string m_id;
+    std::function<char const*()> m_icon_name;
+    std::string m_string_id;
     vml::float2 m_min_size = 0;
 };
 
 ///
-class ToolbarSeparator : public ToolbarItem {
-private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
+struct ToolbarSeparator {
+    struct Display {
+        static void display(ToolbarSeparator, ToolbarDisplayData const&) {}
+        static float calc_width(ToolbarSeparator, float) { return 0.0f; }
+    };
 };
 
 /// Spacers are empty items that take up as much space as possible. They can be
 /// used to split a toolbar into multiple sections
-class ToolbarSpacer : public ToolbarItem {
-private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
+struct ToolbarSpacer {
+    struct Display {
+        static void display(ToolbarSpacer, ToolbarDisplayData const&) {}
+        static float calc_width(ToolbarSpacer, float) { return 0.0f; }
+        static bool is_spacer(ToolbarSpacer) { return true; }
+    };
 };
 
 /// Non-interactive text item
-class ToolbarTextItem : public ToolbarItem {
+class ToolbarTextItem {
 public:
+    struct Display {
+        static void display(ToolbarTextItem const&, ToolbarDisplayData const&);
+        static float calc_width(ToolbarTextItem const&, float height);
+    };
+
     ToolbarTextItem() = default;
 
-    ToolbarTextItem(std::string text) {
-        this->text(std::move(text));
-    }
+    ToolbarTextItem(std::string text) { this->text(std::move(text)); }
 
     /// Sets the displayed text
     ToolbarTextItem& text(std::string t) {
@@ -290,9 +393,6 @@ public:
     }
 
 private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
-
     char const* get_text() const;
     FontDesc get_font_desc() const;
 
@@ -301,23 +401,36 @@ private:
 };
 
 /// Empty item with fixed size
-class ToolbarEmptyItem : public ToolbarItem {
+class ToolbarEmptyItem {
 public:
+    struct Display {
+        static void display(ToolbarEmptyItem, ToolbarDisplayData const&);
+        static float calc_width(ToolbarEmptyItem, float height);
+    };
+
     ToolbarEmptyItem& width(float width) {
         m_width = width;
         return *this;
     }
 
 private:
-    void display(ToolbarStyle const& style) override;
-    float calc_width(float height) const override;
-
     float m_width = 0;
 };
 
 /// Draws user defined content in a toolbar
-class CustomToolbarElement : public ToolbarItem {
+class CustomToolbarElement {
 public:
+    struct Display {
+        static void display(CustomToolbarElement const&,
+                            ToolbarDisplayData const&) {}
+        static float calc_width(CustomToolbarElement const& item, float) {
+            return item.m_custom_width;
+        }
+        static bool is_spacer(CustomToolbarElement const& item) {
+            return item.m_custom_width == 0.0f;
+        }
+    };
+
     CustomToolbarElement(std::function<void(vml::float2 size)> content)
         : m_content(std::move(content)) {}
 
@@ -327,17 +440,12 @@ public:
     }
 
     /// Makes this element behave like a spacer
-    CustomToolbarElement& useWidthAvail() {
-        m_custom_width = 0;
+    CustomToolbarElement& use_width_avail() {
+        m_custom_width = 0.0f;
         return *this;
     }
 
 private:
-    virtual void display(ToolbarStyle const&) {}
-    virtual float calc_width(float) const {
-        return m_custom_width;
-    }
-
     std::function<void(vml::float2 size)> m_content;
     float m_custom_width = 0;
 };
@@ -345,8 +453,7 @@ private:
 ///
 class Toolbar {
 public:
-    template <std::derived_from<ToolbarItem>... ItemTypes>
-    Toolbar(ItemTypes... items) {
+    template <ToolbarItemConcept... ItemTypes> Toolbar(ItemTypes... items) {
         (add_item(std::move(items)), ...);
     }
 
@@ -363,27 +470,19 @@ public:
     float get_height() const;
 
     ///
-    void set_height(float value) {
-        style.height = value;
-    }
+    void set_height(float value) { style.height = value; }
 
     ///
-    ToolbarStyle const& get_style() const {
-        return style;
-    }
+    ToolbarStyle const& get_style() const { return style; }
 
     ///
-    void set_style(ToolbarStyle const& value) {
-        style = value;
-    }
+    void set_style(ToolbarStyle const& value) { style = value; }
 
-    /// \Returns the resolved padding value
+    /// \returns the resolved padding value
     vml::float2 get_padding() const;
 
     /// Overrides the padding
-    void set_padding(std::optional<vml::float2> value) {
-        style.padding = value;
-    }
+    void set_padding(vml::float2 value) { style.padding = value; }
 
 private:
     /// A block is a list of items without spacers
@@ -395,18 +494,18 @@ private:
         bool visible;
     };
 
-    template <typename Item> void add_item(Item&& item) {
-        all_items.push_back(std::make_unique<std::remove_cvref_t<Item>>(
-            std::forward<Item>(item)));
+    template <typename ItemState> void add_item(ItemState&& item) {
+        all_items.push_back(internal::make_toolbar_item(
+            std::forward<ItemState>(item), static_cast<int>(all_items.size())));
     }
 
-    void display_block(Block const&);
+    void display_block(Block const&, float actual_height);
 
     /// Must be called after adding items
-    void cook();
+    void cook(float actual_height);
 
     /// Called every frame
-    void calc_offsets(float totalWidth);
+    void calc_offsets(float total_width);
 
     std::vector<std::unique_ptr<ToolbarItem>> all_items;
     std::vector<ToolbarItem*> active_items;
