@@ -99,12 +99,12 @@ private:
         ImGui::Begin("Hello");
         auto* font =
             ui::font(FontSize::Large, FontWeight::bold, FontStyle::monospaced);
-        ImGui::PushFont(font);
+        ImGui::PushFont(font, 0.0f);
         ImGui::Button("My Button");
         ImGui::PopFont();
         auto& fm = service_context().font_manager();
         auto icon = fm.get_icon(IconSize::_24, "plus-circled");
-        ImGui::PushFont(icon.font);
+        ImGui::PushFont(icon.font, 0.0f);
         ImGui::Button(icon.utf8_rep.data());
         ImGui::PopFont();
         ImGui::Text("%s", text.c_str());

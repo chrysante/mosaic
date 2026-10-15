@@ -18,7 +18,7 @@ static bool toolbar_button_impl(ToolbarButtonStyle const& style,
                                 char const* label, ImFont* font, int id,
                                 int flags, float2 size, bool enabled,
                                 bool open) {
-    ImGui::PushFont(font);
+    ImGui::PushFont(font, 0.0f);
     utl::scope_guard guard = [] { ImGui::PopFont(); };
     ImGui::BeginDisabled(!enabled);
     auto& imgui_style = ImGui::GetStyle();

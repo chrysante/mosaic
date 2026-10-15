@@ -134,7 +134,7 @@ ImFont* font(FontParameterType auto... params) {
 IconData icon_data(IconFontDesc const& desc, std::string_view name);
 
 decltype(auto) with_font(ImFont* font, std::invocable auto&& block) {
-    ImGui::PushFont(font);
+    ImGui::PushFont(font, 0.0f);
     utl::scope_guard pop = [] { ImGui::PopFont(); };
     return block();
 }

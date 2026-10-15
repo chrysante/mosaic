@@ -1,7 +1,7 @@
 #include "gui/dockspace.h"
 
 #include <algorithm>
-#include <vector>
+#include <exception>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -12,6 +12,7 @@
 #include <vml/vml.hpp>
 
 #include "application/window.h"
+#include "gui/toolbar.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -123,8 +124,6 @@ void Dockspace::main_window(float toolbar_height) {
     ImGui::PopStyleVar(6);
 }
 
-static float2 get_position() { return (float2)ImGui::GetMainViewport()->Pos; }
-
 /// Calls `ImGui::Begin` with every possible interaction and decoration disabled
 [[nodiscard]] static bool begin_toolbar_window(char const* id, float2 position,
                                                float2 size,
@@ -171,35 +170,16 @@ static void toolbar_bg_window(float2 position, float2 size) {
     ImGui::End();
 }
 
-/// Displays the window in which the toolbar is drawn through \p content
-static void toolbar_window(float2 position, float2 size,
-                           utl::function_view<void()> content) {
-    toolbar_bg_window(position, size);
-    /// 6 is good looking with compact title bar style
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6, 6));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
-    bool open = begin_toolbar_window("Main_Toolbar", position, size);
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    if (!open) return;
-    content();
-    if (ImGui::IsWindowFocused() && GImGui->WindowsFocusOrder.size() > 1 &&
-        ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left]) {
-        ImGui::FocusWindow(*(GImGui->WindowsFocusOrder.end() - 2));
-    }
-    ImGui::End();
-}
-
 static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,
                                                      unsigned main_dock_id) {
-    auto potentialRects = [&] {
-        int2 window_pos = get_position();
+    auto potential_rects = [&] {
+        int2 window_pos = ImGui::GetMainViewport()->Pos;
         ImGuiDockNode const* main_node =
             ImGui::DockBuilderGetNode(main_dock_id);
         assert(main_node);
         utl::stack<ImGuiDockNode const*> stack;
         stack.push(main_node);
-        std::vector<vml::rectangle<int>> result;
+        utl::small_vector<vml::rectangle<int>, 16> result;
         while (!stack.empty()) {
             auto* node = stack.pop();
             if ((int)node->Pos.y == (int)main_node->Pos.y && node->IsVisible &&
@@ -216,30 +196,27 @@ static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,
         }
         return result;
     }();
-    return [&]() -> utl::small_vector<int, 2> {
-        std::vector<int> positions;
-        for (auto rect : potentialRects) {
-            positions.push_back(rect.lower_bound().x);
-            positions.push_back(rect.upper_bound().x);
-        }
-        std::sort(positions.begin(), positions.end());
-        make_unique(positions);
-        erase_if(positions,
-                 [&](int p) { return p <= 0 || p >= window.size().x; });
-        for (int i = 0; auto& p : positions) {
-            if (i++ % 2 == 0) p += 1;
-            else p -= 1;
-        }
-        make_unique(positions);
-        switch (positions.size()) {
-        case 0:
-            return {};
-        case 1:
-            return {positions.front()};
-        default:
-            return {positions.front(), positions.back()};
-        }
-    }();
+    utl::small_vector<int> positions;
+    for (auto rect : potential_rects) {
+        positions.push_back(rect.lower_bound().x);
+        positions.push_back(rect.upper_bound().x);
+    }
+    std::sort(positions.begin(), positions.end());
+    make_unique(positions);
+    erase_if(positions, [&](int p) { return p <= 0 || p >= window.size().x; });
+    for (int i = 0; auto& p : positions) {
+        if (i++ % 2 == 0) p += 1;
+        else p -= 1;
+    }
+    make_unique(positions);
+    switch (positions.size()) {
+    case 0:
+        return {};
+    case 1:
+        return {positions.front()};
+    default:
+        return {positions.front(), positions.back()};
+    }
 }
 
 namespace {
@@ -319,6 +296,42 @@ static float compute_left_inset(Window const& window) {
            title_buttons_area.upper_bound().x;
 }
 
+/// Displays the window in which the toolbar is drawn through \p content
+static void toolbar_window(float2 position, float2 size,
+                           std::span<int const> spacing,
+                           std::array<float, 2> insets,
+                           std::span<ToolbarRenderer> renderers) {
+    toolbar_bg_window(position, size);
+    /// 6 is good looking with compact title bar style
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6, 6));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
+    bool open = begin_toolbar_window("Main_Toolbar", position, size);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    if (!open) return;
+    // Window content
+    ToolbarLayout layout = {
+        .height = size.y, .total_width = size.x, .left_inset = insets[0]};
+    switch (spacing.size()) {
+    case 0:
+        toolbar_layout_one(layout, renderers, spacing);
+        break;
+    case 1:
+        toolbar_layout_two(layout, renderers, spacing);
+        break;
+    case 2:
+        toolbar_layout_three(layout, renderers, spacing);
+        break;
+    default:
+        std::terminate();
+    }
+    if (ImGui::IsWindowFocused() && GImGui->WindowsFocusOrder.size() > 1 &&
+        ImGui::GetIO().MouseReleased[ImGuiMouseButton_Left]) {
+        ImGui::FocusWindow(*(GImGui->WindowsFocusOrder.end() - 2));
+    }
+    ImGui::End();
+}
+
 void Dockspace::display_toolbars(Window& window) {
     float height = window.titlebar_height();
     auto spacing = get_toolbar_spacing(window, main_dock_id);
@@ -327,13 +340,6 @@ void Dockspace::display_toolbars(Window& window) {
         return pos >= width * 0.33 && pos <= width * 0.67;
     });
     assert(spacing.size() <= 2);
-    toolbar_window(get_position(), {width, height}, [&] {
-        auto* toolbar_layout_fn =
-            std::array{toolbar_layout_one, toolbar_layout_two,
-                       toolbar_layout_three}[spacing.size()];
-        toolbar_layout_fn({.height = height,
-                           .total_width = (float)window.size().x,
-                           .left_inset = compute_left_inset(window)},
-                          toolbar_renderers, spacing);
-    });
+    toolbar_window(ImGui::GetMainViewport()->Pos, {width, height}, spacing,
+                   {compute_left_inset(window), 0.0f}, toolbar_renderers);
 }

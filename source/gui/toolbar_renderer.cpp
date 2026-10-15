@@ -32,10 +32,10 @@ static void debug_draw_geometry(ToolbarGeometry geometry) {
         max - vml::float2{geometry.padding.right, geometry.padding.bottom};
     // Padded bounds
     draw_list->AddRect(paddedmin, paddedmax, IM_COL32(255, 180, 0, 220), 0.0f,
-                       0, 1.5f);
+                       1.5f);
     // Toolbar bounds
     draw_list->AddRect(geometry.position, max, IM_COL32(0, 220, 120, 255), 0.0f,
-                       0, 2.0f);
+                       2.0f);
 }
 
 static ToolbarPadding resolve_padding(ToolbarPadding in) {
@@ -71,9 +71,9 @@ void ToolbarRenderer::display(vml::float2 size) {
     calc_offsets(item_space_y);
     vml::float2 position = ImGui::GetCursorPos();
     display_blocks(position, item_height, padding);
-    ImGui::SetCursorPos(position + vml::float2(0, size.y));
     /// Draw separator
     if (!(m_toolbar->style().flags & ToolbarFlags::no_decoration)) {
+        ImGui::SetCursorPos(position + vml::float2(0, size.y));
         auto* window = ImGui::GetCurrentWindowRead();
         vml::float2 pos = (vml::float2)ImGui::GetWindowPos() +
                           vml::float2(0, window->TitleBarHeight);
@@ -124,8 +124,14 @@ void ToolbarRenderer::display_block(Block const& block, float item_height) {
                       .actual_size = {item.width(), item_height},
                       .ID = item.ID()});
         ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::SetCursorPosY(cursor_pos_y);
+        // For the last item in the last block we do NOT want to call
+        // SetCursorPos() (also called by SameLine()), because it would set the
+        // cursor beyond the window size, which would trigger an ImGui
+        // assertion.
+        if (i != block.item_end_index - 1 || &block != &m_blocks.back()) {
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(cursor_pos_y);
+        }
     }
 }
 

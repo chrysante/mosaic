@@ -57,9 +57,9 @@ static void apply_style_to_imgui(Style const& style) {
     colors[ImGuiCol_InputTextCursor] = style.colors.text;
     colors[ImGuiCol_Tab] = style.colors.tab;
     colors[ImGuiCol_TabHovered] = style.colors.tab_hovered;
-    colors[ImGuiCol_TabActive] = style.colors.tab_active;
-    colors[ImGuiCol_TabUnfocused] = style.colors.tab_unfocused;
-    colors[ImGuiCol_TabUnfocusedActive] = style.colors.tab_unfocused_active;
+    colors[ImGuiCol_TabSelected] = style.colors.tab_active;
+    colors[ImGuiCol_TabDimmed] = style.colors.tab_unfocused;
+    colors[ImGuiCol_TabDimmedSelected] = style.colors.tab_unfocused_active;
     colors[ImGuiCol_DockingPreview] = style.colors.docking_preview;
     colors[ImGuiCol_DockingEmptyBg] = style.colors.window_bg;
     colors[ImGuiCol_DragDropTarget] = style.colors.drag_drop_target;
