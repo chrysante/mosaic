@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <numeric>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -36,16 +37,6 @@ struct internal::DockspaceImpl {
 
 static constexpr auto main_window_id = "MainWindow";
 static constexpr auto main_dockspace_id = "MainWindow_Dockspace";
-
-static void make_unique(auto& vector) {
-    auto last = std::unique(vector.begin(), vector.end());
-    vector.resize(last - vector.begin());
-}
-
-static void erase_if(auto& vector, auto pred) {
-    auto itr = std::remove_if(vector.begin(), vector.end(), pred);
-    vector.erase(itr, vector.end());
-}
 
 static void with_window_size_constraints(vml::float2 min_size, auto&& block) {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -180,45 +171,69 @@ static void toolbar_bg_window(float2 position, float2 size) {
     ImGui::End();
 }
 
-static utl::small_vector<int, 2> get_toolbar_spacing(Window& window,
+static void erase_duplicates(auto& vector) {
+    auto last = std::unique(vector.begin(), vector.end());
+    vector.resize(last - vector.begin());
+}
+
+static void erase_if(auto& vector, auto pred) {
+    auto itr = std::remove_if(vector.begin(), vector.end(), pred);
+    vector.erase(itr, vector.end());
+}
+
+static utl::small_vector<int, 2> find_toolbar_splits(Window& window,
                                                      unsigned main_dock_id) {
+    struct Rect {
+        int min;
+        int max;
+    };
     auto potential_rects = [&] {
-        int2 window_pos = ImGui::GetMainViewport()->Pos;
+        int window_pos_x = ImGui::GetMainViewport()->Pos.x;
         ImGuiDockNode const* main_node =
             ImGui::DockBuilderGetNode(main_dock_id);
         assert(main_node);
         utl::stack<ImGuiDockNode const*> stack;
         stack.push(main_node);
-        utl::small_vector<vml::rectangle<int>, 16> result;
+        utl::small_vector<Rect, 8> result;
         while (!stack.empty()) {
             auto* node = stack.pop();
-            if ((int)node->Pos.y == (int)main_node->Pos.y && node->IsVisible &&
-                node != main_node &&
-                (int2)node->Size != (int2)main_node->Size) {
-                int2 min = (int2)node->Pos - window_pos;
-                int2 max = min + (int2)node->Size;
-                result.push_back({min, max});
-            }
             if (!node->IsLeafNode()) {
                 stack.push(node->ChildNodes[0]);
                 stack.push(node->ChildNodes[1]);
+                continue;
             }
+            if (node == main_node) continue;
+            if (!node->IsVisible) continue;
+            if ((int)node->Pos.y != (int)main_node->Pos.y) continue;
+            if ((int)node->Size.x >= (int)main_node->Size.x) continue;
+            int min = (int)node->Pos.x - window_pos_x;
+            int max = min + (int)node->Size.x;
+            result.push_back({min, max});
         }
         return result;
     }();
     utl::small_vector<int> positions;
     for (auto rect : potential_rects) {
-        positions.push_back(rect.lower_bound().x);
-        positions.push_back(rect.upper_bound().x);
+        positions.push_back(rect.min);
+        positions.push_back(rect.max);
     }
     std::sort(positions.begin(), positions.end());
-    make_unique(positions);
+    erase_duplicates(positions);
     erase_if(positions, [&](int p) { return p <= 0 || p >= window.size().x; });
-    for (int i = 0; auto& p : positions) {
-        if (i++ % 2 == 0) p += 1;
-        else p -= 1;
+    int const diff = ImGui::GetStyle().DockingSeparatorSize;
+    // Merge adjacent dock-node boundaries that are separated only by the
+    // docking separator. After merging, advance to the next pair: the remaining
+    // right edge belongs to the same dock node, so rechecking it would compare
+    // the wrong edges.
+    for (std::size_t i = 1; i < positions.size(); ++i) {
+        int& a = positions[i - 1];
+        int b = positions[i];
+        assert(b >= a && "positions must be sorted here");
+        if ((b - a) <= diff) {
+            a = std::midpoint(a, b);
+            positions.erase(positions.begin() + i);
+        }
     }
-    make_unique(positions);
     switch (positions.size()) {
     case 0:
         return {};
@@ -379,7 +394,7 @@ static void toolbar_window(float2 position, float2 size,
 
 static void display_toolbars(DockspaceImpl& impl, Window& window) {
     float height = window.titlebar_height();
-    auto spacing = get_toolbar_spacing(window, impl.main_dock_id);
+    auto spacing = find_toolbar_splits(window, impl.main_dock_id);
     float width = window.size().x;
     erase_if(spacing, [&](int pos) {
         return pos >= width * 0.33 && pos <= width * 0.67;
