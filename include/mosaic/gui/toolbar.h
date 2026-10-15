@@ -364,8 +364,6 @@ private:
 };
 
 struct ToolbarDropdownMenu::Display : ToolbarItemState::Display {
-    static bool begin_combo(ToolbarDropdownMenu const&,
-                            ToolbarItemDisplayData const&);
     static void display(ToolbarDropdownMenu const&,
                         ToolbarItemDisplayData const&);
     static float calc_width(ToolbarDropdownMenu const&, float height);

@@ -863,6 +863,7 @@ static void ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement() {
         auto* viewport = g.Viewports[i];
         mosaic::Window* window = (mosaic::Window*)viewport->PlatformHandle;
         if (window && window->is_live_moving()) {
+            ImGui::FocusWindow(viewport->Window);
             ImGui::SetActiveID(viewport->Window->MoveId, viewport->Window);
             g.MovingWindow = viewport->Window;
             g.MovingWindowPlatformOwned = true;

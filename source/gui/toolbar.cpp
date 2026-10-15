@@ -125,46 +125,43 @@ float ToolbarIconButton::Display::calc_width(ToolbarIconButton const&,
 ToolbarDropdownMenu::ToolbarDropdownMenu()
     : m_string_id(utl::uuid::generate().to_string()) {}
 
-bool ToolbarDropdownMenu::Display::begin_combo(
-    ToolbarDropdownMenu const& item, ToolbarItemDisplayData const& data) {
-    float2 cursor_pos_screen = ImGui::GetCursorScreenPos();
-    ImRect bb(cursor_pos_screen, cursor_pos_screen + data.actual_size);
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImGuiID id = window->GetID(item.m_string_id.data());
-    ImGuiID popup_id = ImHashStr("##ComboPopup", 0, id);
-    bool popup_open = ImGui::IsPopupOpen(popup_id, ImGuiPopupFlags_None);
+void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
+                                           ToolbarItemDisplayData const& data) {
+    vml::float2 cursor_pos = ImGui::GetCursorScreenPos();
+    ImRect bb(cursor_pos, cursor_pos + data.actual_size);
+    // Use a stable, unique ID for this dropdown.
+    std::string popup_name =
+        "##ToolbarDropdown/" + std::string(item.m_string_id);
+    bool popup_open = ImGui::IsPopupOpen(popup_name.c_str());
     bool pressed = [&] {
-        if (item.m_preview)
-            return toolbar_button(data.button_style, item.m_preview().c_str(),
-                                  data.ID, 0, data.actual_size, enabled(item),
-                                  popup_open);
-        char const* icon_name =
-            item.m_icon_name ? item.m_icon_name() : "down-open";
         int flags = ImGuiButtonFlags_PressedOnClick |
                     ImGuiButtonFlags_PressedOnDragDropHold;
+        if (item.m_preview)
+            return toolbar_button(data.button_style, item.m_preview().c_str(),
+                                  data.ID, flags, data.actual_size,
+                                  enabled(item), popup_open);
+        char const* icon_name =
+            item.m_icon_name ? item.m_icon_name() : "down-open";
         return toolbar_icon_button(data.button_style,
                                    ui::icon_data({IconSize::_16}, icon_name),
                                    data.ID, flags, data.actual_size,
                                    tooltip(item), enabled(item), popup_open);
     }();
-    if (pressed && !popup_open) {
-        ImGui::OpenPopupEx(popup_id, ImGuiPopupFlags_None);
-        popup_open = true;
-    }
-    if (!popup_open) return false;
-    ImGui::SetNextWindowSizeConstraints(item.m_min_size, {FLT_MAX, FLT_MAX});
+    if (pressed && !popup_open) ImGui::OpenPopup(popup_name.c_str());
+    // Always attempt to begin the popup. ImGui handles its open state
+    // and normal dismissal (outside click / Escape).
+    ImGui::SetNextWindowPos(ImVec2(bb.Min.x, bb.Max.y), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSizeConstraints(item.m_min_size,
+                                        ImVec2(FLT_MAX, FLT_MAX));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                        float2(2, 1) * (float2)ImGui::GetStyle().FramePadding);
-    bool result = ImGui::BeginComboPopup(popup_id, bb, ImGuiComboFlags_None);
+                        vml::float2{2.0f, 1.0f} *
+                            (vml::float2)ImGui::GetStyle().FramePadding);
+    bool open = ImGui::BeginPopup(popup_name.c_str());
     ImGui::PopStyleVar();
-    return result;
-}
-
-void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
-                                           ToolbarItemDisplayData const& data) {
-    if (!begin_combo(item, data)) return;
-    if (item.m_content) item.m_content();
-    ImGui::EndCombo();
+    if (open) {
+        if (item.m_content) item.m_content();
+        ImGui::EndPopup();
+    }
 }
 
 float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,
