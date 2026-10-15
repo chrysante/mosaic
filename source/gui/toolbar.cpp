@@ -71,15 +71,15 @@ bool toolbar_icon_button(ToolbarButtonStyle const& style, IconData icon, int id,
     return result;
 }
 
-void ToolbarButtonDisplay::display(ToolbarButton const& button,
-                                   ToolbarItemDisplayData data) {
+void ToolbarButton::Display::display(ToolbarButton const& button,
+                                     ToolbarItemDisplayData data) {
     bool active =
         toolbar_button(data.button_style, button.m_label.c_str(), data.ID,
-                       button.m_button_flags, data.actual_size);
-    if (active && button.m_action) button.m_action();
+                       get_button_flags(button), data.actual_size);
+    if (active) do_action(button);
 }
 
-float ToolbarButtonDisplay::calc_width(ToolbarButton const& button, float) {
+float ToolbarButton::Display::calc_width(ToolbarButton const& button, float) {
     float2 text_size =
         ui::with_font(FontWeight::semibold, FontStyle::roman, [&] {
             return ImGui::CalcTextSize(button.m_label.data());
@@ -99,18 +99,18 @@ ToolbarIconButton::ToolbarIconButton(Command const* command,
     }
 }
 
-void ToolbarIconButtonDisplay::display(ToolbarIconButton const& button,
-                                       ToolbarItemDisplayData data) {
+void ToolbarIconButton::Display::display(ToolbarIconButton const& button,
+                                         ToolbarItemDisplayData data) {
     bool active = toolbar_icon_button(
         data.button_style, ui::icon_data({IconSize::_16}, button.m_icon_name()),
-        data.ID, button.m_button_flags, data.actual_size, tooltip(button));
-    if (active && button.m_action) button.m_action();
+        data.ID, get_button_flags(button), data.actual_size, tooltip(button));
+    if (active) do_action(button);
 }
 
 static float const icon_button_width_height_ratio = 1.7;
 
-float ToolbarIconButtonDisplay::calc_width(ToolbarIconButton const&,
-                                           float height) {
+float ToolbarIconButton::Display::calc_width(ToolbarIconButton const&,
+                                             float height) {
     return height * icon_button_width_height_ratio;
 }
 
@@ -120,9 +120,7 @@ ToolbarDropdownMenu::ToolbarDropdownMenu()
 bool ToolbarDropdownMenu::Display::begin_combo(
     ToolbarDropdownMenu const& item, ToolbarItemDisplayData const& data) {
     float2 cursor_pos_screen = ImGui::GetCursorScreenPos();
-    float2 size = {data.actual_size.x,
-                   data.actual_size.y + ImGui::GetStyle().ItemSpacing.y};
-    ImRect bb(cursor_pos_screen, cursor_pos_screen + size);
+    ImRect bb(cursor_pos_screen, cursor_pos_screen + data.actual_size);
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiID id = window->GetID(item.m_string_id.data());
     ImGuiID popup_id = ImHashStr("##ComboPopup", 0, id);
@@ -130,14 +128,16 @@ bool ToolbarDropdownMenu::Display::begin_combo(
     bool pressed = [&] {
         if (item.m_preview)
             return toolbar_button(data.button_style, item.m_preview().c_str(),
-                                  data.ID, 0, size, enabled(item), popup_open);
+                                  data.ID, 0, data.actual_size, enabled(item),
+                                  popup_open);
         char const* icon_name =
             item.m_icon_name ? item.m_icon_name() : "down-open";
         int flags = ImGuiButtonFlags_PressedOnClick |
                     ImGuiButtonFlags_PressedOnDragDropHold;
-        return toolbar_icon_button(
-            data.button_style, ui::icon_data({IconSize::_16}, icon_name),
-            data.ID, flags, size, tooltip(item), enabled(item), popup_open);
+        return toolbar_icon_button(data.button_style,
+                                   ui::icon_data({IconSize::_16}, icon_name),
+                                   data.ID, flags, data.actual_size,
+                                   tooltip(item), enabled(item), popup_open);
     }();
     if (pressed && !popup_open) {
         ImGui::OpenPopupEx(popup_id, ImGuiPopupFlags_None);
@@ -170,14 +170,19 @@ float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,
 }
 
 void ToolbarTextItem::Display::display(ToolbarTextItem const& item,
-                                       ToolbarItemDisplayData const&) {
+                                       ToolbarItemDisplayData const& data) {
     auto* font = ui::font(item.get_font_desc());
-    auto* DL = ImGui::GetWindowDrawList();
-    float2 pos = ImGui::GetCursorScreenPos();
+    auto* window = ImGui::GetCurrentWindow();
+    auto* DL = window->DrawList;
+    vml::float2 pos = ImGui::GetCursorScreenPos();
     auto& style = ImGui::GetStyle();
     pos.y += style.FramePadding.y;
     DL->AddText(font, 0.0f, pos, ImGui::GetColorU32(ImGuiCol_Text),
                 item.get_text());
+    auto id = window->GetID(data.ID);
+    ImRect bb(pos, pos + data.actual_size);
+    ImGui::ItemAdd(bb, id);
+    ImGui::ItemSize(bb);
 }
 
 float ToolbarTextItem::Display::calc_width(ToolbarTextItem const& item, float) {
@@ -200,4 +205,9 @@ void ToolbarEmptyItem::Display::display(ToolbarEmptyItem,
 
 float ToolbarEmptyItem::Display::calc_width(ToolbarEmptyItem item, float) {
     return item.m_width;
+}
+
+void CustomToolbarElement::Display::display(
+    CustomToolbarElement const& item, ToolbarItemDisplayData const& data) {
+    if (item.m_content) item.m_content(data.actual_size);
 }

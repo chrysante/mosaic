@@ -29,8 +29,11 @@ private:
         std::size_t item_begin_index = 0;
         std::size_t item_end_index = 0;
         bool visible;
+        ToolbarItem const* ending_spacer = nullptr;
     };
 
+    void display_blocks(vml::float2 position, float item_height,
+                        struct ToolbarPadding padding);
     void display_block(Block const&, float item_height);
 
     /// Must be called after adding items

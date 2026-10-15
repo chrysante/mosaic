@@ -68,17 +68,9 @@ void ToolbarRenderer::display(vml::float2 size) {
     /// and it solves some caching issues
     cook(item_height);
     float item_space_y = size.x - padding.left - padding.right;
-    vml::float2 position = ImGui::GetCursorPos();
-    /// Display blocks
     calc_offsets(item_space_y);
-    for (auto const& block : m_blocks) {
-        if (block.visible) {
-            vml::float2 cursor_pos = {position.x + padding.left + block.offset,
-                                      position.y + padding.top};
-            ImGui::SetCursorPos(cursor_pos);
-            display_block(block, item_height);
-        }
-    }
+    vml::float2 position = ImGui::GetCursorPos();
+    display_blocks(position, item_height, padding);
     ImGui::SetCursorPos(position + vml::float2(0, size.y));
     /// Draw separator
     if (!(m_toolbar->style().flags & ToolbarFlags::no_decoration)) {
@@ -97,6 +89,30 @@ void ToolbarRenderer::display(vml::float2 size) {
             {.position = (vml::float2)ImGui::GetWindowPos() + position,
              .size = size,
              .padding = padding});
+}
+
+void ToolbarRenderer::display_blocks(vml::float2 position, float item_height,
+                                     ToolbarPadding padding) {
+    for (std::size_t i = 0; i < m_blocks.size(); ++i) {
+        auto const& block = m_blocks[i];
+        vml::float2 cursor_pos = {position.x + padding.left + block.offset,
+                                  position.y + padding.top};
+        auto* last_spacer = [&] -> ToolbarItem const* {
+            if (i == 0) return nullptr;
+            return m_blocks[i - 1].ending_spacer;
+        }();
+        if (last_spacer) {
+            vml::float2 last_cursor_pos = ImGui::GetCursorPos();
+            float spacer_width = cursor_pos.x - last_cursor_pos.x -
+                                 2 * m_toolbar->style().item_spacing;
+            ImGui::SetCursorPos({last_cursor_pos.x, cursor_pos.y});
+            last_spacer->display({.button_style = m_toolbar->style().button,
+                                  .actual_size = {spacer_width, item_height},
+                                  .ID = last_spacer->ID()});
+        }
+        ImGui::SetCursorPos(cursor_pos);
+        display_block(block, item_height);
+    }
 }
 
 void ToolbarRenderer::display_block(Block const& block, float item_height) {
@@ -124,7 +140,8 @@ void ToolbarRenderer::cook(float item_height) {
         auto& item = m_toolbar->item_at(index);
         const_cast<ToolbarItem&>(item).calc_width(item_height);
         if (item.is_spacer()) {
-            m_blocks.back().item_end_index = index + 1;
+            m_blocks.back().item_end_index = index;
+            m_blocks.back().ending_spacer = &item;
             m_blocks.emplace_back();
             m_blocks.back().item_begin_index = index + 1;
         }
@@ -139,11 +156,10 @@ void ToolbarRenderer::cook(float item_height) {
                 acc += m_toolbar->item_at(i).width();
             return acc;
         }();
-
         int num_items = utl::narrow_cast<int>(block.item_end_index -
                                               block.item_begin_index);
         float spacing =
-            std::max(0, num_items - 1) * ImGui::GetStyle().ItemSpacing.x;
+            std::max(0, num_items - 1) * m_toolbar->style().item_spacing;
         block.width = acc_items_width + spacing;
     }
 }

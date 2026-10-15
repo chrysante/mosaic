@@ -67,7 +67,8 @@ public:
                 .on_click([this] { show_demo_window = true; })
                 .enabled([this] { return !show_demo_window; }),
             ToolbarSpacer(),
-            ToolbarButton("Other Button")
+            ToolbarButton("Other Button"),
+            ToolbarIconButton("search")
         });
         dockspace.set_right_toolbar({
             ToolbarIconButton("bell")

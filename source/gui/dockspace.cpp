@@ -55,22 +55,22 @@ ToolbarStyle const toolbar_style{.padding = {6.0f, 6.0f, 6.0f, 6.0f},
 
 void Dockspace::set_left_toolbar(Toolbar toolbar) {
     auto style = toolbar_style;
-    style.padding.right = 0.0f;
+    style.padding.right = style.item_spacing / 2;
     toolbar.set_style(style);
     toolbars[0] = std::move(toolbar);
 }
 
 void Dockspace::set_center_toolbar(Toolbar toolbar) {
     auto style = toolbar_style;
-    style.padding.left = 0.0f;
-    style.padding.right = 0.0f;
+    style.padding.left = style.item_spacing / 2;
+    style.padding.right = style.item_spacing / 2;
     toolbar.set_style(style);
     toolbars[1] = std::move(toolbar);
 }
 
 void Dockspace::set_right_toolbar(Toolbar toolbar) {
     auto style = toolbar_style;
-    style.padding.left = 0.0f;
+    style.padding.left = style.item_spacing / 2;
     toolbar.set_style(style);
     toolbars[2] = std::move(toolbar);
 }
