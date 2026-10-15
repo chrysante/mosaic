@@ -5,6 +5,7 @@
 
 #include <mosaic/application/application.h>
 #include <mosaic/application/input.h>
+#include <mosaic/application/window.h>
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>

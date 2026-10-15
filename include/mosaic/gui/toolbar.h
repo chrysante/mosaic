@@ -32,13 +32,6 @@ UTL_ENUM_OPERATORS(ToolbarFlags)
 // │                | padding.bottom                               │ │
 // └───────────────────────────────────────────────────────────────┘ ┴
 
-struct ToolbarPadding {
-    float top;
-    float bottom;
-    float left;
-    float right;
-};
-
 // Alpha multipliers for different button states
 struct ToolbarButtonStyle {
     float alpha = 0.0f;
@@ -51,7 +44,7 @@ struct ToolbarStyle {
     ToolbarButtonStyle button;
 
     /// -1 means default to `ImGui::GetStyle().WindowPadding`
-    ToolbarPadding padding = {-1.0f, -1.0f, -1.0f, -1.0f};
+    vml::float2 padding = {-1.0f, -1.0f};
 
     ///
     float item_spacing = 8.0f;

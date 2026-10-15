@@ -12,30 +12,32 @@
 
 using namespace mosaic;
 
-namespace {
-
-struct ToolbarGeometry {
-    vml::float2 position;
-    vml::float2 size;
-    ToolbarPadding padding;
-};
-
-} // namespace
+ToolbarPadding mosaic::resolve_toolbar_padding(vml::float2 in) {
+    auto value_or = [](float value, float fallback) {
+        return value >= 0.0f ? value : fallback;
+    };
+    auto& style = ImGui::GetStyle();
+    float x = value_or(in.x, style.WindowPadding.x);
+    float y = value_or(in.y, style.WindowPadding.y);
+    return {
+        .top = y,
+        .bottom = y,
+        .left = x,
+        .right = x,
+    };
+}
 
 static void debug_draw_geometry(ToolbarGeometry geometry) {
     ImDrawList* draw_list = ImGui::GetForegroundDrawList();
-    vml::float2 max = geometry.position + geometry.size;
-    vml::float2 paddedmin =
-        geometry.position +
-        vml::float2{geometry.padding.left, geometry.padding.top};
-    vml::float2 paddedmax =
-        max - vml::float2{geometry.padding.right, geometry.padding.bottom};
+    vml::float2 pos = (vml::float2)ImGui::GetWindowPos() + geometry.position;
+    vml::float2 max = pos + geometry.size;
+    vml::float2 paddedmin = pos + geometry.padding.top_left();
+    vml::float2 paddedmax = max - geometry.padding.bottom_right();
     // Padded bounds
     draw_list->AddRect(paddedmin, paddedmax, IM_COL32(255, 180, 0, 220), 0.0f,
                        1.5f);
     // Toolbar bounds
-    draw_list->AddRect(geometry.position, max, IM_COL32(0, 220, 120, 255), 0.0f,
-                       2.0f);
+    draw_list->AddRect(pos, max, IM_COL32(0, 220, 120, 255), 0.0f, 2.0f);
 }
 
 static ToolbarPadding resolve_padding(ToolbarPadding in) {
@@ -51,48 +53,43 @@ static ToolbarPadding resolve_padding(ToolbarPadding in) {
     };
 }
 
-float ToolbarRenderer::get_width_without_spacers() const {
+float ToolbarRenderer::get_width_without_spacers(ToolbarPadding padding) const {
     float raw_width = std::accumulate(
         m_blocks.begin(), m_blocks.end(), 0.0f,
         [](float acc, Block const& block) { return acc + block.width; });
     float spacing = std::max(0.0f, (float)m_blocks.size() - 1.0f) *
                     ImGui::GetStyle().ItemSpacing.x;
-    ToolbarPadding padding = resolve_padding(m_toolbar->style().padding);
-    return raw_width + spacing + padding.left + padding.right;
+    return raw_width + spacing + padding.total_x();
 }
 
-void ToolbarRenderer::display(vml::float2 size) {
-    ToolbarPadding padding = resolve_padding(m_toolbar->style().padding);
-    float item_height = size.y - padding.top - padding.bottom;
+void ToolbarRenderer::display(ToolbarGeometry geometry) {
+    float item_height = geometry.size.y - geometry.padding.total_y();
     /// We actually cook every frame because performance is really not an issue
     /// and it solves some caching issues
     cook(item_height);
-    float item_space_y = size.x - padding.left - padding.right;
-    calc_offsets(item_space_y);
-    vml::float2 position = ImGui::GetCursorPos();
-    display_blocks(position, item_height, padding);
+    float item_space_x = geometry.size.x - geometry.padding.total_x();
+    calc_offsets(item_space_x);
+    display_blocks(geometry.position, item_height, geometry.padding);
     /// Draw separator
     if (!(m_toolbar->style().flags & ToolbarFlags::no_decoration)) {
-        ImGui::SetCursorPos(position + vml::float2(0, size.y));
+        ImGui::SetCursorPos(geometry.position +
+                            vml::float2(0, geometry.size.y));
         auto* window = ImGui::GetCurrentWindowRead();
         vml::float2 pos = (vml::float2)ImGui::GetWindowPos() +
                           vml::float2(0, window->TitleBarHeight);
-        vml::float2 from = pos + vml::float2(0, size.y);
+        vml::float2 from = pos + vml::float2(0, geometry.size.y);
         vml::float2 to = from + vml::float2(ImGui::GetWindowWidth(), 0);
         auto* DL = ImGui::GetWindowDrawList();
         DL->PushClipRect(window->Rect().Min, window->Rect().Max);
         DL->AddLine(from, to, ImGui::GetColorU32(ImGuiCol_Separator), 1);
         DL->PopClipRect();
     }
-    if (want_debug_overlays())
-        debug_draw_geometry(
-            {.position = (vml::float2)ImGui::GetWindowPos() + position,
-             .size = size,
-             .padding = padding});
+    if (want_debug_overlays()) debug_draw_geometry(geometry);
 }
 
 void ToolbarRenderer::display_blocks(vml::float2 position, float item_height,
                                      ToolbarPadding padding) {
+    ImGui::SetCursorPos(position);
     for (std::size_t i = 0; i < m_blocks.size(); ++i) {
         auto const& block = m_blocks[i];
         vml::float2 cursor_pos = {position.x + padding.left + block.offset,

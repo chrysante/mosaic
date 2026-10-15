@@ -1,19 +1,19 @@
 #pragma once
 
-#include <vml/vml.hpp>
-
-#include <mosaic/application/window.h>
-#include <mosaic/gui/toolbar.h>
-#include <mosaic/gui/toolbar_renderer.h>
+#include <memory>
 
 namespace mosaic {
 
 class Window;
+class Toolbar;
+
+namespace internal { struct DockspaceImpl; }
 
 /// Wrapper around ImGui's docking feature
 class Dockspace {
 public:
     Dockspace();
+    ~Dockspace();
 
     /// Makes the entire content area of \p window a dockable area and draws
     /// toolbars in the windows titlebar
@@ -70,16 +70,7 @@ public:
     void take_focus();
 
 private:
-    void main_window(float toolbar_height);
-
-    void display_toolbars(Window& window);
-
-    vml::float2 min_window_size = {250, 100};
-    std::array<Toolbar, 3> toolbars;
-    std::array<ToolbarRenderer, 3> toolbar_renderers;
-    void* main_imgui_window = nullptr;
-    size_t spacing_count = 0;
-    unsigned main_dock_id = 0;
+    std::unique_ptr<internal::DockspaceImpl> m_impl;
 };
 
 } // namespace mosaic

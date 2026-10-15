@@ -9,17 +9,38 @@ namespace mosaic {
 class ToolbarItem;
 class Toolbar;
 
+struct ToolbarPadding {
+    float top;
+    float bottom;
+    float left;
+    float right;
+
+    vml::float2 top_left() const { return {left, top}; }
+    vml::float2 bottom_right() const { return {right, bottom}; }
+    float total_x() const { return left + right; }
+    float total_y() const { return top + bottom; }
+};
+
+struct ToolbarGeometry {
+    // Position of the toolbar in window space
+    vml::float2 position;
+    vml::float2 size;
+    ToolbarPadding padding;
+};
+
+ToolbarPadding resolve_toolbar_padding(vml::float2 padding);
+
 class ToolbarRenderer {
 public:
     void set_toolbar(Toolbar const* toolbar) { m_toolbar = toolbar; }
 
     /// Displays the toolbar
-    void display(vml::float2 size);
+    void display(ToolbarGeometry geometry);
 
     /// \returns the acccumulated width of all items including padding but
     /// ignoring all spacers. This is used by the dockspace for the triple
     /// toolbar layout
-    float get_width_without_spacers() const;
+    float get_width_without_spacers(ToolbarPadding padding) const;
 
 private:
     /// A block is a list of items without spacers
