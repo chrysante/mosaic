@@ -62,16 +62,17 @@ float ToolbarRenderer::get_width_without_spacers(ToolbarPadding padding) const {
     return raw_width + spacing + padding.total_x();
 }
 
-void ToolbarRenderer::display(ToolbarGeometry geometry) {
+void ToolbarRenderer::display(ToolbarStyle const& style,
+                              ToolbarGeometry geometry) {
     float item_height = geometry.size.y - geometry.padding.total_y();
     /// We actually cook every frame because performance is really not an issue
     /// and it solves some caching issues
-    cook(item_height);
+    cook(style, item_height);
     float item_space_x = geometry.size.x - geometry.padding.total_x();
     calc_offsets(item_space_x);
-    display_blocks(geometry.position, item_height, geometry.padding);
+    display_blocks(style, geometry.position, item_height, geometry.padding);
     /// Draw separator
-    if (!(m_toolbar->style().flags & ToolbarFlags::no_decoration)) {
+    if (!(style.flags & ToolbarFlags::no_decoration)) {
         ImGui::SetCursorPos(geometry.position +
                             vml::float2(0, geometry.size.y));
         auto* window = ImGui::GetCurrentWindowRead();
@@ -87,7 +88,8 @@ void ToolbarRenderer::display(ToolbarGeometry geometry) {
     if (want_debug_overlays()) debug_draw_geometry(geometry);
 }
 
-void ToolbarRenderer::display_blocks(vml::float2 position, float item_height,
+void ToolbarRenderer::display_blocks(ToolbarStyle const& style,
+                                     vml::float2 position, float item_height,
                                      ToolbarPadding padding) {
     ImGui::SetCursorPos(position);
     for (std::size_t i = 0; i < m_blocks.size(); ++i) {
@@ -100,24 +102,25 @@ void ToolbarRenderer::display_blocks(vml::float2 position, float item_height,
         }();
         if (last_spacer) {
             vml::float2 last_cursor_pos = ImGui::GetCursorPos();
-            float spacer_width = cursor_pos.x - last_cursor_pos.x -
-                                 2 * m_toolbar->style().item_spacing;
+            float spacer_width =
+                cursor_pos.x - last_cursor_pos.x - 2 * style.item_spacing;
             ImGui::SetCursorPos({last_cursor_pos.x, cursor_pos.y});
-            last_spacer->display({.button_style = m_toolbar->style().button,
+            last_spacer->display({.button_style = style.button,
                                   .actual_size = {spacer_width, item_height},
                                   .ID = last_spacer->ID()});
         }
         ImGui::SetCursorPos(cursor_pos);
-        display_block(block, item_height);
+        display_block(style, block, item_height);
     }
 }
 
-void ToolbarRenderer::display_block(Block const& block, float item_height) {
+void ToolbarRenderer::display_block(ToolbarStyle const& style,
+                                    Block const& block, float item_height) {
     float cursor_pos_y = ImGui::GetCursorPos().y;
     for (size_t i = block.item_begin_index; i < block.item_end_index; ++i) {
         auto& item = m_toolbar->item_at(i);
         ImGui::BeginDisabled(!item.enabled());
-        item.display({.button_style = m_toolbar->style().button,
+        item.display({.button_style = style.button,
                       .actual_size = {item.width(), item_height},
                       .ID = item.ID()});
         ImGui::EndDisabled();
@@ -132,7 +135,7 @@ void ToolbarRenderer::display_block(Block const& block, float item_height) {
     }
 }
 
-void ToolbarRenderer::cook(float item_height) {
+void ToolbarRenderer::cook(ToolbarStyle const& style, float item_height) {
     m_blocks.clear();
     if (m_toolbar->num_items() == 0) return;
     /// Partition into blocks
@@ -161,8 +164,7 @@ void ToolbarRenderer::cook(float item_height) {
         }();
         int num_items = utl::narrow_cast<int>(block.item_end_index -
                                               block.item_begin_index);
-        float spacing =
-            std::max(0, num_items - 1) * m_toolbar->style().item_spacing;
+        float spacing = std::max(0, num_items - 1) * style.item_spacing;
         block.width = acc_items_width + spacing;
     }
 }

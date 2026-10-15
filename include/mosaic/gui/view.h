@@ -118,6 +118,12 @@ protected:
         m_uses_toolbar = false;
     }
 
+    void override_toolbar_style(ToolbarStyle style) {
+        m_toolbar_style = std::make_unique<ToolbarStyle>(style);
+    }
+
+    void reset_toolbar_style() { m_toolbar_style.reset(); }
+
     /// Called once after construction and framework initialization.
     virtual void on_create() {}
 
@@ -163,6 +169,7 @@ private:
     EventEmitter m_event_emitter;
     CommandPalette m_command_palette;
     Toolbar m_toolbar;
+    std::unique_ptr<ToolbarStyle> m_toolbar_style;
     bool m_uses_toolbar = false;
     RuntimeState m_runtime;
 };

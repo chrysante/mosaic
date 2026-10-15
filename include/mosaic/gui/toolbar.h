@@ -34,9 +34,9 @@ UTL_ENUM_OPERATORS(ToolbarFlags)
 
 // Alpha multipliers for different button states
 struct ToolbarButtonStyle {
-    float alpha = 0.0f;
-    float alpha_hovered = 0.5f;
-    float alpha_active = 0.5f;
+    float alpha;
+    float alpha_hovered;
+    float alpha_active;
 };
 
 /// Style options to assign to a toolbar
@@ -52,6 +52,8 @@ struct ToolbarStyle {
     ///
     ToolbarFlags flags = ToolbarFlags::none;
 };
+
+ToolbarStyle get_global_toolbar_style();
 
 struct ToolbarItemDisplayData {
     ToolbarButtonStyle button_style;
@@ -493,10 +495,6 @@ public:
         (add_item(std::move(items)), ...);
     }
 
-    ToolbarStyle const& style() const { return m_style; }
-
-    void set_style(ToolbarStyle const& value) { m_style = value; }
-
     std::size_t num_items() const { return m_items.size(); }
 
     ToolbarItem const& item_at(std::size_t index) const {
@@ -515,7 +513,6 @@ private:
     }
 
     std::vector<std::unique_ptr<ToolbarItem>> m_items;
-    ToolbarStyle m_style;
 };
 
 } // namespace mosaic

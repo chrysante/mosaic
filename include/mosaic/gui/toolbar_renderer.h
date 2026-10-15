@@ -8,6 +8,7 @@ namespace mosaic {
 
 class ToolbarItem;
 class Toolbar;
+struct ToolbarStyle;
 
 struct ToolbarPadding {
     float top;
@@ -35,7 +36,7 @@ public:
     void set_toolbar(Toolbar const* toolbar) { m_toolbar = toolbar; }
 
     /// Displays the toolbar
-    void display(ToolbarGeometry geometry);
+    void display(ToolbarStyle const& style, ToolbarGeometry geometry);
 
     /// \returns the acccumulated width of all items including padding but
     /// ignoring all spacers. This is used by the dockspace for the triple
@@ -53,12 +54,13 @@ private:
         ToolbarItem const* ending_spacer = nullptr;
     };
 
-    void display_blocks(vml::float2 position, float item_height,
-                        struct ToolbarPadding padding);
-    void display_block(Block const&, float item_height);
+    void display_blocks(ToolbarStyle const& style, vml::float2 position,
+                        float item_height, struct ToolbarPadding padding);
+    void display_block(ToolbarStyle const& style, Block const&,
+                       float item_height);
 
     /// Must be called after adding items
-    void cook(float item_height);
+    void cook(ToolbarStyle const& style, float item_height);
 
     /// Called every frame
     void calc_offsets(float total_width);

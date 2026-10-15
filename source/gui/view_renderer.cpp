@@ -5,16 +5,16 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <utl/strcat.hpp>
+#include <utl/utility.hpp>
 #include <vml/vml.hpp>
 
 #include "application/debug_settings.h"
 #include "application/window.h"
 #include "application/window_desc.h"
+#include "gui/toolbar.h"
 #include "gui/toolbar_renderer.h"
 #include "gui/view.h"
 #include "gui/view_manager.h"
-#include "vml/fwd.hpp"
-#include "vml/shapes.hpp"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -128,8 +128,9 @@ static ToolbarGeometry compute_toolbar_geometry(RuntimeViewState state,
 }
 
 static void display_toolbar(ToolbarRenderer& toolbar_renderer,
-                            ToolbarGeometry geometry, RuntimeViewState state) {
-    toolbar_renderer.display(geometry);
+                            ToolbarStyle const& style, ToolbarGeometry geometry,
+                            RuntimeViewState state) {
+    toolbar_renderer.display(style, geometry);
     ImGui::SetCursorPos({0, geometry.position.y + geometry.size.y + 1});
     if (state.frame.docked || state.persistent.window_dragging) {
         vml::float2 screen_pos =
@@ -152,36 +153,31 @@ void ImGuiViewRenderer::render_view(View& view) {
     ImGui::SetNextWindowSizeConstraints(layout.min_size, {FLT_MAX, FLT_MAX});
     ImGui::SetNextWindowPos(layout.position, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(layout.size, ImGuiCond_FirstUseEver);
-
     vml::float2 view_padding = view.padding();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, view_padding);
-
+    std::string view_id = make_imgui_id(view);
     bool open_state = true;
-    bool visible =
-        ImGui::Begin(make_imgui_id(view).c_str(), &open_state, flags);
-
+    bool visible = ImGui::Begin(view_id.c_str(), &open_state, flags);
+    utl::scope_guard guard = [] { ImGui::End(); };
     ImGui::PopStyleVar();
-
     if (!open_state) view.request_close();
-
     auto& state = update_and_get_runtime_state(view);
-    if (visible) {
-        // FIXME: Rework this
-        auto geometry =
-            view.uses_toolbar()
-                ? compute_toolbar_geometry(state, view.toolbar().style())
-                : ToolbarGeometry{};
-        float toolbar_height =
-            view.uses_toolbar() ? geometry.size.y
-                                : ImGui::GetCurrentWindowRead()->TitleBarHeight;
-        float2 cursor_pos =
-            float2{0.0f, geometry.position.y + toolbar_height} + view_padding;
-        ImGui::SetCursorPos(cursor_pos);
+    if (!visible) return;
+    if (!view.uses_toolbar()) {
+        float title_height = ImGui::GetCurrentWindowRead()->TitleBarHeight;
+        vml::float2 content_pos = float2{0.0f, title_height};
+        ImGui::SetCursorPos(content_pos + view_padding);
         view.display();
-        if (view.uses_toolbar())
-            display_toolbar(state.persistent.toolbar_renderer, geometry, state);
+    } else {
+        ToolbarStyle style = view.m_toolbar_style ? *view.m_toolbar_style
+                                                  : get_global_toolbar_style();
+        auto geometry = compute_toolbar_geometry(state, style);
+        vml::float2 content_pos = {0.0f, geometry.position.y + geometry.size.y};
+        ImGui::SetCursorPos(content_pos + view_padding);
+        view.display();
+        display_toolbar(state.persistent.toolbar_renderer, style, geometry,
+                        state);
     }
-    ImGui::End();
 }
 
 // This must be called after ImGui::Begin()

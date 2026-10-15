@@ -14,6 +14,14 @@
 using namespace mosaic;
 using namespace vml::short_types;
 
+ToolbarStyle mosaic::get_global_toolbar_style() {
+    return {
+        .button = {.alpha = 0.0f, .alpha_hovered = 0.5f, .alpha_active = 0.5f},
+        .padding = {6.0f, 6.0f},
+        .item_spacing = 8.0f,
+        .flags = ToolbarFlags::none};
+}
+
 static bool toolbar_button_impl(ToolbarButtonStyle const& style,
                                 char const* label, ImFont* font, int id,
                                 int flags, float2 size, bool enabled,
