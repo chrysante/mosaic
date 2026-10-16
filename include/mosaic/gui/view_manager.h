@@ -6,8 +6,9 @@
 #include <string_view>
 #include <vector>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include <mosaic/service/event_receiver.h>
-#include <mosaic/support/serialization.h>
 
 namespace mosaic {
 
@@ -53,11 +54,9 @@ public:
     void close_all();
 
     void display();
-
     bool on_input(InputEvent& event);
-
-    YAML::Node serialize() const;
-    void deserialize(YAML::Node const& node);
+    nlohmann::json save_settings() const;
+    void load_settings(nlohmann::json const&);
 
     View* focused_view();
     View const* focused_view() const;

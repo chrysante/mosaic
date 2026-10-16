@@ -87,8 +87,6 @@ public:
                 })
         });
         // clang-format on
-        event_emitter.publish(
-            ViewManager::OpenCommand{.name = "MosaicDemoView"});
     }
 
 private:

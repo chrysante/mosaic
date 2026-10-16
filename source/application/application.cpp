@@ -2,13 +2,16 @@
 
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 #include <functional>
 #include <memory>
 
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 
 #include "application/application_impl.h"
 #include "application/debug_tools.h"
+#include "application/directories.h"
 #include "application/input.h"
 #include "application/input_event.h"
 #include "application/input_internal.h"
@@ -18,6 +21,8 @@
 #include "gui/appearance_internal.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/service_context.h"
+#include "support/json_support.h"
+#include "support/logger.h"
 
 using namespace mosaic;
 
@@ -100,6 +105,10 @@ void Application::set_run_loop_mode(RunLoopMode mode) {
     m_impl->run_loop_mode = mode;
 }
 
+nlohmann::json Application::save_settings() const {
+    return nlohmann::json::object();
+}
+
 // =============================================================================
 // ApplicationImpl interface
 // =============================================================================
@@ -140,9 +149,84 @@ Window* ApplicationImpl::create_main_window() {
 }
 
 void ApplicationImpl::run_one_frame() {
+    save_settings_update();
     imgui_begin_frame();
     do_frame();
     imgui_end_frame();
+}
+
+static std::filesystem::path imgui_ini_file() {
+    return config_directory() / "imgui.ini";
+}
+
+static std::filesystem::path config_json_file() {
+    return config_directory() / "config.json";
+}
+
+void ApplicationImpl::save_settings_update() {
+    auto& io = ImGui::GetIO();
+    if (!io.WantSaveIniSettings) return;
+    ImGui::SaveIniSettingsToDisk(imgui_ini_file().c_str());
+    save_app_settings_to_disk();
+    io.WantSaveIniSettings = false;
+}
+
+void ApplicationImpl::save_app_settings_to_disk() {
+    auto const object = serialize_settings();
+    auto const path = config_json_file();
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    if (ec) {
+        Logger::error("Failed to create config directory: ", ec.message());
+        return;
+    }
+    std::ofstream file(path);
+    if (!file) {
+        Logger::error("Failed to open config file for writing: ", path);
+        return;
+    }
+    Logger::trace("Writing config file: ", path);
+    file << object.dump(4) << '\n';
+    if (!file) {
+        Logger::error("Failed to write config file: ", path);
+    }
+}
+
+void ApplicationImpl::load_app_settings_from_disk() {
+    auto const path = config_json_file();
+    Logger::trace("Reading config file: ", path);
+    std::ifstream file(path);
+    if (!file) {
+        Logger::warn("Failed to read config file: ", path);
+        return;
+    }
+    try {
+        auto const object = nlohmann::json::parse(file);
+        deserialize_settings(object);
+    } catch (const nlohmann::json::parse_error& e) {
+        Logger::error("Failed to parse config file ", path, ": ", e.what());
+    }
+}
+
+namespace config_key {
+
+static constexpr std::string_view application = "application";
+static constexpr std::string_view views = "views";
+
+} // namespace config_key
+
+nlohmann::json ApplicationImpl::serialize_settings() {
+    auto object = nlohmann::json::object();
+    object[config_key::application] = app.save_settings();
+    object[config_key::views] = view_manager.save_settings();
+    return object;
+}
+
+void ApplicationImpl::deserialize_settings(nlohmann::json const& base) {
+    if (auto* settings = json_find(base, config_key::application))
+        app.load_settings(*settings);
+    if (auto* settings = json_find(base, config_key::views))
+        view_manager.load_settings(*settings);
 }
 
 void ApplicationImpl::imgui_init() {
@@ -163,8 +247,11 @@ void ApplicationImpl::imgui_init() {
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
+    io.IniFilename = nullptr;
 
     imgui_init_platform();
+    ImGui::LoadIniSettingsFromDisk(imgui_ini_file().c_str());
+    load_app_settings_from_disk();
 }
 
 void ApplicationImpl::imgui_begin_frame() {

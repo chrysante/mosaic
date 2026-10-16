@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include <mosaic/application/window_desc.h>
 #include <mosaic/support/export.h>
 
@@ -64,6 +66,8 @@ protected:
 private:
     // Customization points
     virtual void frame() {}
+    virtual nlohmann::json save_settings() const;
+    virtual void load_settings(nlohmann::json const&) {}
 
     friend struct internal::ApplicationImpl;
 

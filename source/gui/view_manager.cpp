@@ -4,6 +4,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <nlohmann/json.hpp>
 
 #include "application/debug_settings.h"
 #include "application/input_event.h"
@@ -11,6 +12,7 @@
 #include "gui/view_registry.h"
 #include "gui/view_renderer.h"
 #include "service/service_context.h"
+#include "support/json_support.h"
 #include "support/logger.h"
 
 using namespace mosaic;
@@ -193,65 +195,83 @@ bool ViewManager::on_input(InputEvent& event) {
     return false;
 }
 
-YAML::Node ViewManager::serialize() const {
-    YAML::Node root;
-    for (auto const& view : views) {
-        YAML::Node node;
-        node["Type"] = std::string(view->type_name());
-        node["Instance"] = view->id().instance;
-        node["Layout"]["Position"] = view->layout().position;
-        node["Layout"]["Size"] = view->layout().size;
-        node["Layout"]["Hidden"] = view->hidden();
-        node["Layout"]["Maximized"] = view->maximized();
-        node["State"] = view->serialize_state();
-        root.push_back(std::move(node));
-    }
-
-    return root;
-}
-
-void ViewManager::deserialize(YAML::Node const& root) {
-    views.clear();
-    focused = nullptr;
-    if (!root || !root.IsSequence()) return;
-    for (auto const& node : root) {
-        try {
-            auto type = node["Type"].as<std::string>();
-            auto instance = node["Instance"].as<uint64_t>();
-            auto entry = ViewRegistry::get(type);
-            if (!entry) {
-                Logger::error("Failed to deserialize view: unknown type: ",
-                              type);
-                continue;
-            }
-            auto view = entry->create_view(service_context);
-            view->initialize(
-                ViewId{
-                    .type = type,
-                    .instance = instance,
-                },
-                service_context);
-            if (auto layout_node = node["Layout"]) {
-                auto& layout = view->layout();
-                layout.position =
-                    layout_node["Position"].as<vml::float2>(layout.position);
-                layout.size = layout_node["Size"].as<vml::float2>(layout.size);
-                layout.hidden = layout_node["Hidden"].as<bool>(false);
-                layout.maximized = layout_node["Maximized"].as<bool>(false);
-            }
-            view->deserialize_state(node["State"]);
-            /*
-             * Keep future newly-created IDs above restored IDs.
-             */
-            auto& next = next_instance_ids[type];
-            next = std::max(next, instance + 1);
-            views.push_back(std::move(view));
-        } catch (std::exception const& e) {
-            Logger::error("Failed to deserialize view: ", e.what());
-        }
-    }
-}
-
 View* ViewManager::focused_view() { return focused; }
 
 View const* ViewManager::focused_view() const { return focused; }
+
+// =============================================================================
+// Serialization
+// =============================================================================
+
+namespace config_key {
+
+static constexpr std::string_view type = "type";
+static constexpr std::string_view instance = "instance";
+static constexpr std::string_view position = "layout.position";
+static constexpr std::string_view size = "layout.size";
+static constexpr std::string_view hidden = "layout.hidden";
+static constexpr std::string_view maximized = "layout.maximized";
+static constexpr std::string_view state = "state";
+
+} // namespace config_key
+
+nlohmann::json ViewManager::save_settings() const {
+    auto root = nlohmann::json::array();
+    for (auto const& view : views) {
+        auto object = nlohmann::json::object();
+        object[config_key::type] = std::string(view->type_name());
+        object[config_key::instance] = view->id().instance;
+        object[config_key::position] = view->layout().position;
+        object[config_key::size] = view->layout().size;
+        object[config_key::hidden] = view->hidden();
+        object[config_key::maximized] = view->maximized();
+        object[config_key::state] = view->save_settings();
+        root.push_back(std::move(object));
+    }
+    return root;
+}
+
+void ViewManager::load_settings(nlohmann::json const& root) {
+    views.clear();
+    focused = nullptr;
+    if (!root.is_array()) return;
+    for (auto const& node : root) {
+        if (!node.is_object()) {
+            Logger::error("Failed to deserialize view: not an object");
+            continue;
+        }
+        auto type = json_find<std::string>(node, config_key::type);
+        auto instance = json_find<std::uint64_t>(node, config_key::instance);
+        if (!type || !instance) {
+            Logger::error(
+                "Failed to deserialize view: missing or invalid type/instance");
+            continue;
+        }
+        auto entry = ViewRegistry::get(*type);
+        if (!entry) {
+            Logger::error("Failed to deserialize view: unknown type: ", *type);
+            continue;
+        }
+        auto view = entry->create_view(service_context);
+        view->initialize(
+            ViewId{
+                .type = *type,
+                .instance = *instance,
+            },
+            service_context);
+        if (auto position = json_find<vml::float2>(node, config_key::position))
+            view->layout().position = *position;
+        if (auto size = json_find<vml::float2>(node, config_key::size))
+            view->layout().size = *size;
+        if (auto hidden = json_find<bool>(node, config_key::hidden))
+            view->layout().hidden = *hidden;
+        if (auto maximized = json_find<bool>(node, config_key::maximized))
+            view->layout().maximized = *maximized;
+        if (auto* state = json_find(node, config_key::state))
+            view->load_settings(*state);
+        // Keep future newly-created IDs above restored IDs.
+        auto& next = next_instance_ids[*type];
+        next = std::max(next, *instance + 1);
+        views.push_back(std::move(view));
+    }
+}

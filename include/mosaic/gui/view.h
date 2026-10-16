@@ -1,14 +1,13 @@
 #pragma once
 
 #include <any>
+#include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
 
+#include <nlohmann/json_fwd.hpp>
 #include <utl/messenger.hpp>
 #include <vml/vml.hpp>
-#include <yaml-cpp/yaml.h>
 
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/toolbar.h>
@@ -25,7 +24,7 @@ struct InputEvent;
 
 struct ViewId {
     std::string type;
-    uint64_t instance = 0;
+    std::uint64_t instance = 0;
 
     friend bool operator==(ViewId const&, ViewId const&) = default;
 };
@@ -124,22 +123,6 @@ protected:
 
     void reset_toolbar_style() { m_toolbar_style.reset(); }
 
-    /// Called once after construction and framework initialization.
-    virtual void on_create() {}
-
-    /// Called once before destruction.
-    virtual void on_destroy() {}
-
-    /// Called every frame while the view is visible.
-    virtual void display() = 0;
-
-    /// Derived state only. Framework state is serialized by ViewManager.
-    virtual YAML::Node serialize_state() const { return {}; }
-
-    virtual void deserialize_state(YAML::Node) {}
-
-    virtual void receive_data(std::any) {}
-
 private:
     friend class ViewManager;
     friend class ViewRegistryEntry;
@@ -154,6 +137,18 @@ private:
     void destroy();
 
     void set_focused_from_renderer(bool value) { m_runtime.focused = value; }
+
+    /// Called once after construction and framework initialization.
+    virtual void on_create() {}
+    /// Called once before destruction.
+    virtual void on_destroy() {}
+    /// Called every frame while the view is visible.
+    virtual void display() = 0;
+
+    virtual nlohmann::json save_settings() const;
+    virtual void load_settings(nlohmann::json const&) {}
+
+    virtual void receive_data(std::any) {}
 
     ViewId m_id;
     std::string m_title;

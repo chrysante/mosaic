@@ -33,6 +33,13 @@ struct internal::ApplicationImpl {
     virtual void shutdown_platform() = 0;
     virtual void create_main_window_platform(Window&) = 0;
 
+    void save_settings_update();
+    void save_app_settings_to_disk();
+    void load_app_settings_from_disk();
+
+    nlohmann::json serialize_settings();
+    void deserialize_settings(nlohmann::json const&);
+
     void imgui_init();
     void imgui_begin_frame();
     void imgui_copy_item_hovered_to_windows();

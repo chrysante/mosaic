@@ -175,6 +175,7 @@ target_sources(ImGui PRIVATE
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 )
 
 if(MOSAIC_PLATFORM_MACOS)
@@ -208,8 +209,8 @@ target_link_libraries(mosaic
         ImGui
         magic_enum
         yaml-cpp::yaml-cpp
-    PRIVATE
         nlohmann_json::nlohmann_json
+    PRIVATE
         termfmt
 )
 
@@ -239,6 +240,7 @@ target_sources(mosaic PRIVATE
     source/service/font_manager.cpp
     source/service/service_context.cpp
     source/service/thread_pool.cpp
+    source/support/json_support.cpp
     source/support/logger.cpp
 )
 

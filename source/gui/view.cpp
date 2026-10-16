@@ -1,6 +1,7 @@
 #include "gui/view.h"
 
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 
 #include "gui/view_manager.h"
 #include "service/service_context.h"
@@ -47,3 +48,5 @@ vml::float2 View::screen_space_to_view_space(vml::float2 p) const {
 vml::float2 View::view_space_to_screen_space(vml::float2 p) const {
     return p + m_layout.position;
 }
+
+nlohmann::json View::save_settings() const { return nlohmann::json::object(); }
