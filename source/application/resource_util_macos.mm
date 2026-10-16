@@ -7,25 +7,6 @@
 
 using namespace mosaic;
 
-std::filesystem::path mosaic::resource_directory() {
-    if (auto* dir = std::getenv("RESOURCE_DIR"))
-        return dir;
-    return std::filesystem::path(
-               [NSBundle mainBundle].resourceURL.path.UTF8String) /
-           "resource";
-}
-
-std::filesystem::path mosaic::library_directory() {
-    NSError* error;
-    NSURL* file_url =
-        [[NSFileManager defaultManager] URLForDirectory:NSLibraryDirectory
-                                               inDomain:NSUserDomainMask
-                                      appropriateForURL:nil
-                                                 create:true
-                                                  error:&error];
-    return std::filesystem::path(file_url.path.UTF8String) / "Preferences";
-}
-
 void mosaic::show_save_panel(
     std::function<void(std::filesystem::path const&)> completion) {
     NSSavePanel* panel = [NSSavePanel savePanel];

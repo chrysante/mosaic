@@ -8,12 +8,6 @@
 
 namespace mosaic {
 
-/// \Returns the path of the resource directory
-MOSAIC_EXPORT std::filesystem::path resource_directory();
-
-/// \Returns the path of the library directory
-MOSAIC_EXPORT std::filesystem::path library_directory();
-
 /// Displays a system "save" panel
 MOSAIC_EXPORT void
 show_save_panel(std::function<void(std::filesystem::path const&)> completion);

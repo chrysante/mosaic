@@ -253,6 +253,7 @@ target_link_libraries(mosaic PRIVATE
 target_sources(mosaic PRIVATE
     source/application/application_macos.mm
     source/application/debug_tools_macos.mm
+    source/application/directories_macos.mm
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
@@ -274,17 +275,54 @@ target_include_directories(mosaic
         ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
+# Set this once in the top-level project.
+set(MOSAIC_BUNDLE_IDENTIFIER_PREFIX "com.mosaic"
+    CACHE STRING "Default macOS bundle identifier prefix")
+
 function(mosaic_configure_app target_name)
     if(NOT TARGET ${target_name})
-        message(FATAL_ERROR "mosaic_configure_app: '${target_name}' is not a target")
+        message(FATAL_ERROR
+            "mosaic_configure_app: '${target_name}' is not a target")
     endif()
-
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/resource"
-            "$<TARGET_FILE_DIR:${target_name}>/resource"
-        COMMENT "Copying resources for ${target_name}"
+    cmake_parse_arguments(
+        ARG
+        ""
+        "BUNDLE_IDENTIFIER"
+        ""
+        ${ARGN}
     )
+    if(APPLE)
+        if(ARG_BUNDLE_IDENTIFIER)
+            set(bundle_identifier "${ARG_BUNDLE_IDENTIFIER}")
+        else()
+            set(bundle_identifier
+                "${MOSAIC_BUNDLE_IDENTIFIER_PREFIX}.${target_name}")
+        endif()
+        set_target_properties(${target_name} PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_BUNDLE_NAME "${target_name}"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "${bundle_identifier}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+            MACOSX_BUNDLE_BUNDLE_VERSION "1"
+        )
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resource")
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/resource"
+                    "$<TARGET_BUNDLE_CONTENT_DIR:${target_name}>/Resources"
+                COMMENT "Copying resources for ${target_name}"
+            )
+        endif()
+    else()
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resource")
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/resource"
+                    "$<TARGET_FILE_DIR:${target_name}>/resource"
+                COMMENT "Copying resources for ${target_name}"
+            )
+        endif()
+    endif()
 endfunction()
 
 # Tests

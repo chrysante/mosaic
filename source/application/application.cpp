@@ -149,18 +149,21 @@ void ApplicationImpl::imgui_init() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+
     auto& fm = app.service_context().font_manager();
     fm.set_font_atlas(io.Fonts);
-    io.UserData = &ui_context;
+    // Hard-code this here for now
+    ImGui::GetStyle().FontSizeBase = 17;
+    update_style(/* force: */ true);
+
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.UserData = &ui_context;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
-    // Hard-code this here for now
-    ImGui::GetStyle().FontSizeBase = 17;
-    update_style(/* force: */ true);
+
     imgui_init_platform();
 }
 

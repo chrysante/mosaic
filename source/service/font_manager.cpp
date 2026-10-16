@@ -9,7 +9,7 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "application/resource_util.h"
+#include "application/directories.h"
 #include "support/logger.h"
 
 using namespace mosaic;
