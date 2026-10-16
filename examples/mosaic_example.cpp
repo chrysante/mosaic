@@ -98,13 +98,11 @@ private:
         if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
 
         ImGui::Begin("Hello");
-        auto* font =
-            ui::font(FontSize::Large, FontWeight::bold, FontStyle::monospaced);
-        ImGui::PushFont(font, 0.0f);
-        ImGui::Button("My Button");
-        ImGui::PopFont();
+        ui::with_font({FontWeight::bold, FontStyle::monospaced},
+                      2 * ImGui::GetStyle().FontSizeBase,
+                      [&] { ImGui::Button("My Button"); });
         auto& fm = service_context().font_manager();
-        auto icon = fm.get_icon(IconSize::_24, "plus-circled");
+        auto icon = fm.get_icon("plus-circled");
         ImGui::PushFont(icon.font, 0.0f);
         ImGui::Button(icon.utf8_rep.data());
         ImGui::PopFont();
@@ -129,14 +127,14 @@ private:
                                   ImGuiTableFlags_PadOuterX)) {
             for (auto const& [name, code] : all_icons) {
                 ImGui::TableNextColumn();
-                auto icon_data = ui::icon_data({IconSize::_24}, name);
+                auto icon_data = ui::icon_data(name);
                 float cell_width = ImGui::GetContentRegionAvail().x;
                 float start_x = ImGui::GetCursorPosX();
                 // Icon
                 float icon_width = 24.0f;
                 ImGui::SetCursorPosX(start_x +
                                      (cell_width - icon_width) * 0.5f);
-                ui::with_font(icon_data.font, [&] {
+                ui::with_font(icon_data.font, 32.0f, [&] {
                     ImGui::TextEx(icon_data.utf8_rep.data());
                 });
                 // Name

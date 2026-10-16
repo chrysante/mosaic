@@ -89,7 +89,7 @@ void ToolbarButton::Display::display(ToolbarButton const& button,
 
 float ToolbarButton::Display::calc_width(ToolbarButton const& button, float) {
     float2 text_size =
-        ui::with_font(FontWeight::semibold, FontStyle::roman, [&] {
+        ui::with_font({FontWeight::semibold, FontStyle::roman}, [&] {
             return ImGui::CalcTextSize(button.m_label.data());
         });
     return text_size.x + 6 * ImGui::GetStyle().FramePadding.x;
@@ -110,8 +110,8 @@ ToolbarIconButton::ToolbarIconButton(Command const* command,
 void ToolbarIconButton::Display::display(ToolbarIconButton const& button,
                                          ToolbarItemDisplayData data) {
     bool active = toolbar_icon_button(
-        data.button_style, ui::icon_data({IconSize::_16}, button.m_icon_name()),
-        data.ID, get_button_flags(button), data.actual_size, tooltip(button));
+        data.button_style, ui::icon_data(button.m_icon_name()), data.ID,
+        get_button_flags(button), data.actual_size, tooltip(button));
     if (active) do_action(button);
 }
 
@@ -142,8 +142,7 @@ void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
                                   enabled(item), popup_open);
         char const* icon_name =
             item.m_icon_name ? item.m_icon_name() : "down-open";
-        return toolbar_icon_button(data.button_style,
-                                   ui::icon_data({IconSize::_16}, icon_name),
+        return toolbar_icon_button(data.button_style, ui::icon_data(icon_name),
                                    data.ID, flags, data.actual_size,
                                    tooltip(item), enabled(item), popup_open);
     }();
@@ -168,7 +167,7 @@ float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,
                                                float height) {
     if (!item.m_preview) return height * icon_button_width_height_ratio;
     float2 text_size =
-        ui::with_font(FontWeight::semibold, FontStyle::roman, [&] {
+        ui::with_font({FontWeight::semibold, FontStyle::roman}, [&] {
             return ImGui::CalcTextSize(item.m_preview().data());
         });
     return text_size.x + 6 * ImGui::GetStyle().FramePadding.y;

@@ -15,7 +15,7 @@ namespace mosaic {
 ///
 class MOSAIC_EXPORT FontManager {
 public:
-    explicit FontManager(float scale_factor = 1.0);
+    explicit FontManager();
 
     /// Tries to return the font described by \p desc
     ImFont* get_font(FontDesc const& desc);
@@ -26,32 +26,23 @@ public:
     }
 
     /// Tries to return the icon described by \p desc of the name \p name
-    IconData get_icon(IconFontDesc const& font, std::string_view name);
-
-    /// \overload for convenience
-    IconData get_icon(IconSize size, std::string_view name) {
-        return get_icon(IconFontDesc{size}, name);
-    }
+    IconData get_icon(std::string_view name);
 
     ///
-    void set_font_atlas(ImFontAtlas* a) { atlas = a; }
-
-    ///
-    void set_scale_factor(float scale) { scale_factor = scale; }
+    void set_font_atlas(ImFontAtlas* atlas) { m_atlas = atlas; }
 
     ///
     utl::hashmap<std::string, uint16_t> const& get_all_icon_codes() const {
-        return all_icon_codes;
+        return m_all_icon_codes;
     }
 
 private:
-    ImFontAtlas* atlas = nullptr;
-    utl::hashmap<FontDesc, ImFont*> font_map;
-    utl::hashmap<IconFontDesc, ImFont*> icon_font_map;
+    ImFontAtlas* m_atlas = nullptr;
+    utl::hashmap<FontDesc, ImFont*> m_font_map;
+    ImFont* m_icon_font = nullptr;
     /// Maps CSS icon names to unicode representation. This lists all icons
     /// available in the resource files
-    utl::hashmap<std::string, uint16_t> all_icon_codes;
-    float scale_factor = 1;
+    utl::hashmap<std::string, uint16_t> m_all_icon_codes;
 };
 
 } // namespace mosaic

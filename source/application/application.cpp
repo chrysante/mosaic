@@ -158,6 +158,8 @@ void ApplicationImpl::imgui_init() {
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
     io.FontDefault = fm.get_font(FontDesc::ui_default());
+    // Hard-code this here for now
+    ImGui::GetStyle().FontSizeBase = 17;
     update_style(/* force: */ true);
     imgui_init_platform();
 }

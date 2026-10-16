@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include <type_traits>
 
 #include <imgui.h>
 #include <utl/hash.hpp>
@@ -9,25 +8,6 @@
 #include <utl/scope_guard.hpp>
 
 namespace mosaic {
-
-enum class FontSize { medium = 17, Large = 34 };
-
-constexpr FontSize default_font_size = FontSize::medium;
-
-template <typename T>
-requires std::is_arithmetic_v<T> FontSize operator+(FontSize s, T t) {
-    return FontSize{(T)s + t};
-}
-
-template <typename T>
-requires std::is_arithmetic_v<T> FontSize operator+(T t, FontSize s) {
-    return FontSize{t + (T)s};
-}
-
-template <typename T>
-requires std::is_arithmetic_v<T> FontSize operator-(FontSize s, T t) {
-    return FontSize{(T)s - t};
-}
 
 enum class FontWeight {
     ultralight,
@@ -45,13 +25,11 @@ enum class FontStyle { roman, italic, monospaced };
 
 template <typename T>
 concept FontParameterType =
-    std::is_same_v<T, FontSize> || std::is_same_v<T, FontWeight> ||
-    std::is_same_v<T, FontStyle>;
+    std::is_same_v<T, FontWeight> || std::is_same_v<T, FontStyle>;
 
 /// Font attribute descriptor. Used to identify fonts when interacting with the
 /// font manager
 struct FontDesc {
-    FontSize size = FontSize::medium;
     FontWeight weight = FontWeight::regular;
     FontStyle style = FontStyle::roman;
 
@@ -65,12 +43,6 @@ struct FontDesc {
 
     /// \returns the font descriptor for the default monospaced font
     static FontDesc mono_default();
-
-    /// Modifies the size value of this font descriptor
-    FontDesc& set_size(FontSize size) {
-        this->size = size;
-        return *this;
-    }
 
     /// Modifies the wheight value of this font descriptor
     FontDesc& set_weight(FontWeight weight) {
@@ -87,7 +59,6 @@ struct FontDesc {
     /// Modifies this font descriptor by setting the given arguments
     FontDesc& apply(FontParameterType auto... args) {
         utl::overload apply = {
-            [&](FontSize size) { set_size(size); },
             [&](FontWeight weight) { set_weight(weight); },
             [&](FontStyle style) { set_style(style); },
         };
@@ -96,14 +67,6 @@ struct FontDesc {
     }
 
     bool operator==(FontDesc const& rhs) const = default;
-};
-
-enum class IconSize { _16 = 16, _24 = 24, _32 = 32, _48 = 48, _64 = 64 };
-
-struct IconFontDesc {
-    IconSize size;
-
-    bool operator==(IconFontDesc const& rhs) const = default;
 };
 
 /// Result structure of `FontManager::get_icon(...)`
@@ -131,26 +94,26 @@ ImFont* font(FontParameterType auto... params) {
 }
 
 ///
-IconData icon_data(IconFontDesc const& desc, std::string_view name);
+IconData icon_data(std::string_view name);
 
-decltype(auto) with_font(ImFont* font, std::invocable auto&& block) {
-    ImGui::PushFont(font, 0.0f);
+decltype(auto) with_font(ImFont* font, float size,
+                         std::invocable auto&& block) {
+    ImGui::PushFont(font, size);
     utl::scope_guard pop = [] { ImGui::PopFont(); };
     return block();
+}
+
+decltype(auto) with_font(ImFont* font, std::invocable auto&& block) {
+    return with_font(font, 0.0f, std::forward<decltype(block)>(block));
 }
 
 decltype(auto) with_font(FontDesc const& desc, std::invocable auto&& block) {
     return with_font(ui::font(desc), block);
 }
 
-decltype(auto) with_font(FontWeight w, FontStyle s,
+decltype(auto) with_font(FontDesc const& desc, float size,
                          std::invocable auto&& block) {
-    FontDesc desc{
-        .size = FontSize::medium,
-        .weight = w,
-        .style = s,
-    };
-    return with_font(desc, block);
+    return with_font(ui::font(desc), size, block);
 }
 
 } // namespace ui
@@ -159,12 +122,6 @@ decltype(auto) with_font(FontWeight w, FontStyle s,
 
 template <> struct std::hash<mosaic::FontDesc> {
     std::size_t operator()(mosaic::FontDesc const& desc) const {
-        return utl::hash_combine(desc.size, desc.weight, desc.style);
-    }
-};
-
-template <> struct std::hash<mosaic::IconFontDesc> {
-    std::size_t operator()(mosaic::IconFontDesc const& desc) const {
-        return std::hash<mosaic::IconSize>{}(desc.size);
+        return utl::hash_combine(desc.weight, desc.style);
     }
 };

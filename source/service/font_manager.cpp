@@ -60,12 +60,10 @@ static utl::hashmap<std::string, uint16_t> load_all_icon_codes() {
     return codes;
 }
 
-FontManager::FontManager(float scale_factor)
-    : all_icon_codes(load_all_icon_codes())
-    , scale_factor(scale_factor) {}
+FontManager::FontManager()
+    : m_all_icon_codes(load_all_icon_codes()) {}
 
-static ImFont* load_font(FontDesc const& desc, ImFontAtlas& atlas,
-                         float scale_factor) {
+static ImFont* load_font(FontDesc const& desc, ImFontAtlas& atlas) {
     if (desc.style == FontStyle::monospaced &&
         (int)desc.weight < (int)FontWeight::light) {
         return nullptr;
@@ -75,23 +73,20 @@ static ImFont* load_font(FontDesc const& desc, ImFontAtlas& atlas,
         return nullptr;
     }
     auto path = resource_directory() / "font" / to_font_file_name(desc);
-    auto* imgui_font_ptr =
-        atlas.AddFontFromFileTTF(path.c_str(), (int)desc.size * scale_factor);
+    auto* imgui_font_ptr = atlas.AddFontFromFileTTF(path.c_str());
     assert(imgui_font_ptr);
     return imgui_font_ptr;
 }
 
 ImFont* FontManager::get_font(FontDesc const& desc) {
-    auto [itr, inserted] = font_map.insert({desc, nullptr});
-    if (inserted) itr->second = load_font(desc, *atlas, scale_factor);
+    auto [itr, inserted] = m_font_map.insert({desc, nullptr});
+    if (inserted) itr->second = load_font(desc, *m_atlas);
     return itr->second;
 }
 
-static ImFont* load_icon_font(IconFontDesc const& desc, ImFontAtlas& atlas,
-                              float scale_factor) {
+static ImFont* load_icon_font(ImFontAtlas& atlas) {
     auto path = resource_directory() / "icons/icons.ttf";
-    auto* font = atlas.AddFontFromFileTTF(
-        path.c_str(), static_cast<float>(desc.size) * scale_factor);
+    auto* font = atlas.AddFontFromFileTTF(path.c_str());
     assert(font);
     return font;
 }
@@ -104,15 +99,13 @@ static IconData::StringType unicode_to_utf8(uint16_t code) {
     return result;
 }
 
-IconData FontManager::get_icon(IconFontDesc const& desc,
-                               std::string_view name) {
-    auto code_itr = all_icon_codes.find(name);
-    if (code_itr == all_icon_codes.end()) return {};
+IconData FontManager::get_icon(std::string_view name) {
+    auto code_itr = m_all_icon_codes.find(name);
+    if (code_itr == m_all_icon_codes.end()) return {};
     auto code = code_itr->second;
-    auto [font_itr, inserted] = icon_font_map.insert({desc, nullptr});
-    if (inserted) font_itr->second = load_icon_font(desc, *atlas, scale_factor);
+    if (!m_icon_font) m_icon_font = load_icon_font(*m_atlas);
     return {
-        font_itr->second,
+        m_icon_font,
         unicode_to_utf8(code),
     };
 }
