@@ -41,7 +41,8 @@ public:
     /// \returns the acccumulated width of all items including padding but
     /// ignoring all spacers. This is used by the dockspace for the triple
     /// toolbar layout
-    float get_width_without_spacers(ToolbarPadding padding) const;
+    float get_width_without_spacers(ToolbarStyle const& style,
+                                    ToolbarPadding padding) const;
 
 private:
     /// A block is a list of items without spacers
@@ -57,7 +58,7 @@ private:
     void display_blocks(ToolbarStyle const& style, vml::float2 position,
                         float item_height, struct ToolbarPadding padding);
     void display_block(ToolbarStyle const& style, Block const&,
-                       float item_height);
+                       vml::float2 cursor_pos, float item_height);
 
     /// Must be called after adding items
     void cook(ToolbarStyle const& style, float item_height);

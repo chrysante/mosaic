@@ -464,14 +464,15 @@ public:
     }
 
     /// Makes this element behave like a spacer
-    CustomToolbarElement& use_width_avail() {
-        m_custom_width = 0.0f;
+    CustomToolbarElement& use_width_avail(bool value = true) {
+        m_use_width_avail = value;
         return *this;
     }
 
 private:
     std::function<void(vml::float2 size)> m_content;
     float m_custom_width = 0;
+    bool m_use_width_avail = false;
 };
 
 struct CustomToolbarElement::Display {
@@ -481,7 +482,7 @@ struct CustomToolbarElement::Display {
         return item.m_custom_width;
     }
     static bool is_spacer(CustomToolbarElement const& item) {
-        return item.m_custom_width == 0.0f;
+        return item.m_use_width_avail;
     }
 };
 

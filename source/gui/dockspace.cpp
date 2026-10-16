@@ -257,9 +257,9 @@ struct ToolbarLayout {
 static void toolbar_layout_one(ToolbarLayout layout, ToolbarStyle const& style,
                                std::span<ToolbarRenderer> renderers,
                                std::span<ToolbarPadding const> padding,
-                               std::span<int const> /* spacing */) {
-    float t0_width = renderers[0].get_width_without_spacers(padding[0]);
-    float t2_width = renderers[2].get_width_without_spacers(padding[2]);
+                               std::span<int const> /* splits */) {
+    float t0_width = renderers[0].get_width_without_spacers(style, padding[0]);
+    float t2_width = renderers[2].get_width_without_spacers(style, padding[2]);
     renderers[0].display(style, {.position = {layout.left_inset, 0.0f},
                                  .size = {t0_width, layout.height},
                                  .padding = padding[0]});
@@ -278,14 +278,15 @@ static void toolbar_layout_one(ToolbarLayout layout, ToolbarStyle const& style,
 static void toolbar_layout_two(ToolbarLayout layout, ToolbarStyle const& style,
                                std::span<ToolbarRenderer> renderers,
                                std::span<ToolbarPadding const> padding,
-                               std::span<int const> spacing) {
-    float spacer = spacing[0];
+                               std::span<int const> splits) {
+    float spacer = splits[0];
     float position[2] = {0, spacer};
     float width[2] = {spacer, layout.total_width - spacer};
     if (spacer >= layout.total_width / 2) {
         // Left section is big
         // 1. section
-        float t0_width = renderers[0].get_width_without_spacers(padding[0]);
+        float t0_width =
+            renderers[0].get_width_without_spacers(style, padding[0]);
         renderers[0].display(
             style, {.position = {position[0] + layout.left_inset, 0.0f},
                     .size = {t0_width, layout.height},
@@ -307,7 +308,8 @@ static void toolbar_layout_two(ToolbarLayout layout, ToolbarStyle const& style,
                     .size = {width[0] - layout.left_inset, layout.height},
                     .padding = padding[0]});
         // 2. section
-        float t2_width = renderers[2].get_width_without_spacers(padding[2]);
+        float t2_width =
+            renderers[2].get_width_without_spacers(style, padding[2]);
         renderers[1].display(style,
                              {.position = {position[1], 0.0f},
                               .size = {width[1] - t2_width, layout.height},
@@ -323,12 +325,11 @@ static void toolbar_layout_three(ToolbarLayout layout,
                                  ToolbarStyle const& style,
                                  std::span<ToolbarRenderer> renderers,
                                  std::span<ToolbarPadding const> padding,
-                                 std::span<int const> spacing) {
-    float position[3] = {layout.left_inset, (float)spacing[0],
-                         (float)spacing[1]};
-    float width[3] = {(float)spacing[0] - layout.left_inset,
-                      (float)(spacing[1] - spacing[0]),
-                      layout.total_width - spacing[1]};
+                                 std::span<int const> splits) {
+    float position[3] = {layout.left_inset, (float)splits[0], (float)splits[1]};
+    float width[3] = {(float)splits[0] - layout.left_inset,
+                      (float)(splits[1] - splits[0]),
+                      layout.total_width - splits[1]};
     for (std::size_t i = 0; i < 3; ++i)
         renderers[i].display(style, {.position = {position[i], 0.0f},
                                      .size = {width[i], layout.height},
@@ -354,7 +355,7 @@ dockspace_resolve_toolbar_padding(vml::float2 in_padding, float item_spacing) {
 
 /// Displays the window in which the toolbar is drawn through \p content
 static void toolbar_window(float2 position, float2 size,
-                           std::span<int const> spacing,
+                           std::span<int const> splits,
                            std::array<float, 2> insets,
                            std::span<ToolbarRenderer> renderers) {
     toolbar_bg_window(position, size);
@@ -372,15 +373,15 @@ static void toolbar_window(float2 position, float2 size,
     style.flags |= ToolbarFlags::no_decoration;
     auto padding = dockspace_resolve_toolbar_padding(
         toolbar_style.padding, toolbar_style.item_spacing);
-    switch (spacing.size()) {
+    switch (splits.size()) {
     case 0:
-        toolbar_layout_one(layout, style, renderers, padding, spacing);
+        toolbar_layout_one(layout, style, renderers, padding, splits);
         break;
     case 1:
-        toolbar_layout_two(layout, style, renderers, padding, spacing);
+        toolbar_layout_two(layout, style, renderers, padding, splits);
         break;
     case 2:
-        toolbar_layout_three(layout, style, renderers, padding, spacing);
+        toolbar_layout_three(layout, style, renderers, padding, splits);
         break;
     default:
         std::terminate();
@@ -394,12 +395,12 @@ static void toolbar_window(float2 position, float2 size,
 
 static void display_toolbars(DockspaceImpl& impl, Window& window) {
     float height = window.titlebar_height();
-    auto spacing = find_toolbar_splits(window, impl.main_dock_id);
+    auto splits = find_toolbar_splits(window, impl.main_dock_id);
     float width = window.size().x;
-    erase_if(spacing, [&](int pos) {
+    erase_if(splits, [&](int pos) {
         return pos >= width * 0.33 && pos <= width * 0.67;
     });
-    assert(spacing.size() <= 2);
-    toolbar_window(ImGui::GetMainViewport()->Pos, {width, height}, spacing,
+    assert(splits.size() <= 2);
+    toolbar_window(ImGui::GetMainViewport()->Pos, {width, height}, splits,
                    {compute_left_inset(window), 0.0f}, impl.toolbar_renderers);
 }

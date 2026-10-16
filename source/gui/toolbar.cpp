@@ -92,7 +92,7 @@ float ToolbarButton::Display::calc_width(ToolbarButton const& button, float) {
         ui::with_font(FontWeight::semibold, FontStyle::roman, [&] {
             return ImGui::CalcTextSize(button.m_label.data());
         });
-    return text_size.x + 6 * ImGui::GetStyle().FramePadding.y;
+    return text_size.x + 6 * ImGui::GetStyle().FramePadding.x;
 }
 
 ToolbarIconButton::ToolbarIconButton(Command const* command,
@@ -179,9 +179,10 @@ void ToolbarTextItem::Display::display(ToolbarTextItem const& item,
     auto* font = ui::font(item.get_font_desc());
     auto* window = ImGui::GetCurrentWindow();
     auto* DL = window->DrawList;
-    vml::float2 pos = ImGui::GetCursorScreenPos();
     auto& style = ImGui::GetStyle();
-    pos.y += style.FramePadding.y;
+    vml::float2 pos = ImGui::GetCursorScreenPos();
+    pos +=
+        {style.FramePadding.x, (data.actual_size.y - ImGui::GetFontSize()) / 2};
     DL->AddText(font, 0.0f, pos, ImGui::GetColorU32(ImGuiCol_Text),
                 item.get_text());
     auto id = window->GetID(data.ID);

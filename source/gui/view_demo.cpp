@@ -40,17 +40,16 @@ struct DemoView : View {
                 DL->AddRectFilled(pos, pos + size, 
                                   ImGui::ColorConvertFloat4ToU32(color), 20.0f);
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 4);
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 1);
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 20.0f);
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {0.0f, 0.0f});
-                ui::with_font({FontSize::medium - 2}, [&] {
-                    ImGui::ButtonEx(
-                        "Button", 
-                        {ImGui::CalcTextSize("Button").x + 8, size.y-8},
-                        ImGuiButtonFlags_AlignTextBaseLine);
-                });
+                ImGui::ButtonEx("Button", 
+                                {ImGui::CalcTextSize("Button").x + 8, size.y-8},
+                                ImGuiButtonFlags_AlignTextBaseLine);
                 ImGui::PopStyleVar(2);
-            }),
+            })
+                .width(100)
+                .use_width_avail(),
             ToolbarButton("Some Button")
         };
         // clang-format on
