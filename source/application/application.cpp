@@ -36,6 +36,9 @@ using internal::ApplicationImpl;
 Application::Application()
     : m_impl(ApplicationImpl::create_impl(*this)) {
     m_impl->init();
+    // Request a couple of frames when the app starts so ImGui gets a chance to
+    // setup correctly.
+    m_impl->frame_scheduler->request_frames(60);
 #ifndef NDEBUG
     // clang-format off
     command_palette().add({
@@ -63,9 +66,25 @@ Application::~Application() {
     unregister_global_input_callback(m_impl->input_callback_id);
 }
 
+namespace {
+
+struct ApplicationWindowDelegate : WindowDelegate {
+    explicit ApplicationWindowDelegate(ApplicationImpl& app_impl)
+        : app_impl(app_impl) {}
+
+    void on_resize(vml::int2) override {
+        app_impl.frame_scheduler->request_frames(2);
+    }
+
+    ApplicationImpl& app_impl;
+};
+
+} // namespace
+
 Window* Application::create_window(WindowDesc const& desc) {
     auto window = internal::WindowImpl::create_window(desc);
     register_window_for_input(*window);
+    window->add_delegate(std::make_unique<ApplicationWindowDelegate>(*m_impl));
     auto* result = window.get();
     m_impl->windows.push_back(std::move(window));
     return result;
@@ -98,14 +117,9 @@ CommandPalette& Application::command_palette() {
 
 int Application::run() { return m_impl->run_platform(); }
 
-RunLoopMode Application::run_loop_mode() const {
-    auto* scheduler = m_impl->frame_scheduler.get();
-    assert(scheduler);
-    return scheduler->mode();
-}
-
-void Application::set_run_loop_mode(RunLoopMode mode) {
-    m_impl->frame_scheduler->set_mode(mode);
+void Application::run_continuously(bool value) {
+    if (value) m_impl->frame_scheduler->run();
+    else m_impl->frame_scheduler->stop_running();
 }
 
 nlohmann::json Application::save_settings() const {
@@ -118,7 +132,7 @@ nlohmann::json Application::save_settings() const {
 
 ApplicationImpl::ApplicationImpl(Application& app)
     : app(app)
-    , frame_scheduler(FrameScheduler::create(RunLoopMode::Poll))
+    , frame_scheduler(FrameScheduler::create([this] { run_one_frame(); }))
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager()}
     , view_manager(service_context)

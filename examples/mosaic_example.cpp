@@ -21,15 +21,6 @@ using namespace mosaic;
 
 static Application* g_app;
 
-static std::string to_string(RunLoopMode mode) {
-    switch (mode) {
-    case RunLoopMode::Poll:
-        return "Poll";
-    case RunLoopMode::Wait:
-        return "Wait";
-    }
-}
-
 class ExampleView : public View {
 public:
     ExampleView()
@@ -52,20 +43,10 @@ private:
         ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
         ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
 
-        run_loop_mode = g_app->run_loop_mode();
-        std::string preview = to_string(run_loop_mode);
-        if (ImGui::BeginCombo("Run Loop Mode", preview.c_str())) {
-            for (int i = 0; i < 2; ++i) {
-                auto mode = (RunLoopMode)i;
-                if (ImGui::MenuItem(to_string(mode).c_str(), nullptr,
-                                    mode == run_loop_mode))
-                    g_app->set_run_loop_mode(mode);
-            }
-            ImGui::EndCombo();
-        }
+        if (ImGui::Button("Run continuously")) g_app->run_continuously(true);
+        ImGui::SameLine();
+        if (ImGui::Button("Stop")) g_app->run_continuously(false);
     }
-
-    RunLoopMode run_loop_mode{};
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")

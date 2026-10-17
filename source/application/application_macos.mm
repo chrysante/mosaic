@@ -44,9 +44,7 @@ void ApplicationImplMacOS::init_platform() {
 }
 
 int ApplicationImplMacOS::run_platform() {
-    frame_scheduler->start([this] { run_one_frame(); });
     [native_app run];
-    frame_scheduler->stop();
     return 0;
 }
 
