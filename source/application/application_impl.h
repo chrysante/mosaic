@@ -7,6 +7,7 @@
 #include "application/frame_scheduler.h"
 #include "application/input.h"
 #include "gui/command_palette.h"
+#include "gui/run_mode_controller.h"
 #include "gui/ui_context.h"
 #include "gui/view_manager.h"
 #include "service/event_receiver.h"
@@ -65,6 +66,7 @@ struct internal::ApplicationImpl {
     ServiceContext service_context;
     std::vector<std::unique_ptr<Window>> windows;
     std::unique_ptr<FrameScheduler> frame_scheduler;
+    RunModeController run_mode_controller;
     EventReceiver event_receiver;
     UIContext ui_context;
     Input input;

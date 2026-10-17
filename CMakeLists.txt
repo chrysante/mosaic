@@ -225,6 +225,7 @@ target_sources(mosaic PRIVATE
     source/gui/dockspace.cpp
     source/gui/font.cpp
     source/gui/ui_context.cpp
+    source/gui/run_mode_controller.cpp
     source/gui/toolbar.cpp
     source/gui/toolbar_renderer.cpp
     source/gui/view.cpp

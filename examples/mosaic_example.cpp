@@ -9,7 +9,9 @@
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/toolbar.h>
+#include <mosaic/gui/ui_context.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_manager.h>
 #include <mosaic/gui/view_registry.h>
@@ -19,17 +21,15 @@
 
 using namespace mosaic;
 
-static Application* g_app;
-
 class ExampleView : public View {
 public:
     ExampleView()
         : View() {
         // clang-format off
-            set_toolbar({
-                ToolbarIconButton("link")
-                    .on_click([] {})
-            });
+        set_toolbar({
+            ToolbarIconButton("link")
+                .on_click([] {})
+        });
         // clang-format on
     }
 
@@ -43,10 +43,16 @@ private:
         ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
         ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
 
-        if (ImGui::Button("Run continuously")) g_app->run_continuously(true);
-        ImGui::SameLine();
-        if (ImGui::Button("Stop")) g_app->run_continuously(false);
+        if (auto* ui_context = get_current_ui_context()) {
+            if (ImGui::Button("Run continuously"))
+                run_mode_lease =
+                    ui_context->run_mode_controller.enter_continuous_run_mode();
+            ImGui::SameLine();
+            if (ImGui::Button("Stop")) run_mode_lease.reset();
+        }
     }
+
+    RunModeController::Lease run_mode_lease;
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
@@ -93,7 +99,6 @@ public:
                 })
         });
         // clang-format on
-        g_app = this;
     }
 
 private:

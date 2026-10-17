@@ -117,11 +117,6 @@ CommandPalette& Application::command_palette() {
 
 int Application::run() { return m_impl->run_platform(); }
 
-void Application::run_continuously(bool value) {
-    if (value) m_impl->frame_scheduler->run();
-    else m_impl->frame_scheduler->stop_running();
-}
-
 nlohmann::json Application::save_settings() const {
     return nlohmann::json::object();
 }
@@ -133,8 +128,10 @@ nlohmann::json Application::save_settings() const {
 ApplicationImpl::ApplicationImpl(Application& app)
     : app(app)
     , frame_scheduler(FrameScheduler::create([this] { run_one_frame(); }))
+    , run_mode_controller(*this)
     , event_receiver(service_context.make_event_receiver())
-    , ui_context{.font_manager = service_context.font_manager()}
+    , ui_context{.font_manager = service_context.font_manager(),
+                 .run_mode_controller = run_mode_controller}
     , view_manager(service_context)
 #ifndef NDEBUG
     , debugger(std::make_unique<ApplicationDebugger>(app))

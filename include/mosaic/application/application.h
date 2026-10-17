@@ -54,9 +54,6 @@ public:
     ///
     int run();
 
-    ///
-    void run_continuously(bool value);
-
 protected:
     Application();
 
