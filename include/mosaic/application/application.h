@@ -17,7 +17,13 @@ class Window;
 namespace internal { struct ApplicationImpl; }
 
 ///
-enum class RunLoopMode { Wait, Poll };
+enum class RunLoopMode {
+    Poll, /// Continuously process frames, suitable for animation, games, and
+          /// real-time rendering.
+
+    Wait /// Sleep until an event or an explicit request to refresh arrives,
+         /// then process the necessary frames.
+};
 
 ///
 class MOSAIC_EXPORT Application {
@@ -57,11 +63,13 @@ public:
     ///
     int run();
 
-protected:
-    Application();
+    RunLoopMode run_loop_mode() const;
 
     ///
     void set_run_loop_mode(RunLoopMode mode);
+
+protected:
+    Application();
 
 private:
     // Customization points

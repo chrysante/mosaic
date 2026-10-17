@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "application/application.h"
+#include "application/frame_scheduler.h"
 #include "application/input.h"
 #include "gui/command_palette.h"
 #include "gui/ui_context.h"
@@ -23,6 +24,8 @@ struct internal::ApplicationImpl {
     virtual ~ApplicationImpl();
 
     static std::unique_ptr<ApplicationImpl> create_impl(Application& app);
+
+    void init();
 
     Window* create_main_window();
 
@@ -61,7 +64,7 @@ struct internal::ApplicationImpl {
     Application& app;
     ServiceContext service_context;
     std::vector<std::unique_ptr<Window>> windows;
-    RunLoopMode run_loop_mode = RunLoopMode::Wait;
+    std::unique_ptr<FrameScheduler> frame_scheduler;
     EventReceiver event_receiver;
     UIContext ui_context;
     Input input;

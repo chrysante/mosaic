@@ -12,6 +12,7 @@
 #include "application/application_impl.h"
 #include "application/debug_tools.h"
 #include "application/directories.h"
+#include "application/frame_scheduler.h"
 #include "application/input.h"
 #include "application/input_event.h"
 #include "application/input_internal.h"
@@ -34,11 +35,7 @@ using internal::ApplicationImpl;
 
 Application::Application()
     : m_impl(ApplicationImpl::create_impl(*this)) {
-    m_impl->input_callback_id = register_global_input_callback(
-        std::bind_front(&ApplicationImpl::on_input, m_impl.get()));
-    m_impl->init_platform();
-    m_impl->create_main_window();
-    m_impl->imgui_init();
+    m_impl->init();
 #ifndef NDEBUG
     // clang-format off
     command_palette().add({
@@ -57,7 +54,7 @@ Application::Application()
         },
         .command = [] { toggle_want_debug_overlays(); }
     });
-    // clang-format on
+// clang-format on
 #endif
 }
 
@@ -101,8 +98,14 @@ CommandPalette& Application::command_palette() {
 
 int Application::run() { return m_impl->run_platform(); }
 
+RunLoopMode Application::run_loop_mode() const {
+    auto* scheduler = m_impl->frame_scheduler.get();
+    assert(scheduler);
+    return scheduler->mode();
+}
+
 void Application::set_run_loop_mode(RunLoopMode mode) {
-    m_impl->run_loop_mode = mode;
+    m_impl->frame_scheduler->set_mode(mode);
 }
 
 nlohmann::json Application::save_settings() const {
@@ -115,6 +118,7 @@ nlohmann::json Application::save_settings() const {
 
 ApplicationImpl::ApplicationImpl(Application& app)
     : app(app)
+    , frame_scheduler(FrameScheduler::create(RunLoopMode::Poll))
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager()}
     , view_manager(service_context)
@@ -125,6 +129,14 @@ ApplicationImpl::ApplicationImpl(Application& app)
 }
 
 ApplicationImpl::~ApplicationImpl() = default;
+
+void ApplicationImpl::init() {
+    input_callback_id = register_global_input_callback(
+        std::bind_front(&ApplicationImpl::on_input, this));
+    init_platform();
+    create_main_window();
+    imgui_init();
+}
 
 namespace {
 
@@ -282,6 +294,7 @@ void ApplicationImpl::on_input(InputEventUnion const& event) {
 #ifndef NDEBUG
     debugger->on_input(event);
 #endif
+    frame_scheduler->request_frames(3);
 }
 
 void ApplicationImpl::do_frame() {

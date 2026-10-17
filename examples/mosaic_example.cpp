@@ -19,6 +19,17 @@
 
 using namespace mosaic;
 
+static Application* g_app;
+
+static std::string to_string(RunLoopMode mode) {
+    switch (mode) {
+    case RunLoopMode::Poll:
+        return "Poll";
+    case RunLoopMode::Wait:
+        return "Wait";
+    }
+}
+
 class ExampleView : public View {
 public:
     ExampleView()
@@ -40,7 +51,21 @@ private:
         auto* viewport = ImGui::GetWindowViewport();
         ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
         ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
+
+        run_loop_mode = g_app->run_loop_mode();
+        std::string preview = to_string(run_loop_mode);
+        if (ImGui::BeginCombo("Run Loop Mode", preview.c_str())) {
+            for (int i = 0; i < 2; ++i) {
+                auto mode = (RunLoopMode)i;
+                if (ImGui::MenuItem(to_string(mode).c_str(), nullptr,
+                                    mode == run_loop_mode))
+                    g_app->set_run_loop_mode(mode);
+            }
+            ImGui::EndCombo();
+        }
     }
+
+    RunLoopMode run_loop_mode{};
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
@@ -87,28 +112,14 @@ public:
                 })
         });
         // clang-format on
+        g_app = this;
     }
 
 private:
     void frame() override {
         dockspace.display(main_window());
-
         if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
-
-        ImGui::Begin("Hello");
-        ui::with_font({FontWeight::bold, FontStyle::monospaced},
-                      2 * ImGui::GetStyle().FontSizeBase,
-                      [&] { ImGui::Button("My Button"); });
-        auto& fm = service_context().font_manager();
-        auto icon = fm.get_icon("plus-circled");
-        ImGui::PushFont(icon.font, 0.0f);
-        ImGui::Button(icon.utf8_rep.data());
-        ImGui::PopFont();
-        ImGui::Text("%s", text.c_str());
-        ImGui::End();
-
         display_icon_viewer();
-
         ImGui::ShowMetricsWindow();
     }
 

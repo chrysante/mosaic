@@ -1,5 +1,6 @@
 #include "application/application_impl_macos.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <memory>
 
@@ -8,6 +9,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #include "application/application.h"
+#include "application/frame_scheduler.h"
 #include "application/window.h"
 #include "application/window_impl_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
@@ -41,22 +43,10 @@ void ApplicationImplMacOS::init_platform() {
     }
 }
 
-@implementation DisplayLinkTarget
-- (void)displayLinkCallback:(CADisplayLink*)displayLink {
-    _app_impl->run_one_frame();
-}
-@end
-
 int ApplicationImplMacOS::run_platform() {
-    NSWindow* window = GET_WINDOW_IMPL(*app.main_window()).native_window;
-    NSView* view = window.contentView;
-    display_link_target = [[DisplayLinkTarget alloc] init];
-    display_link_target.app_impl = this;
-    display_link = [view displayLinkWithTarget:display_link_target
-                                      selector:@selector(displayLinkCallback:)];
-    [display_link addToRunLoop:[NSRunLoop currentRunLoop]
-                       forMode:NSRunLoopCommonModes];
+    frame_scheduler->start([this] { run_one_frame(); });
     [native_app run];
+    frame_scheduler->stop();
     return 0;
 }
 

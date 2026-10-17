@@ -256,6 +256,7 @@ target_sources(mosaic PRIVATE
     source/application/application_macos.mm
     source/application/debug_tools_macos.mm
     source/application/directories_macos.mm
+    source/application/frame_scheduler_macos.mm
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm

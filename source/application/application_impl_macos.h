@@ -16,11 +16,6 @@
 
 #define APP_IMPL GET_APP_IMPL(*this)
 
-@interface DisplayLinkTarget : NSObject
-@property(nonatomic, assign) mosaic::internal::ApplicationImpl* app_impl;
-- (void)displayLinkCallback:(CADisplayLink*)displayLink;
-@end
-
 namespace mosaic::internal {
 
 struct ApplicationImplMacOS : internal::ApplicationImpl {
@@ -37,7 +32,6 @@ struct ApplicationImplMacOS : internal::ApplicationImpl {
 
     NSApplication* native_app = nil;
     CADisplayLink* display_link = nil;
-    DisplayLinkTarget* display_link_target = nil;
     CAMetalLayer* metal_layer = nil;
 
     // Persistent render data
