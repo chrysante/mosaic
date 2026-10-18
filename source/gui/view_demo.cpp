@@ -29,7 +29,7 @@ struct DemoView : View {
 
 } // namespace
 
-MOSAIC_REGISTER_VIEW(DemoView, "MosaicDemoView")
+MOSAIC_REGISTER_VIEW(DemoView, {.name = "MosaicDemoView"})
 
 DemoView::DemoView() { set_toolbar(make_toolbar()); }
 

@@ -105,7 +105,7 @@ void ImGuiViewRenderer::begin_frame() {
 
 static std::string make_imgui_id(View const& view) {
     auto id = utl::strcat(view.title(), "###", view.type_name(), "_",
-                          view.id().instance);
+                          view.view_id().instance);
     return id;
 }
 
@@ -146,8 +146,7 @@ static ImGuiWindowClass window_class = [] {
     return window_class;
 }();
 
-void ImGuiViewRenderer::render_view(View& view) {
-    auto layout = view.layout();
+ImGuiViewRenderer::Result ImGuiViewRenderer::render_view(View& view) {
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     if (view.uses_toolbar()) {
@@ -158,9 +157,12 @@ void ImGuiViewRenderer::render_view(View& view) {
     }
 
     ImGui::SetNextWindowClass(&window_class);
-    ImGui::SetNextWindowSizeConstraints(layout.min_size, {FLT_MAX, FLT_MAX});
-    ImGui::SetNextWindowPos(layout.position, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(layout.size, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(view.view_class().min_size,
+                                        {FLT_MAX, FLT_MAX});
+    ImGui::SetNextWindowPos(view.view_class().default_position,
+                            ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(view.view_class().default_size,
+                             ImGuiCond_FirstUseEver);
     vml::float2 view_padding = view.padding();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, view_padding);
     std::string view_id = make_imgui_id(view);
@@ -170,7 +172,7 @@ void ImGuiViewRenderer::render_view(View& view) {
     ImGui::PopStyleVar();
     if (!open_state) view.request_close();
     auto& state = update_and_get_runtime_state(view);
-    if (!visible) return;
+    if (!visible) return {};
     if (!view.uses_toolbar()) {
         float title_height = ImGui::GetCurrentWindowRead()->TitleBarHeight;
         vml::float2 content_pos = float2{0.0f, title_height};
@@ -186,6 +188,7 @@ void ImGuiViewRenderer::render_view(View& view) {
         display_toolbar(state.persistent.toolbar_renderer, style, geometry,
                         state);
     }
+    return {.focused = state.frame.focused};
 }
 
 // This must be called after ImGui::Begin()

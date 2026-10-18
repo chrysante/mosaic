@@ -65,6 +65,8 @@ void ApplicationDebugger::display_debuggers() {
         if (ImGui::CollapsingHeader("Windows")) draw_window_debugger();
         if (ImGui::CollapsingHeader("Input Events")) draw_event_debugger();
         if (ImGui::CollapsingHeader("Input")) draw_input_debugger();
+        if (ImGui::CollapsingHeader("View Manager"))
+            GET_APP_IMPL(app).view_manager.draw_debugger();
         if (ImGui::CollapsingHeader("Frame Scheduler"))
             GET_APP_IMPL(app).frame_scheduler->draw_debugger();
     }

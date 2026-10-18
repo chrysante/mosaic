@@ -1,6 +1,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <utl/hashtable.hpp>
 
 namespace mosaic {
@@ -17,7 +18,9 @@ public:
 
     void begin_frame();
 
-    void render_view(View& view);
+    struct Result { bool focused; };
+
+    Result render_view(View& view);
 
     void end_frame();
 

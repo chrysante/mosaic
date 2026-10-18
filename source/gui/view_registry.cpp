@@ -1,39 +1,28 @@
 #include "gui/view_registry.h"
 
 #include "gui/view.h"
-#include "service/service_context.h"
 #include "support/logger.h"
 
 using namespace mosaic;
 
-std::unique_ptr<View>
-ViewRegistryEntry::create_view(ServiceContext& services) const {
-    /*
-     * The registry only constructs the object.
-     *
-     * ViewManager initializes its identity and lifecycle.
-     */
-    (void)services;
-
+std::unique_ptr<View> ViewRegistryEntry::create_view() const {
     return m_factory();
 }
 
-void ViewRegistry::add(ViewRegistryEntry entry) {
-    auto [_, inserted] =
-        instance().m_entries.insert({entry.name(), std::move(entry)});
-
-    if (!inserted) {
-        Logger::error("View is already registered: ", entry.name());
-    }
+void ViewRegistry::add(std::unique_ptr<ViewRegistryEntry> entry) {
+    auto* p = entry.get();
+    auto& view_class = entry->view_class();
+    auto& inst = instance();
+    inst.m_entries.push_back(std::move(entry));
+    auto [_, inserted] = inst.m_name_map.insert({view_class.name, p});
+    if (!inserted)
+        Logger::error("View is already registered: ", view_class.name);
 }
 
-std::optional<ViewRegistryEntry> ViewRegistry::get(std::string_view name) {
-    auto& registry = instance();
-
-    auto itr = registry.m_entries.find(name);
-
-    if (itr == registry.m_entries.end()) return std::nullopt;
-
+ViewRegistryEntry const* ViewRegistry::find(std::string_view name) {
+    auto& inst = instance();
+    auto itr = inst.m_name_map.find(name);
+    if (itr == inst.m_name_map.end()) return nullptr;
     return itr->second;
 }
 

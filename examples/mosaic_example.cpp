@@ -23,8 +23,7 @@ using namespace mosaic;
 
 class ExampleView : public View {
 public:
-    ExampleView()
-        : View() {
+    ExampleView() {
         // clang-format off
         set_toolbar({
             ToolbarIconButton("link")
@@ -55,7 +54,7 @@ private:
     RunModeController::Lease run_mode_lease;
 };
 
-MOSAIC_REGISTER_VIEW(ExampleView, "ExampleView")
+MOSAIC_REGISTER_VIEW(ExampleView, {.name = "ExampleView"})
 
 class ExampleApp : public Application {
 public:

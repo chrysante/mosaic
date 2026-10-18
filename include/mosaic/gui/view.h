@@ -1,16 +1,15 @@
 #pragma once
 
 #include <any>
-#include <cstdint>
 #include <memory>
 #include <string>
 
 #include <nlohmann/json_fwd.hpp>
-#include <utl/messenger.hpp>
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/toolbar.h>
+#include <mosaic/gui/view_id.h>
 #include <mosaic/service/event_emitter.h>
 #include <mosaic/service/event_receiver.h>
 
@@ -22,27 +21,6 @@ class ViewRegistryEntry;
 class ImGuiViewRenderer;
 struct InputEvent;
 
-struct ViewId {
-    std::string type;
-    std::uint64_t instance = 0;
-
-    friend bool operator==(ViewId const&, ViewId const&) = default;
-};
-
-struct ViewDescription {
-    vml::int2 default_size = {500, 400};
-    vml::int2 min_size = {300, 200};
-};
-
-struct ViewLayout {
-    vml::float2 position = {};
-    vml::float2 size = {};
-    vml::float2 min_size = {};
-
-    bool hidden = false;
-    bool maximized = false;
-};
-
 class View {
 public:
     virtual ~View() = default;
@@ -50,35 +28,34 @@ public:
     View(View const&) = delete;
     View& operator=(View const&) = delete;
 
-    ViewId const& id() const { return m_id; }
+    ViewClass const& view_class() const { return *view_id().view_class; }
 
-    /// Stable type name, e.g. "scene", "console", "inspector".
-    std::string const& type_name() const { return m_id.type; }
+    ViewId const& view_id() const { return m_view_id; }
+
+    std::string const& type_name() const { return view_class().name; }
 
     /// User-visible title.
     std::string const& title() const { return m_title; }
 
     void set_title(std::string title) { m_title = std::move(title); }
 
-    ViewLayout const& layout() const { return m_layout; }
-    ViewLayout& layout() { return m_layout; }
+    bool hidden() const { return m_hidden; }
+    void set_hidden(bool value = true) { m_hidden = value; }
+    void toggle_hidden() { set_hidden(!hidden()); }
 
-    bool hidden() const { return m_layout.hidden; }
-    void set_hidden(bool value = true) { m_layout.hidden = value; }
-    void toggle_hidden() { m_layout.hidden = !m_layout.hidden; }
-
-    bool maximized() const { return m_layout.maximized; }
+    bool maximized() const { return m_maximized; }
+    /// These are semantic operations. ViewManager/renderer performs the
+    /// actual platform/ImGui work.
+    void set_maximized(bool value) { m_maximized = value; }
+    void maximize() { set_maximized(true); }
+    void restore() { set_maximized(false); }
+    void toggle_maximized() { set_maximized(!maximized()); }
 
     bool close_requested() const { return m_close_requested; }
     void request_close() { m_close_requested = true; }
 
-    /// These are semantic operations. ViewManager/renderer performs the
-    /// actual platform/ImGui work.
-    void maximize();
-    void restore();
-    void toggle_maximize();
-
     bool focused() const { return m_runtime.focused; }
+    void take_focus() { m_focus_requested = true; }
 
     /// Padding used by the ImGui renderer.
     vml::float2 padding() const;
@@ -103,7 +80,7 @@ public:
     bool uses_toolbar() const { return m_uses_toolbar; }
 
 protected:
-    explicit View(ViewDescription desc = {});
+    View() = default;
 
     CommandPalette& command_palette_write() { return m_command_palette; }
 
@@ -133,7 +110,7 @@ private:
         bool hovered = false;
     };
 
-    void initialize(ViewId id, ServiceContext& services);
+    void initialize(ViewId view_id, ServiceContext& services);
     void destroy();
 
     void set_focused_from_renderer(bool value) { m_runtime.focused = value; }
@@ -150,14 +127,15 @@ private:
 
     virtual void receive_data(std::any) {}
 
-    ViewId m_id;
+    ViewId m_view_id;
     std::string m_title;
-    ViewLayout m_layout;
-
-    vml::float2 m_padding;
+    bool m_hidden = false;
+    bool m_maximized = false;
+    vml::float2 m_padding = {-1.0f, -1.0f};
     std::optional<vml::float4> m_bg_color;
 
     bool m_close_requested = false;
+    bool m_focus_requested = false;
 
     ServiceContext* m_services = nullptr;
     EventReceiver m_event_receiver;

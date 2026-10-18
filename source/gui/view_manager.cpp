@@ -1,12 +1,9 @@
 #include "gui/view_manager.h"
 
-#include <algorithm>
-
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <nlohmann/json.hpp>
 
-#include "application/debug_settings.h"
 #include "application/input_event.h"
 #include "gui/view.h"
 #include "gui/view_registry.h"
@@ -33,41 +30,48 @@ ViewManager::ViewManager(ServiceContext& service_context)
     event_receiver.listen([this](CloseAllCommand) { close_all(); });
 }
 
-ViewManager::~ViewManager() { views.clear(); }
+ViewManager::~ViewManager() = default;
 
-uint64_t ViewManager::allocate_instance_id(std::string_view type) {
-    auto& next = next_instance_ids[std::string(type)];
-    return next++;
+std::uint64_t ViewManager::new_instance_id(ViewClass const* type) const {
+    auto map_itr = m_views.find(type);
+    if (map_itr == m_views.end()) return 0;
+    auto& map = map_itr->second;
+    std::uint64_t id = 0;
+    for (;; ++id)
+        if (!map.contains(id)) break;
+    return id;
+}
+
+View* ViewManager::insert_view(ViewId view_id, std::unique_ptr<View> view) {
+    assert(view != nullptr);
+    auto* result = view.get();
+    auto [_, success] =
+        m_views[view_id.view_class].emplace(view_id.instance, std::move(view));
+    assert(success);
+    return result;
 }
 
 View* ViewManager::open_view(ViewRegistryEntry const& entry,
                              std::function<void(View&)> completion) {
-    if (auto* existing = find_by_type(entry.name())) {
-        focus(*existing);
+    if (auto* existing = find_by_type(entry.view_class())) {
+        existing->take_focus();
         if (completion) completion(*existing);
         return existing;
     }
-    auto view = entry.create_view(service_context);
-    auto id = ViewId{
-        .type = entry.name(),
-        .instance = allocate_instance_id(entry.name()),
+    auto view = entry.create_view();
+    auto view_id = ViewId{
+        .view_class = &entry.view_class(),
+        .instance = new_instance_id(&entry.view_class()),
     };
-    view->initialize(id, service_context);
-    /*
-     * Default position for newly created views.
-     *
-     * This is manager/layout policy rather than View construction.
-     */
-    view->layout().position = {250, 250};
-    auto* result = view.get();
-    views.push_back(std::move(view));
-    focus(*result);
+    view->initialize(view_id, service_context);
+    auto* result = insert_view(view_id, std::move(view));
+    result->take_focus();
     return result;
 }
 
 View* ViewManager::open_view(std::string_view name,
                              std::function<void(View&)> completion) {
-    auto entry = ViewRegistry::get(name);
+    auto entry = ViewRegistry::find(name);
     if (!entry) {
         Logger::error("View does not exist: ", name);
         return nullptr;
@@ -75,107 +79,78 @@ View* ViewManager::open_view(std::string_view name,
     return open_view(*entry, std::move(completion));
 }
 
-View* ViewManager::find_by_id(ViewId const& id) {
-    auto itr = std::ranges::find_if(
-        views, [&](auto const& view) { return view->id() == id; });
-    return itr != views.end() ? itr->get() : nullptr;
+View const* ViewManager::find_by_type(ViewClass const& view_class) const {
+    auto itr = m_views.find(&view_class);
+    if (itr == m_views.end()) return nullptr;
+    auto& map = itr->second;
+    if (map.empty()) return nullptr;
+    return map.begin()->second.get();
 }
 
-View const* ViewManager::find_by_id(ViewId const& id) const {
-    auto itr = std::ranges::find_if(
-        views, [&](auto const& view) { return view->id() == id; });
-    return itr != views.end() ? itr->get() : nullptr;
-}
-
-View* ViewManager::find_by_type(std::string_view type) {
-    auto itr = std::ranges::find_if(
-        views, [&](auto const& view) { return view->type_name() == type; });
-    return itr != views.end() ? itr->get() : nullptr;
-}
-
-View const* ViewManager::find_by_type(std::string_view type) const {
-    auto itr = std::ranges::find_if(
-        views, [&](auto const& view) { return view->type_name() == type; });
-    return itr != views.end() ? itr->get() : nullptr;
-}
-
-void ViewManager::focus(View& view) {
-    auto view_itr = std::ranges::find_if(
-        views, [&](auto const& candidate) { return candidate.get() == &view; });
-    if (view_itr == views.end()) return;
-    focused = &view;
-
-    /*
-     * The actual ImGui focus is deliberately performed by the renderer.
-     *
-     * The renderer can add:
-     *
-     *     ImGui::FocusWindow(...)
-     *
-     * when the view has an existing ImGui window.
-     */
-}
-
-void ViewManager::close(View& view) {
-    view.request_close();
-    if (focused == &view) focused = nullptr;
-}
-
-void ViewManager::close_focused_view() {
-    if (focused) close(*focused);
+View const* ViewManager::find_by_id(ViewId view_id) const {
+    auto map_itr = m_views.find(view_id.view_class);
+    if (map_itr == m_views.end()) return nullptr;
+    auto& map = map_itr->second;
+    auto itr = map.find(view_id.instance);
+    if (itr == map.end()) return nullptr;
+    return itr->second.get();
 }
 
 void ViewManager::close_all() {
-    for (auto& view : views)
-        view->request_close();
-    focused = nullptr;
+    for (auto& [view_class, map] : m_views)
+        for (auto& [id, view] : map)
+            view->request_close();
 }
 
 void ViewManager::process_deferred_operations() {
-    /*
-     * No View is destroyed while display() is iterating.
-     */
-    std::erase_if(views,
-                  [](auto const& view) { return view->close_requested(); });
-    bool clear_focused =
-        focused && std::ranges::none_of(views, [&](auto const& view) {
-            return view.get() == focused;
-        });
-    if (clear_focused) focused = nullptr;
+    // Destroy all views that requested to close
+    for (auto& [view_class, map] : m_views)
+        std::erase_if(map, [](auto& p) { return p.second->close_requested(); });
 }
 
 void ViewManager::display() {
-    if (want_debug_overlays()) display_debugger();
     process_deferred_operations();
     renderer->begin_frame();
-    for (auto& view : views)
-        renderer->render_view(*view);
-
+    m_focused_view = nullptr;
+    for (auto& [view_class, map] : m_views) {
+        for (auto& [instance, view] : map) {
+            auto result = renderer->render_view(*view);
+            if (result.focused) m_focused_view = view.get();
+        }
+    }
     renderer->end_frame();
     process_deferred_operations();
 }
 
-void ViewManager::display_debugger() {
-    if (ImGui::Begin("View Manager Debugger")) {
-        ImGui::Text("Views: %zu", views.size());
-        ImGui::Separator();
-        for (std::size_t i = 0; i < views.size(); ++i) {
-            auto const* view = views[i].get();
+#ifndef NDEBUG
+void ViewManager::draw_debugger() {
+    if (m_focused_view)
+        ImGui::Text("Focused View: [%u] %s",
+                    (unsigned)m_focused_view->view_id().instance,
+                    m_focused_view->title().c_str());
+    else ImGui::Text("Focused View: none");
+    ImGui::SeparatorText("Views");
+    for (auto& [view_class, map] : m_views) {
+        if (!ImGui::TreeNodeEx(view_class->name.c_str(),
+                               ImGuiTreeNodeFlags_DefaultOpen))
+            continue;
+        for (auto& [instance, view] : map) {
             if (!view) {
-                ImGui::BulletText("[%zu] NULL", i);
+                ImGui::BulletText("[%u] NULL", (unsigned)instance);
                 continue;
             }
-            ImGui::PushID(static_cast<int>(i));
+            ImGui::PushID(static_cast<int>(instance));
             ImGui::Bullet();
             ImGui::SameLine();
-            ImGui::Text("[%zu] %s", i, view->title().c_str());
+            ImGui::Text("[%u] %s", (unsigned)instance, view->title().c_str());
             ImGui::SameLine();
-            ImGui::TextDisabled("(%p)", static_cast<void const*>(view));
+            ImGui::TextDisabled("(%p)", static_cast<void const*>(view.get()));
             ImGui::PopID();
         }
+        ImGui::TreePop();
     }
-    ImGui::End();
 }
+#endif
 
 bool ViewManager::on_input(InputEvent& event) {
     /*
@@ -195,10 +170,6 @@ bool ViewManager::on_input(InputEvent& event) {
     return false;
 }
 
-View* ViewManager::focused_view() { return focused; }
-
-View const* ViewManager::focused_view() const { return focused; }
-
 // =============================================================================
 // Serialization
 // =============================================================================
@@ -207,8 +178,6 @@ namespace config_key {
 
 static constexpr std::string_view type = "type";
 static constexpr std::string_view instance = "instance";
-static constexpr std::string_view position = "layout.position";
-static constexpr std::string_view size = "layout.size";
 static constexpr std::string_view hidden = "layout.hidden";
 static constexpr std::string_view maximized = "layout.maximized";
 static constexpr std::string_view state = "state";
@@ -217,61 +186,60 @@ static constexpr std::string_view state = "state";
 
 nlohmann::json ViewManager::save_settings() const {
     auto root = nlohmann::json::array();
-    for (auto const& view : views) {
-        auto object = nlohmann::json::object();
-        object[config_key::type] = std::string(view->type_name());
-        object[config_key::instance] = view->id().instance;
-        object[config_key::position] = view->layout().position;
-        object[config_key::size] = view->layout().size;
-        object[config_key::hidden] = view->hidden();
-        object[config_key::maximized] = view->maximized();
-        object[config_key::state] = view->save_settings();
-        root.push_back(std::move(object));
+    for (auto& [view_class, map] : m_views) {
+        for (auto& [instance, view] : map) {
+            auto object = nlohmann::json::object();
+            object[config_key::type] = std::string(view->type_name());
+            object[config_key::instance] = view->view_id().instance;
+            object[config_key::hidden] = view->hidden();
+            object[config_key::maximized] = view->maximized();
+            object[config_key::state] = view->save_settings();
+            root.push_back(std::move(object));
+        }
     }
     return root;
 }
 
 void ViewManager::load_settings(nlohmann::json const& root) {
-    views.clear();
-    focused = nullptr;
+    m_views.clear();
+    m_focused_view = nullptr;
     if (!root.is_array()) return;
     for (auto const& node : root) {
         if (!node.is_object()) {
             Logger::error("Failed to deserialize view: not an object");
             continue;
         }
-        auto type = json_find<std::string>(node, config_key::type);
+        auto type_name = json_find<std::string>(node, config_key::type);
         auto instance = json_find<std::uint64_t>(node, config_key::instance);
-        if (!type || !instance) {
+        if (!type_name || !instance) {
             Logger::error(
                 "Failed to deserialize view: missing or invalid type/instance");
             continue;
         }
-        auto entry = ViewRegistry::get(*type);
+        auto entry = ViewRegistry::find(*type_name);
         if (!entry) {
-            Logger::error("Failed to deserialize view: unknown type: ", *type);
+            Logger::error("Failed to deserialize view: unknown type: ",
+                          *type_name);
             continue;
         }
-        auto view = entry->create_view(service_context);
-        view->initialize(
-            ViewId{
-                .type = *type,
-                .instance = *instance,
-            },
-            service_context);
-        if (auto position = json_find<vml::float2>(node, config_key::position))
-            view->layout().position = *position;
-        if (auto size = json_find<vml::float2>(node, config_key::size))
-            view->layout().size = *size;
+        auto* view_class = &entry->view_class();
+        auto view = entry->create_view();
+        ViewId const view_id{
+            .view_class = view_class,
+            .instance = *instance,
+        };
+        view->initialize(view_id, service_context);
         if (auto hidden = json_find<bool>(node, config_key::hidden))
-            view->layout().hidden = *hidden;
+            view->set_hidden(*hidden);
         if (auto maximized = json_find<bool>(node, config_key::maximized))
-            view->layout().maximized = *maximized;
+            view->set_maximized(*maximized);
         if (auto* state = json_find(node, config_key::state))
             view->load_settings(*state);
-        // Keep future newly-created IDs above restored IDs.
-        auto& next = next_instance_ids[*type];
-        next = std::max(next, *instance + 1);
-        views.push_back(std::move(view));
+        if (find_by_id(view_id) != nullptr) {
+            Logger::error(
+                "Failed to deserialize view: instance id already taken");
+        } else {
+            insert_view(view_id, std::move(view));
+        }
     }
 }
