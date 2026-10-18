@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include <nlohmann/json.hpp>
+#include <utl/uuid.hpp>
 #include <vml/fwd.hpp>
 
 #include <mosaic/support/logger.h>
@@ -113,5 +114,19 @@ template <typename T> struct nlohmann::adl_serializer<vml::quaternion<T>> {
     static void from_json(nlohmann::json const& j, vml::quaternion<T>& q) {
         using base = vml::quaternion<T>::__vml_base;
         from_json(j, static_cast<base&>(q));
+    }
+};
+
+// =============================================================================
+// Other types
+// =============================================================================
+
+template <> struct nlohmann::adl_serializer<utl::uuid> {
+    static void to_json(nlohmann::json& j, utl::uuid const& id) {
+        j = id.to_string();
+    }
+
+    static void from_json(json const& j, utl::uuid& id) {
+        id = utl::uuid::from_string(j.get<std::string>());
     }
 };
