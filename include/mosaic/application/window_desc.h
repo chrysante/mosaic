@@ -8,8 +8,8 @@
 namespace mosaic {
 
 enum class WindowDecoration {
-    normal,
     none,
+    normal,
 };
 
 enum class WindowCapability : unsigned {
@@ -41,12 +41,17 @@ struct WindowStyle {
     bool operator==(WindowStyle const&) const = default;
 };
 
-struct WindowDesc {
-    /// Initial position of the window.
+struct WindowGeometry {
+    /// Position of the window.
     vml::int2 position;
 
-    /// Initial size of the window.
+    /// Size of the window.
     vml::int2 size;
+};
+
+struct WindowDesc {
+    /// Initial position and size of the window
+    WindowGeometry geometry;
 
     /// Size constraints
     // FIXME: Not yet honored
@@ -57,6 +62,9 @@ struct WindowDesc {
 
     /// Whether the window is initially visible.
     bool visible = true;
+
+    /// Whether the window can take focus
+    bool focusable = true;
 
     /// Whether the window should initially become key/focused.
     bool focused = true;

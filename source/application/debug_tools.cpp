@@ -20,6 +20,14 @@ using namespace mosaic;
 
 using internal::ApplicationImpl;
 
+static void debug_bool(char const* name, bool value) {
+    ImGui::Text("%-26s", name);
+    ImGui::SameLine();
+    ImGui::TextColored(value ? ImVec4(0.3f, 1.0f, 0.3f, 1.0f)
+                             : ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                       "%s", value ? "true" : "false");
+};
+
 static bool& want_debug_overlays_flag() {
     static bool flag;
     return flag;
@@ -67,6 +75,22 @@ void ApplicationDebugger::display_debuggers() {
 // Window Debugger
 // =============================================================================
 
+#define WINDOW_DEBUG_TABLE(X)                                                  \
+    X(window, "Window")                                                        \
+    X(frame, "Frame")                                                          \
+    X(properties, "Properties")                                                \
+    X(native, "Native")
+
+namespace {
+struct WindowTable {
+    enum Column {
+#define X(name, label) name,
+        WINDOW_DEBUG_TABLE(X)
+#undef X
+    };
+};
+} // namespace
+
 static void draw_window_info(Window const* window) {
     if (!window) {
         ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "NULL");
@@ -82,7 +106,7 @@ static void draw_window_info(Window const* window) {
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
                                IM_COL32(50, 100, 180, 80));
     // Window
-    ImGui::TableSetColumnIndex(0);
+    ImGui::TableSetColumnIndex(WindowTable::window);
     ImGui::Text("%s", window->title().c_str());
     ImGui::TextDisabled("%p", static_cast<void const*>(window));
     if (window->is_live_moving())
@@ -90,34 +114,20 @@ static void draw_window_info(Window const* window) {
     if (window->is_live_resizing())
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "RESIZING");
     // Frame
-    ImGui::TableSetColumnIndex(1);
+    ImGui::TableSetColumnIndex(WindowTable::frame);
     ImGui::Text("Pos: %d, %d", position.x, position.y);
     ImGui::Text("Size: %d x %d", size.x, size.y);
     // Native
-    ImGui::TableSetColumnIndex(2);
+    ImGui::TableSetColumnIndex(WindowTable::native);
     ui::with_font(ui::font(FontStyle::monospaced), [&] {
         ImGui::TextUnformatted(
             internal::WindowImpl::get_native_debug_string(*window).c_str());
     });
-    // ImGui viewport
-    ImGui::TableSetColumnIndex(3);
-    ImGuiViewport* viewport = nullptr;
-    // Adapt this lookup to however your application associates
-    // Window with its ImGui viewport.
-    //
-    // For example:
-    // viewport = window->imgui_viewport();
-    if (viewport) ImGui::Text("%08X", viewport->ID);
-    else ImGui::TextDisabled("none");
-    // Viewport position
-    ImGui::TableSetColumnIndex(4);
-    if (viewport) ImGui::Text("%.0f, %.0f", viewport->Pos.x, viewport->Pos.y);
-    else ImGui::TextDisabled("-");
-    // Visible
-    ImGui::TableSetColumnIndex(5);
-    // There isn't a visibility accessor in Window, so leave this
-    // out unless you want to add one to the Window interface.
-    ImGui::TextDisabled("-");
+    // Other properties
+    ImGui::TableSetColumnIndex(WindowTable::properties);
+    debug_bool("Focusable", window->is_focusable());
+    debug_bool("Focused", window->is_focused());
+    ImGui::Text("Titlebar height: %.1f", window->titlebar_height());
 }
 
 void ApplicationDebugger::draw_window_debugger() {
@@ -130,13 +140,11 @@ void ApplicationDebugger::draw_window_debugger() {
                        ImGuiTableFlags_Resizable |
                        ImGuiTableFlags_SizingStretchProp |
                        ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX;
-    if (ImGui::BeginTable("Windows", 6, table_flags)) {
-        ImGui::TableSetupColumn("Window");
-        ImGui::TableSetupColumn("Frame");
-        ImGui::TableSetupColumn("Native");
-        ImGui::TableSetupColumn("Viewport");
-        ImGui::TableSetupColumn("Viewport Pos");
-        ImGui::TableSetupColumn("Visible");
+    if (ImGui::BeginTable("Windows", enum_count<WindowTable::Column>,
+                          table_flags)) {
+#define X(name, label) ImGui::TableSetupColumn(label);
+        WINDOW_DEBUG_TABLE(X)
+#undef X
         ImGui::TableHeadersRow();
         for (auto& window : windows)
             draw_window_info(window.get());

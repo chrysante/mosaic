@@ -18,6 +18,7 @@
 #include "application/input_internal.h"
 #include "application/window.h"
 #include "application/window_delegate.h"
+#include "application/window_desc.h"
 #include "application/window_impl.h"
 #include "gui/appearance_internal.h"
 #include "service/event_system.h" // IWYU pragma: keep
@@ -72,9 +73,18 @@ struct ApplicationWindowDelegate : WindowDelegate {
     explicit ApplicationWindowDelegate(ApplicationImpl& app_impl)
         : app_impl(app_impl) {}
 
-    void on_resize(vml::int2) override {
-        app_impl.frame_scheduler->request_frames(2);
+    void request_frames() { app_impl.frame_scheduler->request_frames(2); }
+
+    void on_move(vml::int2) override { request_frames(); }
+    void on_resize(vml::int2) override { request_frames(); }
+    void on_focus() override { request_frames(); }
+    void on_focus_loss() override { request_frames(); }
+    bool should_close() override {
+        request_frames();
+        return true;
     }
+    void on_destroy() override { request_frames(); }
+    void on_content_scale_change(vml::float2) override { request_frames(); }
 
     ApplicationImpl& app_impl;
 };
@@ -151,8 +161,8 @@ void ApplicationImpl::init() {
 
 namespace {
 
-struct AppWindowDelegate : WindowDelegate {
-    explicit AppWindowDelegate(Application& app)
+struct MainWindowDelegate : WindowDelegate {
+    explicit MainWindowDelegate(Application& app)
         : app(app) {}
 
     void on_destroy() override { app.quit(); }
@@ -165,8 +175,9 @@ struct AppWindowDelegate : WindowDelegate {
 Window* ApplicationImpl::create_main_window() {
     assert(windows.empty());
     auto* window = app.create_window(
-        {.position = {200, 200}, .size = {800, 600}, .title = "MAIN WINDOW"});
-    window->add_delegate(std::make_unique<AppWindowDelegate>(app));
+        {.geometry = {.position = {200, 200}, .size = {800, 600}},
+         .title = "MAIN WINDOW"});
+    window->add_delegate(std::make_unique<MainWindowDelegate>(app));
     create_main_window_platform(*window);
     return window;
 }
@@ -231,9 +242,21 @@ void ApplicationImpl::load_app_settings_from_disk() {
     }
 }
 
+template <> struct nlohmann::adl_serializer<WindowGeometry> {
+    static void to_json(json& j, WindowGeometry const& geometry) {
+        j["position"] = geometry.position;
+        j["size"] = geometry.size;
+    }
+    static void from_json(json const& j, WindowGeometry& geometry) {
+        j.at("position").get_to(geometry.position);
+        j.at("size").get_to(geometry.size);
+    }
+};
+
 namespace config_key {
 
 static constexpr std::string_view application = "application";
+static constexpr std::string_view window_geometry = "window_geometry";
 static constexpr std::string_view views = "views";
 
 } // namespace config_key
@@ -241,13 +264,19 @@ static constexpr std::string_view views = "views";
 nlohmann::json ApplicationImpl::serialize_settings() {
     auto object = nlohmann::json::object();
     object[config_key::application] = app.save_settings();
+    if (auto* main_window = app.main_window())
+        object[config_key::window_geometry] = main_window->geometry();
     object[config_key::views] = view_manager.save_settings();
+
     return object;
 }
 
 void ApplicationImpl::deserialize_settings(nlohmann::json const& base) {
     if (auto* settings = json_find(base, config_key::application))
         app.load_settings(*settings);
+    if (auto geo = json_find<WindowGeometry>(base, config_key::window_geometry))
+        if (auto* main_window = app.main_window())
+            main_window->set_geometry(geo.value());
     if (auto* settings = json_find(base, config_key::views))
         view_manager.load_settings(*settings);
 }

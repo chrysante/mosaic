@@ -1,11 +1,13 @@
 #include "application/window.h"
 
+#include <cassert>
 #include <ios>
 #include <memory>
 
 #import <AppKit/NSButton.h>
 #import <AppKit/NSToolbar.h>
 #import <AppKit/NSWindow.h>
+#import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
 
 #include "application/window_desc.h"
@@ -270,10 +272,10 @@ static void forward_event(Window const* window, NSEvent* event) {
 
 @implementation MosaicWindow
 - (BOOL)canBecomeKeyWindow {
-    return YES;
+    return GET_WINDOW_IMPL(*_window).is_focusable;
 }
 - (BOOL)canBecomeMainWindow {
-    return YES;
+    return GET_WINDOW_IMPL(*_window).is_focusable;
 }
 @end
 
@@ -281,16 +283,39 @@ static void forward_event(Window const* window, NSEvent* event) {
 // mosaic::Window implementation
 // =============================================================================
 
+// Geometry conversion
+static int get_screen_height() {
+    NSRect screen_frame = NSScreen.screens[0].frame;
+    assert(screen_frame.origin.x == 0 && screen_frame.origin.y == 0);
+    return (int)screen_frame.size.height;
+}
+
+static WindowGeometry from_appkit(NSRect rect) {
+    int screen_height = get_screen_height();
+    return {.position = {(int)rect.origin.x, screen_height -
+                                                 (int)rect.origin.y -
+                                                 (int)rect.size.height},
+            .size = {(int)rect.size.width, (int)rect.size.height}};
+}
+
+static NSRect to_appkit(WindowGeometry geometry) {
+    int screen_height = get_screen_height();
+    return NSMakeRect(
+        (CGFloat)geometry.position.x,
+        (CGFloat)(screen_height - geometry.position.y - geometry.size.y),
+        (CGFloat)geometry.size.x, (CGFloat)geometry.size.y);
+}
+
 void Window::platform_constructor(WindowDesc const& desc) {
     @autoreleasepool {
-        NSRect frame = NSMakeRect(desc.position.x, desc.position.y, desc.size.x,
-                                  desc.size.y);
+        NSRect frame = to_appkit(desc.geometry);
         auto style_mask = to_ns_style_mask(desc.style);
         MosaicWindow* window =
             [[MosaicWindow alloc] initWithContentRect:frame
                                             styleMask:style_mask
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
+        window.window = this;
         NSRect content_rect = [window contentRectForFrameRect:frame];
         MosaicView* content_view = [[MosaicView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
@@ -303,6 +328,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
         WINDOW_IMPL.delegate = delegate;
         window.delegate = delegate;
         window.title = [NSString stringWithUTF8String:desc.title.c_str()];
+        WINDOW_IMPL.is_focusable = desc.focusable;
         if (desc.topmost) [window setLevel:NSFloatingWindowLevel];
         if (desc.visible) {
             if (desc.focused) [window makeKeyAndOrderFront:nil];
@@ -320,13 +346,29 @@ std::string Window::title() const {
     return ns_string_to_std_string(WINDOW_IMPL.native_window.title);
 }
 
-vml::int2 Window::position() const {
-    return (int2)WINDOW_IMPL.native_window.frame.origin;
+WindowGeometry Window::geometry() const {
+    return from_appkit(WINDOW_IMPL.native_window.frame);
 }
+
+vml::int2 Window::position() const { return geometry().position; }
 
 vml::int2 Window::size() const {
     auto size = WINDOW_IMPL.native_window.frame.size;
     return {(int)size.width, (int)size.height};
+}
+
+void Window::set_geometry(WindowGeometry geometry) {
+    [WINDOW_IMPL.native_window setFrame:to_appkit(geometry)
+                                display:YES
+                                animate:NO];
+}
+
+void Window::set_position(vml::int2 position) {
+    set_geometry({.position = position, .size = size()});
+}
+
+void Window::set_size(vml::int2 size) {
+    set_geometry({.position = position(), .size = size});
 }
 
 bool Window::is_live_resizing() const {
@@ -334,6 +376,10 @@ bool Window::is_live_resizing() const {
 }
 
 bool Window::is_live_moving() const { return WINDOW_IMPL.is_live_moving; }
+
+void Window::set_focusable(bool value) { WINDOW_IMPL.is_focusable = value; }
+
+bool Window::is_focusable() const { return WINDOW_IMPL.is_focusable; }
 
 bool Window::is_focused() const {
     return WINDOW_IMPL.native_window.isKeyWindow;

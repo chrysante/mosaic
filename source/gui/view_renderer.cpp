@@ -140,6 +140,12 @@ static void display_toolbar(ToolbarRenderer& toolbar_renderer,
     }
 }
 
+static ImGuiWindowClass window_class = [] {
+    ImGuiWindowClass window_class;
+    window_class.ViewportFlagsOverrideClear = ImGuiViewportFlags_NoDecoration;
+    return window_class;
+}();
+
 void ImGuiViewRenderer::render_view(View& view) {
     auto layout = view.layout();
     ImGuiWindowFlags flags =
@@ -150,6 +156,8 @@ void ImGuiViewRenderer::render_view(View& view) {
         if (!state.frame.docked_last_frame && !state.persistent.window_dragging)
             flags |= ImGuiWindowFlags_NoMove;
     }
+
+    ImGui::SetNextWindowClass(&window_class);
     ImGui::SetNextWindowSizeConstraints(layout.min_size, {FLT_MAX, FLT_MAX});
     ImGui::SetNextWindowPos(layout.position, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(layout.size, ImGuiCond_FirstUseEver);
@@ -211,7 +219,7 @@ static WindowStyle make_window_style(bool wants_toolbar) {
     else
         return {
             .decoration = WindowDecoration::none,
-            .full_size_content = false,
+            .full_size_content = true,
             .large_titlebar = false,
         };
 }

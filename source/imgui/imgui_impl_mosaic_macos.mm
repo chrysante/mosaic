@@ -1212,6 +1212,11 @@ static void ConvertNSRect(NSRect* r) {
     r->origin.y = firstScreenFrame.size.height - r->origin.y - r->size.height;
 }
 
+ImGui_Impl_Mosaic_MacOS_ViewportData* get_data(ImGuiViewport* viewport) {
+    assert(viewport);
+    return (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
+}
+
 namespace {
 struct SizeConstraints { vml::int2 min, max; };
 } // namespace
@@ -1237,6 +1242,7 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
     void on_move(vml::int2) override { viewport->PlatformRequestMove = true; }
 
     bool should_close() override {
+
         viewport->PlatformRequestClose = true;
         return false;
     }
@@ -1246,31 +1252,37 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
 
 } // namespace
 
+static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
+    int flags = viewport->Flags;
+    bool have_deco = (flags & ImGuiViewportFlags_NoDecoration) != 0;
+    auto decoration = have_deco ? mosaic::WindowDecoration::none
+                                : mosaic::WindowDecoration::normal;
+    auto capabilities = [&] {
+        using enum mosaic::WindowCapability;
+        if (!have_deco) return none;
+        return resizable | closable | minimizable | zoomable;
+    }();
+    mosaic::WindowStyle style = {
+        .decoration = decoration,
+        .capabilities = capabilities,
+        .full_size_content = true,
+        .large_titlebar = false,
+    };
+    return {.geometry = {.position = (vml::int2)viewport->Pos,
+                         .size = (vml::int2)viewport->Size},
+            .title = "Untitled",
+            .visible = true,
+            .focusable = (flags & ImGuiViewportFlags_NoFocusOnClick) == 0,
+            .focused = (flags & ImGuiViewportFlags_NoFocusOnAppearing) == 0,
+            .topmost = (flags & ImGuiViewportFlags_TopMost) != 0,
+            .style = style};
+}
+
 static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        IM_NEW(ImGui_Impl_Mosaic_MacOS_ViewportData)();
+    auto* vd = IM_NEW(ImGui_Impl_Mosaic_MacOS_ViewportData)();
     viewport->PlatformUserData = vd;
-    using enum mosaic::WindowCapability;
-    mosaic::WindowDesc desc{
-        .position = (vml::int2)viewport->Pos,
-        .size = (vml::int2)viewport->Size,
-        .title = "Untitled",
-        .visible = true,
-        .focused = !(viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing),
-        .topmost = (viewport->Flags & ImGuiViewportFlags_TopMost) != 0,
-        .style =
-            {
-                .decoration =
-                    (viewport->Flags & ImGuiViewportFlags_NoDecoration)
-                        ? mosaic::WindowDecoration::none
-                        : mosaic::WindowDecoration::normal,
-                .capabilities = resizable | closable | minimizable | zoomable,
-                .full_size_content =
-                    !(viewport->Flags & ImGuiViewportFlags_NoDecoration),
-                .large_titlebar = false,
-            },
-    };
+    auto desc = make_window_desc(viewport);
     auto* window = bd->application->create_window(desc);
     install_mouse_event_handler(*window, bd->NativeWindow.contentView);
     create_key_event_responder(*window);
@@ -1288,8 +1300,7 @@ static void ImGui_Impl_Mosaic_MacOS_CreateWindow(ImGuiViewport* viewport) {
 
 static void ImGui_Impl_Mosaic_MacOS_DestroyWindow(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
-    if (ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-            (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData) {
+    if (ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport)) {
         NSWindow* ns_window = vd->NativeWindow;
         if (ns_window != nil && vd->WindowOwned) {
             [ns_window orderOut:nil];
@@ -1304,8 +1315,7 @@ static void ImGui_Impl_Mosaic_MacOS_DestroyWindow(ImGuiViewport* viewport) {
 }
 
 static void ImGui_Impl_Mosaic_MacOS_ShowWindow(ImGuiViewport* viewport) {
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
+    ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
     IM_ASSERT(vd->NativeWindow != 0);
 
     if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
@@ -1316,18 +1326,14 @@ static void ImGui_Impl_Mosaic_MacOS_ShowWindow(ImGuiViewport* viewport) {
 }
 
 static ImVec2 ImGui_Impl_Mosaic_MacOS_GetWindowPos(ImGuiViewport* viewport) {
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
-    IM_ASSERT(vd->NativeWindow != 0);
-
+    ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
+    IM_ASSERT(vd->NativeWindow);
     NSWindow* window = vd->NativeWindow;
     NSRect frame = window.frame;
     NSRect contentRect = window.contentLayoutRect;
-    if (window.styleMask &
-        NSWindowStyleMaskFullSizeContentView) // No title bar windows should be
-                                              // considered.
+    // No title bar windows should be considered.
+    if (window.styleMask & NSWindowStyleMaskFullSizeContentView)
         contentRect = frame;
-
     NSRect firstScreenFrame = NSScreen.screens[0].frame;
     return ImVec2(frame.origin.x, firstScreenFrame.size.height -
                                       frame.origin.y - contentRect.size.height);
@@ -1335,38 +1341,24 @@ static ImVec2 ImGui_Impl_Mosaic_MacOS_GetWindowPos(ImGuiViewport* viewport) {
 
 static void ImGui_Impl_Mosaic_MacOS_SetWindowPos(ImGuiViewport* viewport,
                                                  ImVec2 pos) {
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
-    IM_ASSERT(vd->NativeWindow != 0);
+    ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
+    IM_ASSERT(vd->window);
     if (vd->window->is_live_moving()) return;
-    NSWindow* window = vd->NativeWindow;
-    NSSize size = window.frame.size;
-    NSRect r = NSMakeRect(pos.x, pos.y, size.width, size.height);
-    ConvertNSRect(&r);
-    [window setFrameOrigin:r.origin];
+    vd->window->set_position((vml::int2)pos);
 }
 
 static ImVec2 ImGui_Impl_Mosaic_MacOS_GetWindowSize(ImGuiViewport* viewport) {
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
-    IM_ASSERT(vd->NativeWindow != 0);
-    NSWindow* window = vd->NativeWindow;
-    NSSize size = window.contentView.frame.size;
-    return ImVec2(size.width, size.height);
+    ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
+    IM_ASSERT(vd->window);
+    return (vml::float2)vd->window->size();
 }
 
 static void ImGui_Impl_Mosaic_MacOS_SetWindowSize(ImGuiViewport* viewport,
                                                   ImVec2 size) {
-    ImGui_Impl_Mosaic_MacOS_ViewportData* vd =
-        (ImGui_Impl_Mosaic_MacOS_ViewportData*)viewport->PlatformUserData;
+    ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
     IM_ASSERT(vd->NativeWindow != 0);
     if (vd->window->is_live_resizing()) return;
-    NSWindow* window = vd->NativeWindow;
-    NSRect rect = window.frame;
-    rect.origin.y -= (size.y - rect.size.height);
-    rect.size.width = size.x;
-    rect.size.height = size.y;
-    [window setFrame:rect display:YES];
+    vd->window->set_size((vml::int2)size);
 }
 
 static ImVec2

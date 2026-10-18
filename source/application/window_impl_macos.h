@@ -30,6 +30,7 @@
 @interface MosaicWindow : NSWindow
 @property(nonatomic, assign) MosaicKeyEventResponder* key_event_responder;
 @property(nonatomic, strong) NSTextInputContext* text_input_context;
+@property(nonatomic) mosaic::Window* window;
 @end
 
 namespace mosaic::internal {
@@ -47,6 +48,7 @@ struct WindowImplMacOS : WindowImpl {
     MosaicWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;
     bool is_live_moving = false;
+    bool is_focusable = false;
     std::vector<NativeEventHandler> native_event_handlers;
 };
 
