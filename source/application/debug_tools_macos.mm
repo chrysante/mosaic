@@ -112,9 +112,6 @@ static void draw_native_window_style_inspector() {
              NSWindowStyleMaskUnifiedTitleAndToolbar},
 #endif
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
-            {"Full Screen", NSWindowStyleMaskFullScreen},
-#endif
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
             {"Full Size Content View", NSWindowStyleMaskFullSizeContentView},
 #endif
         };
