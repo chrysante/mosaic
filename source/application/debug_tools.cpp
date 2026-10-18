@@ -44,29 +44,29 @@ void mosaic::toggle_want_debug_overlays() {
 }
 
 void ApplicationDebugger::display() {
-    if (!m_open) return;
-    display_debuggers();
-    display_native_window_style_inspector();
+    if (m_open) display_debuggers();
+    if (m_show_window_inspector) display_native_window_style_inspector();
+    if (m_show_imgui_debugger) ImGui::ShowMetricsWindow(&m_show_imgui_debugger);
+    if (m_show_imgui_log) ImGui::ShowDebugLogWindow(&m_show_imgui_log);
 }
 
 void ApplicationDebugger::display_debuggers() {
     ImGui::SetNextWindowSize(ImVec2(900.0f, 600.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Application Debugger", &m_open)) {
-        if (ImGui::BeginTabBar("DebuggerTabs")) {
-            if (ImGui::BeginTabItem("Windows")) {
-                draw_window_debugger();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Input Events")) {
-                draw_event_debugger();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Input")) {
-                draw_input_debugger();
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
+        ImGui::Checkbox("ImGui Debugger", &m_show_imgui_debugger);
+        ImGui::SameLine();
+        ImGui::Checkbox("ImGui Log", &m_show_imgui_log);
+        ImGui::SameLine();
+        bool debug_overlays = want_debug_overlays();
+        if (ImGui::Checkbox("Debug Overlays", &debug_overlays))
+            set_want_debug_overlays(debug_overlays);
+        ImGui::SameLine();
+        ImGui::Checkbox("Window style inspector", &m_show_window_inspector);
+        if (ImGui::CollapsingHeader("Windows")) draw_window_debugger();
+        if (ImGui::CollapsingHeader("Input Events")) draw_event_debugger();
+        if (ImGui::CollapsingHeader("Input")) draw_input_debugger();
+        if (ImGui::CollapsingHeader("Frame Scheduler"))
+            GET_APP_IMPL(app).frame_scheduler->draw_debugger();
     }
     ImGui::End();
 }
@@ -75,7 +75,7 @@ void ApplicationDebugger::display_debuggers() {
 // Window Debugger
 // =============================================================================
 
-#define WINDOW_DEBUG_TABLE(X)                                                  \
+#define WINDOW_TABLE(X)                                                        \
     X(window, "Window")                                                        \
     X(frame, "Frame")                                                          \
     X(properties, "Properties")                                                \
@@ -85,7 +85,7 @@ namespace {
 struct WindowTable {
     enum Column {
 #define X(name, label) name,
-        WINDOW_DEBUG_TABLE(X)
+        WINDOW_TABLE(X)
 #undef X
     };
 };
@@ -137,13 +137,12 @@ void ApplicationDebugger::draw_window_debugger() {
     ImGui::TextDisabled("(%zu)", windows.size());
     ImGui::Separator();
     auto table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                       ImGuiTableFlags_Resizable |
-                       ImGuiTableFlags_SizingStretchProp |
-                       ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX;
+                       ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+                       ImGuiTableFlags_SizingStretchProp;
     if (ImGui::BeginTable("Windows", enum_count<WindowTable::Column>,
                           table_flags)) {
 #define X(name, label) ImGui::TableSetupColumn(label);
-        WINDOW_DEBUG_TABLE(X)
+        WINDOW_TABLE(X)
 #undef X
         ImGui::TableHeadersRow();
         for (auto& window : windows)
@@ -158,88 +157,92 @@ void ApplicationDebugger::draw_window_debugger() {
 
 // clang-format off
 #define EVENT_TABLE(X)                                                                    \
-    X(col_type,            "Type",              ImGuiTableColumnFlags_WidthFixed, 135.0f) \
-    X(col_location_window, "Location (Window)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
-    X(col_location_screen, "Location (Screen)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
-    X(col_offset,          "Offset",            ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
-    X(col_button_key,      "Button/Key",        ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
-    X(col_physical_key,    "Physical Key",      ImGuiTableColumnFlags_WidthFixed, 70.0f)  \
-    X(col_click_count,     "Click Count",       ImGuiTableColumnFlags_WidthFixed, 55.0f)  \
-    X(col_source,          "Source",            ImGuiTableColumnFlags_WidthFixed, 75.0f)  \
-    X(col_modifiers,       "Modifiers",         ImGuiTableColumnFlags_WidthFixed, 120.0f)
+    X(type,            "Type",              ImGuiTableColumnFlags_WidthFixed, 135.0f) \
+    X(location_window, "Location (Window)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
+    X(location_screen, "Location (Screen)", ImGuiTableColumnFlags_WidthFixed, 110.0f) \
+    X(offset,          "Offset",            ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
+    X(button_key,      "Button/Key",        ImGuiTableColumnFlags_WidthFixed, 90.0f)  \
+    X(physical_key,    "Physical Key",      ImGuiTableColumnFlags_WidthFixed, 70.0f)  \
+    X(click_count,     "Click Count",       ImGuiTableColumnFlags_WidthFixed, 55.0f)  \
+    X(source,          "Source",            ImGuiTableColumnFlags_WidthFixed, 75.0f)  \
+    X(modifiers,       "Modifiers",         ImGuiTableColumnFlags_WidthFixed, 120.0f)
 // clang-format on
 
-enum EventColName {
+namespace {
+struct EventTable {
+    enum Column {
 #define X(name, _2, _3, _4) name,
-    EVENT_TABLE(X)
+        EVENT_TABLE(X)
 #undef X
+    };
 };
+} // namespace
 
 static void draw_modifiers(InputEvent const& event) {
-    ImGui::TableSetColumnIndex(col_modifiers);
+    ImGui::TableSetColumnIndex(EventTable::modifiers);
     std::string text = to_string(event.modifier_flags);
     ImGui::TextUnformatted(text.data(), text.data() + text.size());
 }
 
 static void draw_mouse_event_base(const MouseEvent& event) {
-    ImGui::TableSetColumnIndex(col_location_window);
+    ImGui::TableSetColumnIndex(EventTable::location_window);
     ImGui::Text("(%.1f, %.1f)", event.location_in_window.x,
                 event.location_in_window.y);
-    ImGui::TableSetColumnIndex(col_location_screen);
+    ImGui::TableSetColumnIndex(EventTable::location_screen);
     ImGui::Text("(%.1f, %.1f)", event.location_on_screen.x,
                 event.location_on_screen.y);
 }
 
 static void draw_event(MouseDownEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::TableSetColumnIndex(EventTable::button_key);
     ImGui::Text("%s", to_string(event.button).c_str());
-    ImGui::TableSetColumnIndex(col_click_count);
+    ImGui::TableSetColumnIndex(EventTable::click_count);
     ImGui::Text("%ld", event.click_count);
     draw_modifiers(event);
 }
 
 void draw_event(MouseUpEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::TableSetColumnIndex(EventTable::button_key);
     ImGui::Text("%s", to_string(event.button).c_str());
     draw_modifiers(event);
 }
 
 static void draw_event(MouseDragEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_offset);
+    ImGui::TableSetColumnIndex(EventTable::offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
-    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::TableSetColumnIndex(EventTable::button_key);
     ImGui::Text("%s", to_string(event.button).c_str());
     draw_modifiers(event);
 }
 
 void draw_event(MouseMoveEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_offset);
+    ImGui::TableSetColumnIndex(EventTable::offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
     draw_modifiers(event);
 }
 
 void draw_event(ScrollEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_offset);
+    ImGui::TableSetColumnIndex(EventTable::offset);
     ImGui::Text("(%.1f, %.1f)", event.offset.x, event.offset.y);
-    ImGui::TableSetColumnIndex(col_source);
+    ImGui::TableSetColumnIndex(EventTable::source);
     ImGui::TextUnformatted(event.is_trackpad ? "Trackpad" : "Mouse");
     draw_modifiers(event);
 }
 
 static void draw_event(MagnificationEvent const& event) {
     draw_mouse_event_base(event);
-    ImGui::TableSetColumnIndex(col_offset);
+    ImGui::TableSetColumnIndex(EventTable::offset);
     ImGui::Text("%.3f", event.magnification);
     draw_modifiers(event);
 }
 
 static void draw_event(KeyEvent const& event) {
-    ImGui::TableSetColumnIndex(col_button_key);
+    ImGui::TableSetColumnIndex(EventTable::button_key);
     ImGui::Text("%s", to_string(event.key).c_str());
     if (auto* key_down = csp::dyncast<KeyDownEvent const*>(&event);
         key_down && key_down->is_repeat) {
@@ -248,7 +251,7 @@ static void draw_event(KeyEvent const& event) {
         ImGui::Text("REPEAT");
         ImGui::PopStyleColor();
     }
-    ImGui::TableSetColumnIndex(col_physical_key);
+    ImGui::TableSetColumnIndex(EventTable::physical_key);
     ImGui::Text("%s", to_string(event.physical).c_str());
     draw_modifiers(event);
 }
@@ -261,8 +264,8 @@ void ApplicationDebugger::draw_event_debugger() {
     static ImGuiTableFlags const table_flags =
         ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
         ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
-        ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
-    if (!ImGui::BeginTable("InputEvents", enum_count<EventColName>,
+        ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("InputEvents", enum_count<EventTable::Column>,
                            table_flags))
         return;
 
@@ -274,7 +277,7 @@ void ApplicationDebugger::draw_event_debugger() {
     ImGui::TableHeadersRow();
     for (auto const& event : m_input_queue | std::views::reverse) {
         ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(col_type);
+        ImGui::TableSetColumnIndex(EventTable::type);
         std::string_view type_name =
             magic_enum::enum_name(get_rtti(event.base()));
         ImGui::TextUnformatted(type_name.data(),
@@ -294,7 +297,7 @@ void ApplicationDebugger::draw_input_debugger() {
     // -------------------------------------------------------------------------
     // Mouse
     // -------------------------------------------------------------------------
-    if (ImGui::CollapsingHeader("Mouse", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::TreeNodeEx("Mouse", ImGuiTreeNodeFlags_DefaultOpen)) {
         vml::float2 const mouse_pos = input.mouse_position();
         vml::float2 const mouse_offset = input.mouse_offset();
         vml::float2 const scroll = input.scroll_offset();
@@ -335,6 +338,7 @@ void ApplicationDebugger::draw_input_debugger() {
                 ImGui::PopStyleColor();
             }
         }
+        ImGui::TreePop();
     }
 
     ImGui::Spacing();
@@ -342,7 +346,7 @@ void ApplicationDebugger::draw_input_debugger() {
     // -------------------------------------------------------------------------
     // Keyboard
     // -------------------------------------------------------------------------
-    if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::TreeNodeEx("Keyboard", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("Modifiers");
         ImGui::Separator();
         auto modifier = [](bool active, char const* name) {
@@ -385,6 +389,7 @@ void ApplicationDebugger::draw_input_debugger() {
             ImGui::PopStyleColor();
         }
         if (!any_key_down) ImGui::TextDisabled("No keys pressed");
+        ImGui::TreePop();
     }
 
     ImGui::Spacing();

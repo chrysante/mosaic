@@ -61,6 +61,9 @@ private:
     Application& app;
     FixedQueue<InputEventUnion> m_input_queue;
     bool m_open = false;
+    bool m_show_window_inspector = false;
+    bool m_show_imgui_debugger = false;
+    bool m_show_imgui_log = false;
 };
 
 } // namespace mosaic

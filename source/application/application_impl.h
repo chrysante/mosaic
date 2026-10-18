@@ -13,6 +13,17 @@
 #include "service/event_receiver.h"
 #include "service/service_context.h"
 
+#define APPLICATION_IMPL_TYPE ApplicationImpl
+
+#define GET_APP_IMPL(app)                                                      \
+    static_cast<std::conditional_t<                                            \
+        ::std::is_const_v<::std::remove_reference_t<decltype(app)>>,           \
+        ::mosaic::internal::APPLICATION_IMPL_TYPE const&,                      \
+        ::mosaic::internal::APPLICATION_IMPL_TYPE&>>(                          \
+        ::mosaic::internal::ApplicationImpl::get_impl(app))
+
+#define APP_IMPL GET_APP_IMPL(*this)
+
 namespace mosaic {
 
 #ifndef NDEBUG

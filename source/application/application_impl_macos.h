@@ -7,14 +7,8 @@
 #import <QuartzCore/CADisplayLink.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-#define GET_APP_IMPL(app)                                                      \
-    static_cast<std::conditional_t<                                            \
-        ::std::is_const_v<::std::remove_reference_t<decltype(app)>>,           \
-        ::mosaic::internal::ApplicationImplMacOS const&,                       \
-        ::mosaic::internal::ApplicationImplMacOS&>>(                           \
-        ::mosaic::internal::ApplicationImpl::get_impl(app))
-
-#define APP_IMPL GET_APP_IMPL(*this)
+#undef APPLICATION_IMPL_TYPE
+#define APPLICATION_IMPL_TYPE ApplicationImplMacOS
 
 namespace mosaic::internal {
 

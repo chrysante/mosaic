@@ -24,6 +24,10 @@ public:
     /// ignored.
     /// Must only be called synchronously.
     virtual void request_frames(std::size_t count) = 0;
+
+#ifndef NDEBUG
+    virtual void draw_debugger() {}
+#endif
 };
 
 } // namespace mosaic

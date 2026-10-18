@@ -106,7 +106,6 @@ private:
         dockspace.display(main_window());
         if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
         display_icon_viewer();
-        ImGui::ShowMetricsWindow();
     }
 
     void display_icon_viewer() {

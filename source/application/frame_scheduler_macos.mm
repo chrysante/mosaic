@@ -6,6 +6,10 @@
 #include <memory>
 #include <utility>
 
+#ifndef NDEBUG
+#include <imgui.h>
+#endif
+
 #import <AppKit/AppKit.h>
 
 using namespace mosaic;
@@ -48,8 +52,8 @@ struct FrameSchedulerMacOS final : FrameScheduler {
         if (timer.isValid) return;
         void (^block)(NSTimer*) = ^(NSTimer* timer) {
           assert(is_main_thread());
-          if (frame_callback) frame_callback();
           if (pending_frames > 0) --pending_frames;
+          if (frame_callback) frame_callback();
           if (pending_frames == 0) [timer invalidate];
         };
         timer = [NSTimer timerWithTimeInterval:(1.0 / 60.0)
@@ -57,6 +61,10 @@ struct FrameSchedulerMacOS final : FrameScheduler {
                                          block:block];
         [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
     }
+
+#ifndef NDEBUG
+    void draw_debugger() override;
+#endif
 
     std::function<void()> frame_callback;
     NSTimer* timer = nil;
@@ -71,3 +79,10 @@ std::unique_ptr<FrameScheduler>
 FrameScheduler::create(std::function<void()> frame) {
     return std::make_unique<FrameSchedulerMacOS>(std::move(frame));
 }
+
+#ifndef NDEBUG
+void FrameSchedulerMacOS::draw_debugger() {
+    ImGui::Text("Timer: %p", (__bridge void*)timer);
+    ImGui::Text("Pending Frames: %d", pending_frames);
+}
+#endif

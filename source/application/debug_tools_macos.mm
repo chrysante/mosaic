@@ -347,7 +347,7 @@ static void draw_native_window_style_inspector() {
 }
 
 void ApplicationDebugger::display_native_window_style_inspector() {
-    ImGui::Begin("Native Window Inspector");
+    ImGui::Begin("Native Window Inspector", &m_show_window_inspector);
     draw_native_window_style_inspector();
     ImGui::End();
 }
