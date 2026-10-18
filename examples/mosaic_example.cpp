@@ -56,6 +56,8 @@ private:
 
 MOSAIC_REGISTER_VIEW(ExampleView, {.name = "ExampleView"})
 
+static void menubar();
+
 class ExampleApp : public Application {
 public:
     ExampleApp()
@@ -66,6 +68,11 @@ public:
             .name = "My Command",
             .key_comb = {.key = Key::K, .mod_flags = ModFlags::control},
             .command = [this] { main_window()->zoom(); }
+        });
+        command_palette().add({
+            .name = "Toggle Menubar",
+            .key_comb = {.key = Key::F10}, 
+            .command = [this] { dockspace.toggle_menubar(); }
         });
         dockspace.set_left_toolbar({
             ToolbarIconButton("plus")
@@ -102,7 +109,7 @@ public:
 
 private:
     void frame() override {
-        dockspace.display(main_window());
+        dockspace.display(main_window(), menubar);
         if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
         display_icon_viewer();
     }
@@ -154,4 +161,126 @@ private:
 int main() {
     ExampleApp app;
     return app.run();
+}
+
+static void menubar() {
+    if (ImGui::BeginMenu("File")) {
+        ImGui::MenuItem("New Project", "Ctrl+N");
+        ImGui::MenuItem("Open Project...", "Ctrl+O");
+        ImGui::MenuItem("Open Recent");
+        ImGui::Separator();
+        ImGui::MenuItem("Save", "Ctrl+S");
+        ImGui::MenuItem("Save As...", "Ctrl+Shift+S");
+        ImGui::MenuItem("Save All", "Ctrl+Alt+S");
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Export")) {
+            ImGui::MenuItem("Export as PNG");
+            ImGui::MenuItem("Export as JPG");
+            ImGui::MenuItem("Export as PDF");
+            ImGui::MenuItem("Export as JSON");
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+        ImGui::MenuItem("Settings", "Ctrl+,");
+        ImGui::MenuItem("Exit", "Alt+F4");
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Edit")) {
+        ImGui::MenuItem("Undo", "Ctrl+Z");
+        ImGui::MenuItem("Redo", "Ctrl+Y");
+        ImGui::Separator();
+        ImGui::MenuItem("Cut", "Ctrl+X");
+        ImGui::MenuItem("Copy", "Ctrl+C");
+        ImGui::MenuItem("Paste", "Ctrl+V");
+        ImGui::MenuItem("Duplicate", "Ctrl+D");
+        ImGui::MenuItem("Select All", "Ctrl+A");
+        ImGui::Separator();
+        ImGui::MenuItem("Find", "Ctrl+F");
+        ImGui::MenuItem("Replace", "Ctrl+H");
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("View")) {
+        ImGui::MenuItem("Toolbar");
+        ImGui::MenuItem("Status Bar");
+        ImGui::MenuItem("Grid");
+        ImGui::MenuItem("Guides");
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Theme")) {
+            ImGui::MenuItem("Dark");
+            ImGui::MenuItem("Light");
+            ImGui::MenuItem("Classic");
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Zoom")) {
+            ImGui::MenuItem("50%");
+            ImGui::MenuItem("75%");
+            ImGui::MenuItem("100%");
+            ImGui::MenuItem("150%");
+            ImGui::MenuItem("200%");
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Tools")) {
+        ImGui::MenuItem("Command Palette", "Ctrl+Shift+P");
+        ImGui::MenuItem("Search Everything", "Ctrl+Shift+F");
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Debug")) {
+            ImGui::MenuItem("Show Metrics");
+            ImGui::MenuItem("Show Debug Log");
+            ImGui::MenuItem("Show ID Stack Tool");
+            ImGui::MenuItem("Inspect Style");
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Build")) {
+            ImGui::MenuItem("Build", "Ctrl+B");
+            ImGui::MenuItem("Build and Run", "Ctrl+F5");
+            ImGui::MenuItem("Clean Build");
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+        ImGui::MenuItem("Preferences...");
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Window")) {
+        ImGui::MenuItem("New Window");
+        ImGui::MenuItem("Reset Layout");
+        ImGui::Separator();
+        ImGui::MenuItem("Hierarchy");
+        ImGui::MenuItem("Inspector");
+        ImGui::MenuItem("Console");
+        ImGui::MenuItem("Asset Browser");
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Layout")) {
+            ImGui::MenuItem("Default");
+            ImGui::MenuItem("Coding");
+            ImGui::MenuItem("Debugging");
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Help")) {
+        ImGui::MenuItem("Documentation");
+        ImGui::MenuItem("Keyboard Shortcuts");
+        ImGui::MenuItem("Report a Bug");
+        ImGui::Separator();
+        ImGui::MenuItem("About");
+        ImGui::MenuItem("About Dear ImGui");
+        ImGui::EndMenu();
+    }
 }

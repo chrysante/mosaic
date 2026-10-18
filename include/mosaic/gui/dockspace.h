@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <utl/function_view.hpp>
+
 namespace mosaic {
 
 class Window;
@@ -17,7 +19,7 @@ public:
 
     /// Makes the entire content area of \p window a dockable area and draws
     /// toolbars in the windows titlebar
-    void display(Window* window);
+    void display(Window* window, utl::function_view<void()> menubar_content);
 
     /// # Toolbar Layout
     /// A dockspace has three toolbars. Depending on the docked windows in the
@@ -68,6 +70,12 @@ public:
 
     /// Focuses the last focused child window in the dockspace
     void take_focus();
+
+    ///
+    bool has_menubar() const;
+
+    ///
+    void toggle_menubar();
 
 private:
     std::unique_ptr<internal::DockspaceImpl> m_impl;

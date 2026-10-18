@@ -33,6 +33,7 @@ struct internal::DockspaceImpl {
     ImGuiWindow* main_imgui_window = nullptr;
     size_t spacing_count = 0;
     unsigned main_dock_id = 0;
+    bool has_menubar = false;
 };
 
 static constexpr auto main_window_id = "MainWindow";
@@ -52,13 +53,15 @@ Dockspace::Dockspace()
 
 Dockspace::~Dockspace() = default;
 
-static void main_window(DockspaceImpl& impl, float toolbar_height);
+static void main_window(DockspaceImpl& impl, float toolbar_height,
+                        utl::function_view<void()> menubar_content);
 static void display_toolbars(DockspaceImpl& impl, Window& window);
 
-void Dockspace::display(Window* window) {
+void Dockspace::display(Window* window,
+                        utl::function_view<void()> menubar_content) {
     if (!window) return;
     window->set_style({.full_size_content = true, .large_titlebar = true});
-    main_window(*m_impl, window->titlebar_height());
+    main_window(*m_impl, window->titlebar_height(), menubar_content);
     display_toolbars(*m_impl, *window);
 }
 
@@ -84,6 +87,10 @@ void Dockspace::take_focus() {
     ImGui::FocusWindow(m_impl->main_imgui_window, flags);
 }
 
+bool Dockspace::has_menubar() const { return m_impl->has_menubar; }
+
+void Dockspace::toggle_menubar() { m_impl->has_menubar ^= true; }
+
 static ImGuiID submit_dockspace() {
     ImGuiDockNodeFlags flags = 0;
     flags |= ImGuiDockNodeFlags_NoWindowMenuButton;
@@ -94,7 +101,8 @@ static ImGuiID submit_dockspace() {
     return id;
 }
 
-static void main_window(DockspaceImpl& impl, float toolbar_height) {
+static void main_window(DockspaceImpl& impl, float toolbar_height,
+                        utl::function_view<void()> menubar_content) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     float2 local_pos = float2(0, toolbar_height + 1);
     auto window_position = (float2)viewport->Pos + local_pos;
@@ -109,6 +117,7 @@ static void main_window(DockspaceImpl& impl, float toolbar_height) {
     windowFlags |= ImGuiWindowFlags_NoCollapse;
     windowFlags |= ImGuiWindowFlags_NoMove;
     windowFlags |= ImGuiWindowFlags_NoNavFocus;
+    if (impl.has_menubar) windowFlags |= ImGuiWindowFlags_MenuBar;
     auto& style = ImGui::GetStyle();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -118,11 +127,15 @@ static void main_window(DockspaceImpl& impl, float toolbar_height) {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
                         float2(1, 1) * (float2)style.FramePadding);
     ImGui::Begin(main_window_id, nullptr, windowFlags);
+    ImGui::PopStyleVar(6);
+    if (impl.has_menubar && ImGui::BeginMenuBar()) {
+        if (menubar_content) menubar_content();
+        ImGui::EndMenuBar();
+    }
     with_window_size_constraints(
         impl.min_window_size, [&] { impl.main_dock_id = submit_dockspace(); });
     impl.main_imgui_window = ImGui::GetCurrentWindowRead();
     ImGui::End();
-    ImGui::PopStyleVar(6);
 }
 
 /// Calls `ImGui::Begin` with every possible interaction and decoration disabled
