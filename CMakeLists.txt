@@ -155,15 +155,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
-# yaml-cpp
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG yaml-cpp-0.9.0
-  GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(yaml-cpp)
-
 # ImGui
 add_library(ImGui STATIC)
 
@@ -208,7 +199,6 @@ target_link_libraries(mosaic
         csp
         ImGui
         magic_enum
-        yaml-cpp::yaml-cpp
         nlohmann_json::nlohmann_json
     PRIVATE
         termfmt
