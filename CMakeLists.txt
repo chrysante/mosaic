@@ -4,6 +4,7 @@ project(mosaic
     VERSION 0.1.0
     LANGUAGES CXX OBJCXX
 )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # C++ standard
 set(CMAKE_CXX_STANDARD 23)
