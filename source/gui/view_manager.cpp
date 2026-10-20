@@ -66,6 +66,7 @@ View* ViewManager::open_view(ViewRegistryEntry const& entry,
     view->initialize(view_id, service_context);
     auto* result = insert_view(view_id, std::move(view));
     result->take_focus();
+    if (completion) completion(*result);
     return result;
 }
 
