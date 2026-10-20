@@ -4,6 +4,7 @@
 #include <imgui_internal.h>
 
 #include <mosaic/application/application.h>
+#include <mosaic/application/application_settings.h>
 #include <mosaic/application/input.h>
 #include <mosaic/application/window.h>
 #include <mosaic/gui/command_palette.h>
@@ -112,6 +113,9 @@ private:
         dockspace.display(main_window(), menubar);
         if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
         display_icon_viewer();
+        if (ImGui::Begin("Application Settings"))
+            draw_application_settings(*this);
+        ImGui::End();
     }
 
     void display_icon_viewer() {
