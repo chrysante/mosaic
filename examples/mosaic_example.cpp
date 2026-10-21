@@ -1,7 +1,10 @@
+#include <cfloat>
 #include <string>
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <utl/strcat.hpp>
+#include <utl/vector.hpp>
 
 #include <mosaic/application/application.h>
 #include <mosaic/application/application_settings.h>
@@ -10,6 +13,7 @@
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/layout.h>
 #include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/ui_context.h>
@@ -22,27 +26,82 @@
 
 using namespace mosaic;
 
+static bool SliderFloatOnRelease(const char* label, float* value, float min,
+                                 float max, const char* format = "%.3f",
+                                 ImGuiSliderFlags flags = 0) {
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    ImGuiID id = ImGui::GetID(label);
+    float* temp = storage->GetFloatRef(id, *value);
+    // Keep the temporary value synchronized when not editing.
+    if (!ImGui::IsAnyItemActive()) *temp = *value;
+    ImGui::SliderFloat(label, temp, min, max, format, flags);
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        *value = *temp;
+        return true;
+    }
+    return false;
+}
+
 class ExampleView : public View {
 public:
     ExampleView() {
-        // clang-format off
-        set_toolbar({
-            ToolbarIconButton("link")
-                .on_click([] {})
-        });
-        // clang-format on
+        set_toolbar(make_toolbar());
+        set_padding({0, 0});
     }
 
 private:
+    Toolbar make_toolbar() {
+        // clang-format off
+        return {
+            ToolbarIconButton("link")
+                .on_click([] {}), 
+            CustomToolbarElement([this](vml::float2 size) {
+                auto& style = ImGui::GetStyle();
+                float item_height = ImGui::GetFontSize() + 
+                                    2.0f * style.FramePadding.y;
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 
+                                     0.5f * (size.y - item_height));
+                ImGui::SetNextItemWidth(size.x);
+                ImGui::SliderInt("##NumColumns", &num_columns, 1, 10);
+            }).width(100)
+        };
+        // clang-format on
+    }
+
     void display() override {
-        ImGui::Button("My View Button");
+        utl::small_vector<ui::ColumnLayout> columns;
+        for (int i = 0; i < num_columns; ++i) {
+            auto options = col_options[i];
+            columns.push_back(
+                {.header = i > 0 ? ui::ColumnLayout::Header(
+                                       utl::strcat("Column ", i + 1))
+                                 : ui::ColumnLayout::Header([] {
+                                       ImGui::Text("Column 1");
+                                       ImGui::SameLine();
+                                       ImGui::SmallButton("Button");
+                                   }),
+                 .content = [this, i] { column(i); },
+                 .min_width = options.min_width,
+                 .max_width = options.max_width});
+        }
+        ui::columns("example-view-columns", columns,
+                    {.header_height = use_header ? -1.0f : 0.0f});
+    }
+
+    void left_col() {
+        bool have_toolbar = uses_toolbar();
+        if (ImGui::Checkbox("Use Toolbar", &have_toolbar)) {
+            if (have_toolbar) set_toolbar(make_toolbar());
+            else remove_toolbar();
+        }
+        ImGui::Checkbox("Use Header", &use_header);
+
         float t = (float)ImGui::GetTime();
         float v = fmodf(t, 1.0f);
         ImGui::ProgressBar(v, ImVec2(100, 0));
         auto* viewport = ImGui::GetWindowViewport();
         ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
         ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
-
         if (auto* ui_context = get_current_ui_context()) {
             if (ImGui::Button("Run continuously"))
                 run_mode_lease =
@@ -52,7 +111,52 @@ private:
         }
     }
 
+    void display_col_options(int index) {
+        auto& options = col_options[index];
+        bool use_max = options.max_width != FLT_MAX;
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.0f);
+        bool dummy = false;
+        ImGui::Checkbox("##empty_checkbox", &dummy);
+        ImGui::PopStyleVar();
+        ImGui::SameLine();
+        SliderFloatOnRelease("Min Width", &options.min_width, 0.0f,
+                             use_max ? options.max_width : 1000.f, "%.f",
+                             ImGuiSliderFlags_AlwaysClamp);
+        if (ImGui::Checkbox("##use_max", &use_max)) {
+            if (use_max) options.max_width = 1000.f;
+            else options.max_width = FLT_MAX;
+        }
+        ImGui::SameLine();
+        if (!use_max) {
+            ImGui::Text("Use Max Width");
+        } else {
+            SliderFloatOnRelease("Max Width", &options.max_width,
+                                 options.min_width, 1000.f, "%.f",
+                                 ImGuiSliderFlags_AlwaysClamp);
+        }
+    }
+
+    void column(int index) {
+        display_col_options(index);
+        if (index == 0) {
+            left_col();
+            return;
+        }
+        for (int i = 0; i < 30; ++i) {
+            if (i > 0) ImGui::Separator();
+            ImGui::Text("Item %02d: Some test content", i);
+            ImGui::Button(("Button " + std::to_string(i)).c_str());
+        }
+    }
+
     RunModeController::Lease run_mode_lease;
+    bool use_header = true;
+    int num_columns = 3;
+    struct ColOptions {
+        float min_width = 10;
+        float max_width = FLT_MAX;
+    };
+    utl::hashmap<int, ColOptions> col_options;
 };
 
 MOSAIC_REGISTER_VIEW(ExampleView, {.name = "ExampleView"})
