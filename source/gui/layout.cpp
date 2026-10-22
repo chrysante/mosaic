@@ -1,5 +1,6 @@
 #include "gui/layout.h"
 
+#include <cfloat>
 #include <cstdio>
 #include <limits>
 #include <stack>
@@ -314,12 +315,46 @@ void ui::columns(char const* str_id,
 
 namespace {
 
+//     Window
+//     ┌───────────────────────────────────────────────────────────────────────┐
+//     │                                                                       │
+//     │                                                                       │
+//     │                                                                       │
+//     │        <section-title (optional)>                                     │
+//     │       ┌───────────────────────────────────────────────────────┐       │
+//     │  OPX  │       ┬                                               │  OPX  │
+//     │ ├───┤ │       │  section_padding.y                            │ ├───┤ │
+//     │       │  SPX  ┴                                          SPX  │       │
+//     │       │ ├───┤ <label>                            <item> ├───┤ │       │
+//     │       │       │ row_spacing ───────────────────────────       │       │
+//     │       │       <label>                            <item>       │       │
+//     │       │       ┬                                               │       │
+//     │       │       │ section_padding.y                             │       │
+//     │       │       ┴                                               │       │
+//     │       └───────────────────────────────────────────────────────┘       │
+//     │        ┬                                                              │
+//     │        │ section_spacing                                              │
+//     │        ┴                                                              │
+//     │        <section-title (optional)>                                     │
+//     │       ┌───────────────────────────────────────────────────────┐       │
+//     │       │                                                       │       │
+//     │       └───────────────────────────────────────────────────────┘       │
+//     │                                                                       │
+//     └───────────────────────────────────────────────────────────────────────┘
+//
+// OPX = outer_padding_x
+// SPX = section_padding.x
+//
+
 struct PropertiesStyle {
     float title_font_size = 23.0f;
+
+    float outer_padding_x = 14.0f;
 
     float section_spacing = 10.0f;
     vml::float2 section_padding = {10.0f, 10.0f};
     float section_rounding = 12.0f;
+    float section_midpoint = 0.3;
 
     float row_spacing = 12.0f;
     bool draw_separators = true;
@@ -328,6 +363,12 @@ struct PropertiesStyle {
     bool draw_section_backgrounds = true;
     ImU32 section_background = IM_COL32(255, 255, 255, 15);
 };
+
+} // namespace
+
+static PropertiesStyle properties_style;
+
+namespace {
 
 struct Row {
     float top = 0.0f;
@@ -359,13 +400,18 @@ struct Context {
     float content_right = 0.0f;
     float content_width = 0.0f;
 
+    float label_width() const {
+        return content_width * properties_style.section_midpoint;
+    }
+    float item_width() const {
+        return content_width * (1.0f - properties_style.section_midpoint);
+    }
+
     SectionData current_section;
     int num_sections = 0;
 };
 
 } // namespace
-
-static PropertiesStyle properties_style;
 
 static std::stack<Context> g_context_stack;
 
@@ -381,6 +427,16 @@ static Context& push_context(ImDrawList* draw_list, vml::float2 origin,
 }
 
 static void pop_context() { g_context_stack.pop(); }
+
+static void with_intersected_clip_rect(ImDrawList* DL, vml::float2 min,
+                                       vml::float2 max, auto&& callback) {
+    min = vml::max(min, (vml::float2)DL->GetClipRectMin());
+    max = vml::min(max, (vml::float2)DL->GetClipRectMax());
+    if (min.x >= max.x || min.y >= max.y) return;
+    DL->PushClipRect(min, max);
+    callback();
+    DL->PopClipRect();
+}
 
 static void draw_section_background(Context& ctx) {
     float const x0 = ctx.content_left - properties_style.section_padding.x;
@@ -406,31 +462,29 @@ static void start_section(Context& ctx, const char* title) {
     if (ctx.num_sections > 0) ctx.cursor_y += properties_style.section_spacing;
     // Draw title
     if (title) {
-        auto* title_font =
-            ui::font({.weight = FontWeight::bold, .style = FontStyle::roman});
-        auto* DL = ctx.draw_list;
-        DL->AddText(title_font, properties_style.title_font_size,
-                    {ctx.content_left, ctx.cursor_y},
-                    ImGui::GetColorU32(ImGuiCol_Text), title, nullptr,
-                    ctx.content_width);
-        ctx.cursor_y += properties_style.title_font_size +
-                        0.5f * properties_style.row_spacing;
+        auto font_desc = FontDesc::ui_default().set_weight(FontWeight::bold);
+        ImGui::SetCursorScreenPos({ctx.content_left, ctx.cursor_y});
+        ui::with_font(font_desc, [&] { ImGui::TextEx(title); });
+        float font_size = ImGui::GetFontSize();
+        ctx.cursor_y += font_size + 0.5f * properties_style.row_spacing;
     }
     ctx.current_section = {.top = ctx.cursor_y, .has_content = false};
 }
 
 void ui::begin_properties(const char* str_id) {
-    auto* draw_list = ImGui::GetWindowDrawList();
+    auto* window = ImGui::GetCurrentWindow();
+    auto* draw_list = window->DrawList;
+    float window_width = window->Size.x - 2.0f * window->WindowPadding.x;
     vml::float2 origin = ImGui::GetCursorScreenPos();
-    origin.x += properties_style.section_padding.x;
-    float content_width = ImGui::GetContentRegionAvail().x -
-                          2.0f * properties_style.section_padding.x;
+    float xpadding =
+        properties_style.section_padding.x + properties_style.outer_padding_x;
+    origin.x += xpadding;
+    float content_width = window_width - 2.0f * xpadding;
     auto& ctx = push_context(draw_list, origin, content_width);
     // Channel 0: deferred backgrounds.
     // Channel 1: normal widget commands.
     ctx.splitter.Split(ctx.draw_list, 2);
     ctx.splitter.SetCurrentChannel(ctx.draw_list, 1);
-
     ImGui::PushID(str_id);
     start_section(ctx, nullptr);
 }
@@ -450,20 +504,20 @@ void ui::end_properties() {
 
 void ui::section(const char* title) { start_section(current_context(), title); }
 
-static void align_right(float right_pos_x,
+static void align_right(float right_edge, float preferred_width,
                         std::span<utl::function_view<void()> const> items);
 
 void ui::internal::item_impl(
     const char* label, std::span<utl::function_view<void()> const> lines) {
     assert(!lines.empty());
     Context& ctx = current_context();
+    auto* DL = ctx.draw_list;
     auto& imgui_style = ImGui::GetStyle();
     ctx.cursor_y += ctx.current_section.has_content
                         ? properties_style.row_spacing
                         : properties_style.section_padding.y;
     // Draw separator before next item
     if (properties_style.draw_separators && ctx.current_section.has_content) {
-        auto* DL = ctx.draw_list;
         DL->AddLineH(ctx.content_left, ctx.content_right,
                      ctx.cursor_y - 0.5f * properties_style.row_spacing,
                      ImGui::GetColorU32(ImGuiCol_Separator,
@@ -475,13 +529,26 @@ void ui::internal::item_impl(
         auto* DL = ctx.draw_list;
         vml::float2 label_pos = {ctx.content_left + imgui_style.FramePadding.x,
                                  ctx.cursor_y + imgui_style.FramePadding.y};
-        DL->AddText(nullptr, 0.0f, label_pos, ImGui::GetColorU32(ImGuiCol_Text),
-                    label, nullptr);
+        vml::float2 label_end =
+            label_pos +
+            vml::float2(ctx.label_width() - 2.0f * imgui_style.FramePadding.x,
+                        ImGui::GetFontSize());
+        with_intersected_clip_rect(DL, label_pos, label_end, [&] {
+            DL->AddText(nullptr, 0.0f, label_pos,
+                        ImGui::GetColorU32(ImGuiCol_Text), label, nullptr);
+        });
     }
     // We set cursor position here because at least one item will be submitted
     // by align_right()
-    ImGui::SetCursorScreenPos({ctx.content_left, ctx.cursor_y});
-    align_right(ctx.content_right, lines);
+    vml::float2 cursor_pos = {ctx.content_left, ctx.cursor_y};
+    ImGui::SetCursorScreenPos(cursor_pos);
+    vml::float2 item_clip_min = {ctx.content_left + ctx.label_width(),
+                                 -FLT_MAX};
+    vml::float2 item_clip_max = {
+        ctx.content_right + properties_style.section_padding.x, FLT_MAX};
+    with_intersected_clip_rect(DL, item_clip_min, item_clip_max, [&] {
+        align_right(ctx.content_right, ctx.item_width(), lines);
+    });
     ctx.cursor_y = ImGui::GetCursorScreenPos().y - imgui_style.ItemSpacing.y;
     ctx.current_section.has_content = true;
 }
@@ -507,16 +574,20 @@ static void begin_hidden_window(char const* id, ImVec2 size) {
     ImGui::GetCurrentWindow()->Hidden = !measure_options.show_window;
 }
 
-static vml::float2 measure_item_size(utl::function_view<void()> item) {
+static vml::float2 measure_item_size(utl::function_view<void()> item,
+                                     float preferred_width) {
     begin_hidden_window("hidden-window", ImGui::GetWindowSize());
+    ImGui::PushItemWidth(preferred_width);
     item();
+    ImGui::PopItemWidth();
     ImVec2 const size = ImGui::GetItemRectSize();
     ImGui::End();
     return size;
 }
 
-static void do_align_right(float right_pos_x, utl::function_view<void()> item) {
-    vml::float2 item_size = measure_item_size(item);
+static void do_align_right(float right_edge, float preferred_width,
+                           utl::function_view<void()> item) {
+    vml::float2 item_size = measure_item_size(item, preferred_width);
 #ifndef NDEBUG
     if (want_debug_overlays()) {
         auto cp = ImGui::GetCursorScreenPos();
@@ -526,16 +597,18 @@ static void do_align_right(float right_pos_x, utl::function_view<void()> item) {
         DL->AddText(cp, IM_COL32(255, 0, 255, 255), buf);
     }
 #endif
-    vml::float2 cursor_pos = {right_pos_x - item_size.x,
+    vml::float2 cursor_pos = {right_edge - item_size.x,
                               ImGui::GetCursorScreenPos().y};
     ImGui::SetCursorScreenPos(cursor_pos);
+    ImGui::PushItemWidth(preferred_width);
     item();
+    ImGui::PopItemWidth();
 }
 
-static void align_right(float right_pos_x,
+static void align_right(float right_edge, float preferred_width,
                         std::span<utl::function_view<void()> const> items) {
     for (auto item : items)
-        do_align_right(right_pos_x, item);
+        do_align_right(right_edge, preferred_width, item);
 }
 
 #ifndef NDEBUG
@@ -545,8 +618,10 @@ static void draw_item_measurement_debugger() {
 }
 
 static void draw_style_editor(PropertiesStyle& style) {
-    ImGui::SeparatorText("Typography");
+    ImGui::SeparatorText("General");
     ImGui::SliderFloat("Title font size", &style.title_font_size, 10.0f, 40.0f,
+                       "%.0f px");
+    ImGui::SliderFloat("Outer Padding X", &style.outer_padding_x, 0.0f, 50.0f,
                        "%.0f px");
 
     ImGui::SeparatorText("Sections");
@@ -563,6 +638,8 @@ static void draw_style_editor(PropertiesStyle& style) {
                           ImGuiColorEditFlags_AlphaBar |
                               ImGuiColorEditFlags_AlphaPreviewHalf))
         style.section_background = ImGui::ColorConvertFloat4ToU32(color);
+    ImGui::SliderFloat("Section Midpoint", &style.section_midpoint, 0, 1,
+                       "%.2f");
 
     ImGui::SeparatorText("Rows");
     ImGui::SliderFloat("Row spacing", &style.row_spacing, 0.0f, 20.0f,

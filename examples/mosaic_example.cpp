@@ -393,132 +393,150 @@ static void help_marker(char const* text) {
     ImGui::SetItemTooltip("%s", text);
 }
 
+static void draw_test_properties() {
+    ui::begin_properties("my-properties");
+
+    static int section_count = 5;
+    int count = 0;
+    if (count++ < section_count) {
+        static bool is_titled = true;
+        ui::section(is_titled ? "General" : nullptr);
+        static float value = 1.0f;
+        ui::item(
+            "Value", [&] { ImGui::SliderFloat("##value-1", &value, 0, 1); },
+            [&] { ImGui::SliderFloat("##value-2", &value, 0, 2); });
+        ui::item("Titled", [&] { ImGui::Checkbox("##cond", &is_titled); });
+        ui::item("Section Count", [&] {
+            ImGui::InputInt("##count", &section_count);
+            if (section_count < 1) section_count = 1;
+        });
+        static char name[128] = "My Object";
+        ui::item("Name",
+                 [&] { ImGui::InputText("##name", name, sizeof(name)); });
+        static float opacity = 0.75f;
+        ui::item("Opacity", [&] {
+            ImGui::SliderFloat("##opacity", &opacity, 0, 1, "%.2f");
+        });
+    }
+    if (count++ < section_count) {
+        ui::section("Appearance");
+        static ImVec4 color = ImVec4(0.25f, 0.6f, 0.9f, 1.0f);
+        ui::item("Color", [&] { ImGui::ColorEdit4("##color", &color.x); });
+        static int mode = 0;
+        ui::item("Blend Mode", [&] {
+            const char* modes[] = {"Opaque", "Alpha", "Additive", "Multiply"};
+            ImGui::Combo("##blend-mode", &mode, modes, IM_ARRAYSIZE(modes));
+        });
+        static float size[2] = {128.0f, 64.0f};
+        ui::item("Size", [&] {
+            ImGui::DragFloat2("##size", size, 1.0f, 0.0f, 2048.0f);
+        });
+        static float rotation = 0.0f;
+        ui::item("Rotation",
+                 [&] { ImGui::SliderAngle("##rotation", &rotation); });
+        static bool wireframe = false;
+        static bool shadows = true;
+        ui::item(
+            "Rendering", [&] { ImGui::Checkbox("Wireframe", &wireframe); },
+            [&] { ImGui::Checkbox("Shadows", &shadows); });
+    }
+    if (count++ < section_count) {
+        ui::section("Input");
+        static float speed = 1.0f;
+        ui::item("Move Speed", [&] {
+            ImGui::DragFloat("##speed", &speed, 0.05f, 0.1f, 20.0f);
+        });
+        static int steps = 8;
+        ui::item("Steps", [&] { ImGui::SliderInt("##steps", &steps, 1, 32); });
+        static int flags = 0;
+        ui::item("Flags", [&] {
+            ImGui::BeginGroup();
+            ImGui::CheckboxFlags("Visible", &flags, 1 << 0);
+            ImGui::SameLine();
+            ImGui::CheckboxFlags("Locked", &flags, 1 << 1);
+            ImGui::EndGroup();
+        });
+        static char search[128] = "";
+        ui::item("Filter", [&] {
+            ImGui::InputTextWithHint("##filter", "Search...", search,
+                                     sizeof(search));
+        });
+        static int direction = 0;
+        ui::item("Direction", [&] {
+            ImGui::BeginGroup();
+            ImGui::RadioButton("X", &direction, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("Y", &direction, 1);
+            ImGui::SameLine();
+            ImGui::RadioButton("Z", &direction, 2);
+            ImGui::EndGroup();
+        });
+    }
+    if (count++ < section_count) {
+        ui::section("Actions");
+        ui::item(
+            "Buttons",
+            [&] {
+                ImGui::BeginGroup();
+                ImGui::Button("Apply");
+                ImGui::SameLine();
+                help_marker("This will apply the change");
+                ImGui::EndGroup();
+            },
+            [&] {
+                ImGui::BeginGroup();
+                ImGui::Button("Reset");
+                ImGui::SameLine();
+                help_marker("This will reset the value");
+                ImGui::EndGroup();
+            });
+        static bool confirmed = false;
+        ui::item("Confirm", [&] {
+            ImGui::BeginGroup();
+            ImGui::Checkbox("##confirm", &confirmed);
+            ImGui::SameLine();
+            help_marker("I confirm");
+            ImGui::EndGroup();
+        });
+        ui::item("Status", [&] {
+            ImGui::TextColored(
+                confirmed ? ImVec4(0.2f, 0.8f, 0.3f, 1.0f)
+                          : ImVec4(0.9f, 0.7f, 0.2f, 1.0f),
+                "%s", confirmed ? "Ready" : "Waiting for confirmation");
+        });
+    }
+    if (count++ < section_count) {
+        ui::section("Miscellaneous");
+        ui::item("Progress", [&] {
+            static float progress = 0.65f;
+            float width = ImGui::CalcItemWidth();
+            ImGui::ProgressBar(progress, ImVec2(width, 0.0f), "65%");
+        });
+        ui::item("Tooltip", [&] {
+            ImGui::TextUnformatted("Hover me");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Example tooltip for layout testing");
+            }
+        });
+        ui::item(
+            "Long Label for Layout Testing", [&] { ImGui::Button("Short"); },
+            [&] {
+                ImGui::TextDisabled("This is some additional information");
+            });
+    }
+    if (count++ < section_count) {
+        ui::section();
+        ui::item("Standalone Button", [&] { ImGui::Button("My Button"); });
+    }
+    ui::end_properties();
+}
+
 static void display_properties_test(bool* open) {
     if (!ImGui::Begin("Properties Test", open)) {
         ImGui::End();
         return;
     }
-
-    ui::begin_properties("my-properties");
-
-    static bool is_titled = true;
-    ui::section(is_titled ? "General" : nullptr);
-    static float value = 1.0f;
-    ui::item(
-        "Value", [&] { ImGui::SliderFloat("##value-1", &value, 0, 1); },
-        [&] { ImGui::SliderFloat("##value-2", &value, 0, 2); });
-    ui::item("Titled", [&] { ImGui::Checkbox("##cond", &is_titled); });
-    static int count = 5;
-    ui::item("Count", [&] { ImGui::InputInt("##count", &count); });
-    static char name[128] = "My Object";
-    ui::item("Name", [&] { ImGui::InputText("##name", name, sizeof(name)); });
-    static float opacity = 0.75f;
-    ui::item("Opacity",
-             [&] { ImGui::SliderFloat("##opacity", &opacity, 0, 1, "%.2f"); });
-
-    ui::section("Appearance");
-    static ImVec4 color = ImVec4(0.25f, 0.6f, 0.9f, 1.0f);
-    ui::item("Color", [&] { ImGui::ColorEdit4("##color", &color.x); });
-    static int mode = 0;
-    ui::item("Blend Mode", [&] {
-        const char* modes[] = {"Opaque", "Alpha", "Additive", "Multiply"};
-        ImGui::Combo("##blend-mode", &mode, modes, IM_ARRAYSIZE(modes));
-    });
-    static float size[2] = {128.0f, 64.0f};
-    ui::item("Size",
-             [&] { ImGui::DragFloat2("##size", size, 1.0f, 0.0f, 2048.0f); });
-    static float rotation = 0.0f;
-    ui::item("Rotation", [&] { ImGui::SliderAngle("##rotation", &rotation); });
-    static bool wireframe = false;
-    static bool shadows = true;
-    ui::item(
-        "Rendering", [&] { ImGui::Checkbox("Wireframe", &wireframe); },
-        [&] { ImGui::Checkbox("Shadows", &shadows); });
-
-    ui::section("Input");
-    static float speed = 1.0f;
-    ui::item("Move Speed",
-             [&] { ImGui::DragFloat("##speed", &speed, 0.05f, 0.1f, 20.0f); });
-    static int steps = 8;
-    ui::item("Steps", [&] { ImGui::SliderInt("##steps", &steps, 1, 32); });
-    static int flags = 0;
-    ui::item("Flags", [&] {
-        ImGui::BeginGroup();
-        ImGui::CheckboxFlags("Visible", &flags, 1 << 0);
-        ImGui::SameLine();
-        ImGui::CheckboxFlags("Locked", &flags, 1 << 1);
-        ImGui::EndGroup();
-    });
-    static char search[128] = "";
-    ui::item("Filter", [&] {
-        ImGui::InputTextWithHint("##filter", "Search...", search,
-                                 sizeof(search));
-    });
-    static int direction = 0;
-    ui::item("Direction", [&] {
-        ImGui::BeginGroup();
-        ImGui::RadioButton("X", &direction, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("Y", &direction, 1);
-        ImGui::SameLine();
-        ImGui::RadioButton("Z", &direction, 2);
-        ImGui::EndGroup();
-    });
-
-    ui::section("Actions");
-    ui::item(
-        "Buttons",
-        [&] {
-            ImGui::BeginGroup();
-            ImGui::Button("Apply");
-            ImGui::SameLine();
-            help_marker("This will apply the change");
-            ImGui::EndGroup();
-        },
-        [&] {
-            ImGui::BeginGroup();
-            ImGui::Button("Reset");
-            ImGui::SameLine();
-            help_marker("This will reset the value");
-            ImGui::EndGroup();
-        });
-
-    static bool confirmed = false;
-    ui::item("Confirm", [&] {
-        ImGui::BeginGroup();
-        ImGui::Checkbox("##confirm", &confirmed);
-        ImGui::SameLine();
-        help_marker("I confirm");
-        ImGui::EndGroup();
-    });
-    ui::item("Status", [&] {
-        ImGui::TextColored(confirmed ? ImVec4(0.2f, 0.8f, 0.3f, 1.0f)
-                                     : ImVec4(0.9f, 0.7f, 0.2f, 1.0f),
-                           "%s",
-                           confirmed ? "Ready" : "Waiting for confirmation");
-    });
-
-    ui::section("Miscellaneous");
-    ui::item("Progress", [&] {
-        static float progress = 0.65f;
-        float width = ImGui::CalcItemWidth();
-        ImGui::ProgressBar(progress, ImVec2(width, 0.0f), "65%");
-    });
-    ui::item("Tooltip", [&] {
-        ImGui::TextUnformatted("Hover me");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Example tooltip for layout testing");
-        }
-    });
-    ui::item(
-        "Long Label for Layout Testing", [&] { ImGui::Button("Short"); },
-        [&] { ImGui::TextDisabled("This is some additional information"); });
-
-    ui::section();
-    ui::item("Standalone Button", [&] { ImGui::Button("My Button"); });
-
-    ui::end_properties();
-
+    draw_test_properties();
     ui::begin_properties("advanced");
     static float range[2] = {0.2f, 0.8f};
     ui::item("Range",
