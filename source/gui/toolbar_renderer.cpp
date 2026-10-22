@@ -27,6 +27,7 @@ ToolbarPadding mosaic::resolve_toolbar_padding(vml::float2 in) {
     };
 }
 
+#ifndef NDEBUG
 static void debug_draw_geometry(ToolbarGeometry geometry) {
     ImDrawList* draw_list = ImGui::GetForegroundDrawList();
     vml::float2 pos = (vml::float2)ImGui::GetWindowPos() + geometry.position;
@@ -39,19 +40,7 @@ static void debug_draw_geometry(ToolbarGeometry geometry) {
     // Toolbar bounds
     draw_list->AddRect(pos, max, IM_COL32(0, 220, 120, 255), 0.0f, 2.0f);
 }
-
-static ToolbarPadding resolve_padding(ToolbarPadding in) {
-    auto value_or = [](float value, float fallback) {
-        return value >= 0.0f ? value : fallback;
-    };
-    auto& style = ImGui::GetStyle();
-    return {
-        .top = value_or(in.top, style.WindowPadding.y),
-        .bottom = value_or(in.bottom, style.WindowPadding.y),
-        .left = value_or(in.left, style.WindowPadding.x),
-        .right = value_or(in.right, style.WindowPadding.x),
-    };
-}
+#endif
 
 float ToolbarRenderer::get_width_without_spacers(ToolbarStyle const& style,
                                                  ToolbarPadding padding) const {
@@ -63,7 +52,7 @@ float ToolbarRenderer::get_width_without_spacers(ToolbarStyle const& style,
     return raw_width + spacing + padding.total_x();
 }
 
-static void draw_separator(ToolbarGeometry geometry) {
+static void draw_separator(ToolbarGeometry geometry, float thickness) {
     auto* window = ImGui::GetCurrentWindowRead();
     vml::float2 pos = (vml::float2)ImGui::GetWindowPos() +
                       vml::float2(0, window->TitleBarHeight);
@@ -71,7 +60,7 @@ static void draw_separator(ToolbarGeometry geometry) {
     vml::float2 to = from + vml::float2(ImGui::GetWindowWidth(), 0);
     auto* DL = ImGui::GetWindowDrawList();
     DL->PushClipRect(window->Rect().Min, window->Rect().Max);
-    DL->AddLine(from, to, ImGui::GetColorU32(ImGuiCol_Separator), 1);
+    DL->AddLine(from, to, ImGui::GetColorU32(ImGuiCol_Separator), thickness);
     DL->PopClipRect();
 }
 
@@ -84,8 +73,17 @@ void ToolbarRenderer::display(ToolbarStyle const& style,
     float item_space_x = geometry.size.x - geometry.padding.total_x();
     calc_offsets(item_space_x);
     display_blocks(style, geometry.position, item_height, geometry.padding);
-    if (!(style.flags & ToolbarFlags::no_decoration)) draw_separator(geometry);
+    float pos_y = geometry.position.y + geometry.size.y;
+    if (!(style.flags & ToolbarFlags::no_decoration)) {
+        float thickness = ImGui::GetStyle().SeparatorSize;
+        draw_separator(geometry, thickness);
+        pos_y += thickness;
+    };
+    ImGui::SetCursorScreenPos({geometry.position.x, pos_y});
+    ImGui::Dummy({0.0f, 0.0f});
+#ifndef NDEBUG
     if (want_debug_overlays()) debug_draw_geometry(geometry);
+#endif
 }
 
 static void display_ending_spacer(ToolbarStyle const& style,

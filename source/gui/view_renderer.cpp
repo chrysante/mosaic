@@ -19,20 +19,6 @@
 using namespace mosaic;
 using namespace vml::short_types;
 
-static void debug_bool(char const* name, bool value) {
-    ImGui::Text("%-26s", name);
-    ImGui::SameLine();
-    ImGui::TextColored(value ? ImVec4(0.3f, 1.0f, 0.3f, 1.0f)
-                             : ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                       "%s", value ? "true" : "false");
-};
-
-static void append_to_debugger(auto&& f) {
-    if (!want_debug_overlays()) return;
-    if (ImGui::Begin("View Debugger")) f();
-    ImGui::End();
-}
-
 static Window* get_window_from_viewport(ImGuiViewport* viewport) {
     return static_cast<Window*>(viewport->PlatformHandle);
 }
@@ -182,7 +168,10 @@ ImGuiViewRenderer::Result ImGuiViewRenderer::render_view(View& view) {
         ToolbarStyle style = view.m_toolbar_style ? *view.m_toolbar_style
                                                   : get_global_toolbar_style();
         auto geometry = compute_toolbar_geometry(state, style);
-        vml::float2 content_pos = {0.0f, geometry.position.y + geometry.size.y};
+        float toolbar_height = geometry.size.y;
+        if (!test(style.flags & ToolbarFlags::no_decoration))
+            toolbar_height += ImGui::GetStyle().SeparatorSize;
+        vml::float2 content_pos = {0.0f, geometry.position.y + toolbar_height};
         ImGui::SetCursorPos(content_pos + view_padding);
         view.display();
         display_toolbar(state.persistent.toolbar_renderer, style, geometry,
