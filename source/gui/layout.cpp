@@ -317,9 +317,9 @@ namespace {
 
 //     Window
 //     ┌───────────────────────────────────────────────────────────────────────┐
-//     │                                                                       │
-//     │                                                                       │
-//     │                                                                       │
+//     │        ┬                                                              │
+//     │        │ outer_padding.y                                              │
+//     │        ┴                                                              │
 //     │        <section-title (optional)>                                     │
 //     │       ┌───────────────────────────────────────────────────────┐       │
 //     │  OPX  │       ┬                                               │  OPX  │
@@ -339,21 +339,21 @@ namespace {
 //     │       ┌───────────────────────────────────────────────────────┐       │
 //     │       │                                                       │       │
 //     │       └───────────────────────────────────────────────────────┘       │
-//     │                                                                       │
+//     │        ┬                                                              │
+//     │        │ outer_padding.y                                              │
+//     │        ┴                                                              │
 //     └───────────────────────────────────────────────────────────────────────┘
 //
-// OPX = outer_padding_x
+// OPX = outer_padding.x
 // SPX = section_padding.x
 //
 
 struct PropertiesStyle {
-    float title_font_size = 23.0f;
-
-    float outer_padding_x = 14.0f;
+    vml::float2 outer_padding = {5.0f, 5.0f};
 
     float section_spacing = 10.0f;
     vml::float2 section_padding = {10.0f, 10.0f};
-    float section_rounding = 12.0f;
+    float section_rounding = 15.0f;
     float section_midpoint = 0.3;
 
     float row_spacing = 12.0f;
@@ -477,8 +477,9 @@ void ui::begin_properties(const char* str_id) {
     float window_width = window->Size.x - 2.0f * window->WindowPadding.x;
     vml::float2 origin = ImGui::GetCursorScreenPos();
     float xpadding =
-        properties_style.section_padding.x + properties_style.outer_padding_x;
+        properties_style.section_padding.x + properties_style.outer_padding.x;
     origin.x += xpadding;
+    origin.y += properties_style.outer_padding.y;
     float content_width = window_width - 2.0f * xpadding;
     auto& ctx = push_context(draw_list, origin, content_width);
     // Channel 0: deferred backgrounds.
@@ -493,7 +494,7 @@ void ui::end_properties() {
     auto& ctx = current_context();
     if (ctx.current_section.has_content) {
         finish_section(ctx);
-        ctx.cursor_y += properties_style.section_spacing;
+        ctx.cursor_y += properties_style.outer_padding.y;
         ImGui::SetCursorScreenPos(ImVec2(ctx.content_left, ctx.cursor_y));
         ImGui::Dummy({0.0f, 0.0f});
     }
@@ -619,16 +620,14 @@ static void draw_item_measurement_debugger() {
 
 static void draw_style_editor(PropertiesStyle& style) {
     ImGui::SeparatorText("General");
-    ImGui::SliderFloat("Title font size", &style.title_font_size, 10.0f, 40.0f,
-                       "%.0f px");
-    ImGui::SliderFloat("Outer Padding X", &style.outer_padding_x, 0.0f, 50.0f,
-                       "%.0f px");
+    ImGui::SliderFloat2("Outer Padding", style.outer_padding.data(), 0.0f,
+                        50.0f, "%.0f px");
 
     ImGui::SeparatorText("Sections");
     ImGui::SliderFloat("Section spacing", &style.section_spacing, 0.0f, 30.0f,
                        "%.0f px");
-    ImGui::DragFloat2("Section padding", style.section_padding.data(), 0.5f,
-                      0.0f, 32.0f, "%.0f px");
+    ImGui::SliderFloat2("Section padding", style.section_padding.data(), 0.0f,
+                        32.0f, "%.0f px");
     ImGui::SliderFloat("Section rounding", &style.section_rounding, 0.0f, 30.0f,
                        "%.0f px");
     ImGui::Checkbox("Draw section backgrounds",
