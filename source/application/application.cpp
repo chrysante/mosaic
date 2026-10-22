@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "application/application_impl.h"
+#include "application/debug_settings.h"
 #include "application/debug_tools.h"
 #include "application/directories.h"
 #include "application/frame_scheduler.h"
@@ -41,6 +42,7 @@ Application::Application()
     // setup correctly.
     m_impl->frame_scheduler->request_frames(60);
 #ifndef NDEBUG
+    set_debug_command_palette(command_palette());
     // clang-format off
     command_palette().add({
         .name = "Toggle Debugger",

@@ -1,4 +1,5 @@
 #include "application/debug_tools.h"
+#include "gui/command_palette.h"
 
 #ifndef NDEBUG
 
@@ -14,6 +15,7 @@
 #include "application/window.h"
 #include "application/window_impl.h"
 #include "gui/font.h"
+#include "gui/layout.h"
 #include "support/enum.h"
 
 using namespace mosaic;
@@ -43,6 +45,17 @@ void mosaic::toggle_want_debug_overlays() {
     want_debug_overlays_flag() ^= true;
 }
 
+static CommandPalette* g_debug_command_palette;
+
+void mosaic::set_debug_command_palette(CommandPalette& command_palette) {
+    g_debug_command_palette = &command_palette;
+}
+
+CommandPalette& mosaic::get_debug_command_palette() {
+    assert(g_debug_command_palette && "Not set?");
+    return *g_debug_command_palette;
+}
+
 void ApplicationDebugger::display() {
     if (m_open) display_debuggers();
     if (m_show_window_inspector) display_native_window_style_inspector();
@@ -69,6 +82,8 @@ void ApplicationDebugger::display_debuggers() {
             GET_APP_IMPL(app).view_manager.draw_debugger();
         if (ImGui::CollapsingHeader("Frame Scheduler"))
             GET_APP_IMPL(app).frame_scheduler->draw_debugger();
+        if (ImGui::CollapsingHeader("Properties Layout"))
+            ui::draw_properties_debugger();
     }
     ImGui::End();
 }
