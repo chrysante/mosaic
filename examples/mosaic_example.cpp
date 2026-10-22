@@ -27,6 +27,11 @@
 
 using namespace mosaic;
 
+static void menubar();
+static void display_properties_test(bool* open);
+static void draw_test_properties(char const* str_id);
+static void display_icon_viewer(bool* open);
+
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
                                  float max, const char* format = "%.3f",
                                  ImGuiSliderFlags flags = 0) {
@@ -90,51 +95,88 @@ private:
     }
 
     void left_col() {
+        ui::begin_properties("properties");
         bool have_toolbar = uses_toolbar();
-        if (ImGui::Checkbox("Use Toolbar", &have_toolbar)) {
-            if (have_toolbar) set_toolbar(make_toolbar());
-            else remove_toolbar();
-        }
-        ImGui::Checkbox("Use Header", &use_header);
+        ui::item("Toolbar", [&] {
+            if (ImGui::Checkbox("##toolbar", &have_toolbar)) {
+                if (have_toolbar) set_toolbar(make_toolbar());
+                else remove_toolbar();
+            }
+        });
+        ui::item("Use Header",
+                 [&] { ImGui::Checkbox("##use-header", &use_header); });
 
-        float t = (float)ImGui::GetTime();
-        float v = fmodf(t, 1.0f);
-        ImGui::ProgressBar(v, ImVec2(100, 0));
-        auto* viewport = ImGui::GetWindowViewport();
-        ImGui::Text("Position: %f, %f", viewport->Pos.x, viewport->Pos.y);
-        ImGui::Text("Size: %f, %f", viewport->Size.x, viewport->Size.y);
-        if (auto* ui_context = get_current_ui_context()) {
-            if (ImGui::Button("Run continuously"))
-                run_mode_lease =
-                    ui_context->run_mode_controller.enter_continuous_run_mode();
+        float v = fmodf((float)ImGui::GetTime(), 1.0f);
+        ui::item("", [&] {
+            ImGui::ProgressBar(v, ImVec2(ImGui::CalcItemWidth(), 0));
+        });
+
+        int current_mode = run_mode_lease ? 1 : 0;
+        int mode = current_mode;
+        ui::item("Run Mode", [&] {
+            ImGui::BeginGroup();
+            ImGui::RadioButton("Event Driven", &mode, 0);
             ImGui::SameLine();
-            if (ImGui::Button("Stop")) run_mode_lease.reset();
+            ImGui::RadioButton("Continuous", &mode, 1);
+            ImGui::EndGroup();
+        });
+        if (mode != current_mode) {
+            if (mode == 0) {
+                run_mode_lease.reset();
+            } else {
+                if (auto* ui_context = get_current_ui_context())
+                    run_mode_lease = ui_context->run_mode_controller
+                                         .enter_continuous_run_mode();
+            }
         }
+        ui::end_properties();
     }
 
     void display_col_options(int index) {
+        ui::begin_properties("col-options");
+
         auto& options = col_options[index];
         bool use_max = options.max_width != FLT_MAX;
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.0f);
-        bool dummy = false;
-        ImGui::Checkbox("##empty_checkbox", &dummy);
-        ImGui::PopStyleVar();
-        ImGui::SameLine();
-        SliderFloatOnRelease("Min Width", &options.min_width, 0.0f,
-                             use_max ? options.max_width : 1000.f, "%.f",
-                             ImGuiSliderFlags_AlwaysClamp);
-        if (ImGui::Checkbox("##use_max", &use_max)) {
-            if (use_max) options.max_width = 1000.f;
-            else options.max_width = FLT_MAX;
-        }
-        ImGui::SameLine();
-        if (!use_max) {
-            ImGui::Text("Use Max Width");
-        } else {
-            SliderFloatOnRelease("Max Width", &options.max_width,
-                                 options.min_width, 1000.f, "%.f",
+        ui::item("Min Width", [&] {
+            ImGui::BeginGroup();
+            float width = ImGui::CalcItemWidth();
+            width -= ImGui::GetFontSize() +
+                     2 * ImGui::GetStyle().FramePadding.x +
+                     ImGui::GetStyle().ItemSpacing.x;
+            ImGui::PushItemWidth(width);
+            SliderFloatOnRelease("##min-width", &options.min_width, 0.0f,
+                                 use_max ? options.max_width : 1000.f, "%.f",
                                  ImGuiSliderFlags_AlwaysClamp);
-        }
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.0f);
+            bool dummy = false;
+            ImGui::Checkbox("##empty_checkbox", &dummy);
+            ImGui::PopStyleVar();
+            ImGui::EndGroup();
+        });
+        ui::item("Max Width", [&] {
+            ImGui::BeginGroup();
+            if (use_max) {
+                float width = ImGui::CalcItemWidth();
+                width -= ImGui::GetFontSize() +
+                         2 * ImGui::GetStyle().FramePadding.x +
+                         ImGui::GetStyle().ItemSpacing.x;
+                ImGui::PushItemWidth(width);
+                SliderFloatOnRelease("##max-width", &options.max_width,
+                                     options.min_width, 1000.f, "%.f",
+                                     ImGuiSliderFlags_AlwaysClamp);
+                ImGui::PopItemWidth();
+                ImGui::SameLine();
+            }
+            if (ImGui::Checkbox("##use-max", &use_max)) {
+                if (use_max) options.max_width = 1000.f;
+                else options.max_width = FLT_MAX;
+            }
+            ImGui::EndGroup();
+        });
+
+        ui::end_properties();
     }
 
     void column(int index) {
@@ -143,11 +185,7 @@ private:
             left_col();
             return;
         }
-        for (int i = 0; i < 30; ++i) {
-            if (i > 0) ImGui::Separator();
-            ImGui::Text("Item %02d: Some test content", i);
-            ImGui::Button(("Button " + std::to_string(i)).c_str());
-        }
+        draw_test_properties("test-properties");
     }
 
     RunModeController::Lease run_mode_lease;
@@ -162,18 +200,11 @@ private:
 
 MOSAIC_REGISTER_VIEW(ExampleView, {.name = "ExampleView"})
 
-static void menubar();
-static void display_properties_test(bool* open);
-static void display_icon_viewer(bool* open);
-
-static CommandPalette* g_command_palette;
-
 class ExampleApp : public Application {
 public:
     ExampleApp()
         : event_receiver(service_context().make_event_receiver())
         , event_emitter(service_context().make_event_emitter()) {
-        g_command_palette = &command_palette();
         // clang-format off
         command_palette().add({
             .name = "My Command",
@@ -393,8 +424,8 @@ static void help_marker(char const* text) {
     ImGui::SetItemTooltip("%s", text);
 }
 
-static void draw_test_properties() {
-    ui::begin_properties("my-properties");
+static void draw_test_properties(char const* str_id) {
+    ui::begin_properties(str_id);
 
     static int section_count = 5;
     int count = 0;
@@ -536,7 +567,7 @@ static void display_properties_test(bool* open) {
         ImGui::End();
         return;
     }
-    draw_test_properties();
+    draw_test_properties("my-properties");
     ui::begin_properties("advanced");
     static float range[2] = {0.2f, 0.8f};
     ui::item("Range",
