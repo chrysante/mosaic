@@ -1,13 +1,13 @@
-#include "gui/view_manager.h"
+#include "gui/panel_manager.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <nlohmann/json.hpp>
 
 #include "application/input_event.h"
-#include "gui/view.h"
-#include "gui/view_registry.h"
-#include "gui/view_renderer.h"
+#include "gui/panel.h"
+#include "gui/panel_registry.h"
+#include "gui/panel_renderer.h"
 #include "service/service_context.h"
 #include "support/json_support.h"
 #include "support/logger.h"
@@ -16,25 +16,25 @@ using namespace mosaic;
 
 namespace {
 
-struct DeferredClose { View* view; };
+struct DeferredClose { Panel* panel; };
 
 } // namespace
 
-ViewManager::ViewManager(ServiceContext& service_context)
+PanelManager::PanelManager(ServiceContext& service_context)
     : service_context(service_context)
     , event_receiver(service_context.make_event_receiver())
-    , renderer(std::make_unique<ImGuiViewRenderer>()) {
+    , renderer(std::make_unique<PanelRenderer>()) {
     event_receiver.listen([this](OpenCommand const& command) {
-        open_view(command.name, command.completion);
+        open_panel(command.name, command.completion);
     });
     event_receiver.listen([this](CloseAllCommand) { close_all(); });
 }
 
-ViewManager::~ViewManager() = default;
+PanelManager::~PanelManager() = default;
 
-std::uint64_t ViewManager::new_instance_id(ViewClass const* type) const {
-    auto map_itr = m_views.find(type);
-    if (map_itr == m_views.end()) return 0;
+std::uint64_t PanelManager::new_instance_id(PanelClass const* type) const {
+    auto map_itr = m_panels.find(type);
+    if (map_itr == m_panels.end()) return 0;
     auto& map = map_itr->second;
     std::uint64_t id = 0;
     for (;; ++id)
@@ -42,81 +42,82 @@ std::uint64_t ViewManager::new_instance_id(ViewClass const* type) const {
     return id;
 }
 
-View* ViewManager::insert_view(ViewId view_id, std::unique_ptr<View> view) {
-    assert(view != nullptr);
-    auto* result = view.get();
-    auto [_, success] =
-        m_views[view_id.view_class].emplace(view_id.instance, std::move(view));
+Panel* PanelManager::insert_panel(PanelId panel_id,
+                                  std::unique_ptr<Panel> panel) {
+    assert(panel != nullptr);
+    auto* result = panel.get();
+    auto [_, success] = m_panels[panel_id.panel_class].emplace(
+        panel_id.instance, std::move(panel));
     assert(success);
     return result;
 }
 
-View* ViewManager::open_view(ViewRegistryEntry const& entry,
-                             std::function<void(View&)> completion) {
-    if (auto* existing = find_by_type(entry.view_class())) {
+Panel* PanelManager::open_panel(PanelRegistryEntry const& entry,
+                                std::function<void(Panel&)> completion) {
+    if (auto* existing = find_by_type(entry.panel_class())) {
         existing->take_focus();
         if (completion) completion(*existing);
         return existing;
     }
-    auto view = entry.create_view();
-    auto view_id = ViewId{
-        .view_class = &entry.view_class(),
-        .instance = new_instance_id(&entry.view_class()),
+    auto panel = entry.create_panel();
+    auto panel_id = PanelId{
+        .panel_class = &entry.panel_class(),
+        .instance = new_instance_id(&entry.panel_class()),
     };
-    view->initialize(view_id, service_context);
-    auto* result = insert_view(view_id, std::move(view));
+    panel->initialize(panel_id, service_context);
+    auto* result = insert_panel(panel_id, std::move(panel));
     result->take_focus();
     if (completion) completion(*result);
     return result;
 }
 
-View* ViewManager::open_view(std::string_view name,
-                             std::function<void(View&)> completion) {
-    auto entry = ViewRegistry::find(name);
+Panel* PanelManager::open_panel(std::string_view name,
+                                std::function<void(Panel&)> completion) {
+    auto entry = PanelRegistry::find(name);
     if (!entry) {
-        Logger::error("View does not exist: ", name);
+        Logger::error("Panel does not exist: ", name);
         return nullptr;
     }
-    return open_view(*entry, std::move(completion));
+    return open_panel(*entry, std::move(completion));
 }
 
-View const* ViewManager::find_by_type(ViewClass const& view_class) const {
-    auto itr = m_views.find(&view_class);
-    if (itr == m_views.end()) return nullptr;
+Panel const* PanelManager::find_by_type(PanelClass const& panel_class) const {
+    auto itr = m_panels.find(&panel_class);
+    if (itr == m_panels.end()) return nullptr;
     auto& map = itr->second;
     if (map.empty()) return nullptr;
     return map.begin()->second.get();
 }
 
-View const* ViewManager::find_by_id(ViewId view_id) const {
-    auto map_itr = m_views.find(view_id.view_class);
-    if (map_itr == m_views.end()) return nullptr;
+Panel const* PanelManager::find_by_id(PanelId panel_id) const {
+    auto map_itr = m_panels.find(panel_id.panel_class);
+    if (map_itr == m_panels.end()) return nullptr;
     auto& map = map_itr->second;
-    auto itr = map.find(view_id.instance);
+    auto itr = map.find(panel_id.instance);
     if (itr == map.end()) return nullptr;
     return itr->second.get();
 }
 
-void ViewManager::close_all() {
-    for (auto& [view_class, map] : m_views)
+void PanelManager::close_all() {
+    for (auto& [panel_class, map] : m_panels)
         for (auto& [id, view] : map)
             view->request_close();
 }
 
-void ViewManager::process_deferred_operations() {
+void PanelManager::process_deferred_operations() {
     // Destroy all views that requested to close
-    for (auto& [view_class, map] : m_views)
+    for (auto& [panel_class, map] : m_panels)
         std::erase_if(map, [](auto& p) { return p.second->close_requested(); });
 }
 
-void ViewManager::display() {
+void PanelManager::display() {
     process_deferred_operations();
     renderer->begin_frame();
-    m_focused_view = nullptr;
-    for (auto& [view_class, map] : m_views) {
-        for (auto& [instance, view] : map) {
-            auto result = renderer->render_view(*view);
-            if (result.focused) m_focused_view = view.get();
+    m_focused_panel = nullptr;
+    for (auto& [panel_class, map] : m_panels) {
+        for (auto& [instance, panel] : map) {
+            auto result = renderer->render_panel(*panel);
+            if (result.focused) m_focused_panel = panel.get();
         }
     }
     renderer->end_frame();
@@ -124,28 +125,28 @@ void ViewManager::display() {
 }
 
 #ifndef NDEBUG
-void ViewManager::draw_debugger() {
-    if (m_focused_view)
-        ImGui::Text("Focused View: [%u] %s",
-                    (unsigned)m_focused_view->view_id().instance,
-                    m_focused_view->title().c_str());
-    else ImGui::Text("Focused View: none");
+void PanelManager::draw_debugger() {
+    if (m_focused_panel)
+        ImGui::Text("Focused Panel: [%u] %s",
+                    (unsigned)m_focused_panel->panel_id().instance,
+                    m_focused_panel->title().c_str());
+    else ImGui::Text("Focused Panel: none");
     ImGui::SeparatorText("Views");
-    for (auto& [view_class, map] : m_views) {
-        if (!ImGui::TreeNodeEx(view_class->name.c_str(),
+    for (auto& [panel_class, map] : m_panels) {
+        if (!ImGui::TreeNodeEx(panel_class->name.c_str(),
                                ImGuiTreeNodeFlags_DefaultOpen))
             continue;
-        for (auto& [instance, view] : map) {
-            if (!view) {
+        for (auto& [instance, panel] : map) {
+            if (!panel) {
                 ImGui::BulletText("[%u] NULL", (unsigned)instance);
                 continue;
             }
             ImGui::PushID(static_cast<int>(instance));
             ImGui::Bullet();
             ImGui::SameLine();
-            ImGui::Text("[%u] %s", (unsigned)instance, view->title().c_str());
+            ImGui::Text("[%u] %s", (unsigned)instance, panel->title().c_str());
             ImGui::SameLine();
-            ImGui::TextDisabled("(%p)", static_cast<void const*>(view.get()));
+            ImGui::TextDisabled("(%p)", static_cast<void const*>(panel.get()));
             ImGui::PopID();
         }
         ImGui::TreePop();
@@ -153,11 +154,11 @@ void ViewManager::draw_debugger() {
 }
 #endif
 
-bool ViewManager::on_input(InputEvent& event) {
+bool PanelManager::on_input(InputEvent& event) {
     /*
-     * I would keep input routing here rather than in View.
+     * I would keep input routing here rather than in Panel.
      *
-     * The manager knows which View is focused.
+     * The manager knows which Panel is focused.
      *
      * This can later become:
      *
@@ -185,13 +186,13 @@ static constexpr std::string_view state = "state";
 
 } // namespace config_key
 
-nlohmann::json ViewManager::save_settings() const {
+nlohmann::json PanelManager::save_settings() const {
     auto root = nlohmann::json::array();
-    for (auto& [view_class, map] : m_views) {
+    for (auto& [panel_class, map] : m_panels) {
         for (auto& [instance, view] : map) {
             auto object = nlohmann::json::object();
             object[config_key::type] = std::string(view->type_name());
-            object[config_key::instance] = view->view_id().instance;
+            object[config_key::instance] = view->panel_id().instance;
             object[config_key::hidden] = view->hidden();
             object[config_key::maximized] = view->maximized();
             object[config_key::state] = view->save_settings();
@@ -201,9 +202,9 @@ nlohmann::json ViewManager::save_settings() const {
     return root;
 }
 
-void ViewManager::load_settings(nlohmann::json const& root) {
-    m_views.clear();
-    m_focused_view = nullptr;
+void PanelManager::load_settings(nlohmann::json const& root) {
+    m_panels.clear();
+    m_focused_panel = nullptr;
     if (!root.is_array()) return;
     for (auto const& node : root) {
         if (!node.is_object()) {
@@ -217,30 +218,30 @@ void ViewManager::load_settings(nlohmann::json const& root) {
                 "Failed to deserialize view: missing or invalid type/instance");
             continue;
         }
-        auto entry = ViewRegistry::find(*type_name);
+        auto entry = PanelRegistry::find(*type_name);
         if (!entry) {
             Logger::error("Failed to deserialize view: unknown type: ",
                           *type_name);
             continue;
         }
-        auto* view_class = &entry->view_class();
-        auto view = entry->create_view();
-        ViewId const view_id{
-            .view_class = view_class,
+        auto* panel_class = &entry->panel_class();
+        auto view = entry->create_panel();
+        PanelId const panel_id{
+            .panel_class = panel_class,
             .instance = *instance,
         };
-        view->initialize(view_id, service_context);
+        view->initialize(panel_id, service_context);
         if (auto hidden = json_find<bool>(node, config_key::hidden))
             view->set_hidden(*hidden);
         if (auto maximized = json_find<bool>(node, config_key::maximized))
             view->set_maximized(*maximized);
         if (auto* state = json_find(node, config_key::state))
             view->load_settings(*state);
-        if (find_by_id(view_id) != nullptr) {
+        if (find_by_id(panel_id) != nullptr) {
             Logger::error(
                 "Failed to deserialize view: instance id already taken");
         } else {
-            insert_view(view_id, std::move(view));
+            insert_panel(panel_id, std::move(view));
         }
     }
 }

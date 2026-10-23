@@ -14,13 +14,13 @@
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/layout.h>
+#include <mosaic/gui/panel.h>
+#include <mosaic/gui/panel_manager.h>
+#include <mosaic/gui/panel_registry.h>
 #include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/ui_context.h>
-#include <mosaic/gui/view.h>
-#include <mosaic/gui/view_manager.h>
-#include <mosaic/gui/view_registry.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
@@ -48,9 +48,9 @@ static bool SliderFloatOnRelease(const char* label, float* value, float min,
     return false;
 }
 
-class ExampleView : public View {
+class ExamplePanel : public Panel {
 public:
-    ExampleView() {
+    ExamplePanel() {
         set_toolbar(make_toolbar());
         set_padding({0, 0});
     }
@@ -200,7 +200,7 @@ private:
     utl::hashmap<int, ColOptions> col_options;
 };
 
-MOSAIC_REGISTER_VIEW(ExampleView, {.name = "ExampleView"})
+MOSAIC_REGISTER_VIEW(ExamplePanel, {.name = "ExamplePanel"})
 
 class ExampleApp : public Application {
 public:
@@ -236,15 +236,15 @@ public:
         dockspace.set_right_toolbar({
             ToolbarIconButton("bell")
                 .on_click([this] { 
-                    event_emitter.publish(ViewManager::OpenCommand{
-                        .name = "ExampleView"
+                    event_emitter.publish(PanelManager::OpenCommand{
+                        .name = "ExamplePanel"
                     });
                 }),
             ToolbarSpacer(),
             ToolbarIconButton("plus")
                 .on_click([this] { 
-                    event_emitter.publish(ViewManager::OpenCommand{
-                        .name = "MosaicDemoView"
+                    event_emitter.publish(PanelManager::OpenCommand{
+                        .name = "MosaicDemoPanel"
                     });
                 })
         });

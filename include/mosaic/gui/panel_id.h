@@ -7,7 +7,7 @@
 
 namespace mosaic {
 
-struct ViewClass {
+struct PanelClass {
     std::string name;
 
     vml::float2 default_position = {250, 250};
@@ -15,11 +15,11 @@ struct ViewClass {
     vml::float2 min_size = {300, 200};
 };
 
-struct ViewId {
-    ViewClass const* view_class = nullptr;
+struct PanelId {
+    PanelClass const* panel_class = nullptr;
     std::uint64_t instance = 0;
 
-    friend bool operator==(ViewId const&, ViewId const&) = default;
+    friend bool operator==(PanelId const&, PanelId const&) = default;
 };
 
 } // namespace mosaic

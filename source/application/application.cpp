@@ -144,7 +144,7 @@ ApplicationImpl::ApplicationImpl(Application& app)
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager(),
                  .run_mode_controller = run_mode_controller}
-    , view_manager(service_context)
+    , panel_manager(service_context)
 #ifndef NDEBUG
     , debugger(std::make_unique<ApplicationDebugger>(app))
 #endif
@@ -268,7 +268,7 @@ nlohmann::json ApplicationImpl::serialize_settings() {
     object[config_key::application] = app.save_settings();
     if (auto* main_window = app.main_window())
         object[config_key::window_geometry] = main_window->geometry();
-    object[config_key::views] = view_manager.save_settings();
+    object[config_key::views] = panel_manager.save_settings();
 
     return object;
 }
@@ -280,7 +280,7 @@ void ApplicationImpl::deserialize_settings(nlohmann::json const& base) {
         if (auto* main_window = app.main_window())
             main_window->set_geometry(geo.value());
     if (auto* settings = json_find(base, config_key::views))
-        view_manager.load_settings(*settings);
+        panel_manager.load_settings(*settings);
 }
 
 void ApplicationImpl::imgui_init() {
@@ -342,7 +342,7 @@ void ApplicationImpl::on_input(InputEventUnion const& event) {
 void ApplicationImpl::do_frame() {
     service_context.m_dispatcher.process_main_thread_tasks();
     app.frame();
-    view_manager.display();
+    panel_manager.display();
 #ifndef NDEBUG
     debugger->display();
 #endif

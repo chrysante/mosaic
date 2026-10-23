@@ -217,16 +217,16 @@ target_sources(mosaic PRIVATE
     source/gui/dockspace.cpp
     source/gui/font.cpp
     source/gui/layout.cpp
+    source/gui/panel.cpp
+    source/gui/panel_demo.cpp
+    source/gui/panel_manager.cpp
+    source/gui/panel_registry.cpp
+    source/gui/panel_renderer.cpp
     source/gui/ui_context.cpp
     source/gui/run_mode_controller.cpp
     source/gui/style_editor.cpp
     source/gui/toolbar.cpp
     source/gui/toolbar_renderer.cpp
-    source/gui/view.cpp
-    source/gui/view_demo.cpp
-    source/gui/view_manager.cpp
-    source/gui/view_registry.cpp
-    source/gui/view_renderer.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp

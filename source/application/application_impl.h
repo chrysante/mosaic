@@ -7,9 +7,9 @@
 #include "application/frame_scheduler.h"
 #include "application/input.h"
 #include "gui/command_palette.h"
+#include "gui/panel_manager.h"
 #include "gui/run_mode_controller.h"
 #include "gui/ui_context.h"
-#include "gui/view_manager.h"
 #include "service/event_receiver.h"
 #include "service/service_context.h"
 
@@ -83,7 +83,7 @@ struct internal::ApplicationImpl {
     Input input;
     int input_callback_id = 0;
     CommandPalette command_palette;
-    ViewManager view_manager;
+    PanelManager panel_manager;
 #ifndef NDEBUG
     std::unique_ptr<ApplicationDebugger> debugger;
 #endif

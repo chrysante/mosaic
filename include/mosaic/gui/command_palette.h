@@ -87,7 +87,7 @@ public:
 
 private:
     friend struct internal::ApplicationImpl;
-    friend class View;
+    friend class Panel;
 
     struct ModCommandPair {
         ModFlags mod_flags;

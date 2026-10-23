@@ -8,31 +8,31 @@
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/command_palette.h>
+#include <mosaic/gui/panel_id.h>
 #include <mosaic/gui/toolbar.h>
-#include <mosaic/gui/view_id.h>
 #include <mosaic/service/event_emitter.h>
 #include <mosaic/service/event_receiver.h>
 
 namespace mosaic {
 
 class ServiceContext;
-class ViewManager;
-class ViewRegistryEntry;
-class ImGuiViewRenderer;
+class PanelManager;
+class PanelRegistryEntry;
+class PanelRenderer;
 struct InputEvent;
 
-class View {
+class Panel {
 public:
-    virtual ~View() = default;
+    virtual ~Panel() = default;
 
-    View(View const&) = delete;
-    View& operator=(View const&) = delete;
+    Panel(Panel const&) = delete;
+    Panel& operator=(Panel const&) = delete;
 
-    ViewClass const& view_class() const { return *view_id().view_class; }
+    PanelClass const& panel_class() const { return *panel_id().panel_class; }
 
-    ViewId const& view_id() const { return m_view_id; }
+    PanelId const& panel_id() const { return m_panel_id; }
 
-    std::string const& type_name() const { return view_class().name; }
+    std::string const& type_name() const { return panel_class().name; }
 
     /// User-visible title.
     std::string const& title() const { return m_title; }
@@ -44,7 +44,7 @@ public:
     void toggle_hidden() { set_hidden(!hidden()); }
 
     bool maximized() const { return m_maximized; }
-    /// These are semantic operations. ViewManager/renderer performs the
+    /// These are semantic operations. PanelManager/renderer performs the
     /// actual platform/ImGui work.
     void set_maximized(bool value) { m_maximized = value; }
     void maximize() { set_maximized(true); }
@@ -80,7 +80,7 @@ public:
     bool uses_toolbar() const { return m_uses_toolbar; }
 
 protected:
-    View() = default;
+    Panel() = default;
 
     CommandPalette& command_palette_write() { return m_command_palette; }
 
@@ -101,16 +101,16 @@ protected:
     void reset_toolbar_style() { m_toolbar_style.reset(); }
 
 private:
-    friend class ViewManager;
-    friend class ViewRegistryEntry;
-    friend class ImGuiViewRenderer;
+    friend class PanelManager;
+    friend class PanelRegistryEntry;
+    friend class PanelRenderer;
 
     struct RuntimeState {
         bool focused = false;
         bool hovered = false;
     };
 
-    void initialize(ViewId view_id, ServiceContext& services);
+    void initialize(PanelId panel_id, ServiceContext& services);
     void destroy();
 
     void set_focused_from_renderer(bool value) { m_runtime.focused = value; }
@@ -127,7 +127,7 @@ private:
 
     virtual void receive_data(std::any) {}
 
-    ViewId m_view_id;
+    PanelId m_panel_id;
     std::string m_title;
     bool m_hidden = false;
     bool m_maximized = false;
