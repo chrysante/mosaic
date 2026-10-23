@@ -1,0 +1,82 @@
+
+// =============================================================================
+// Style Variables
+// =============================================================================
+#ifndef MOSAIC_STYLE_VAR
+#define MOSAIC_STYLE_VAR(name, type, category)
+#endif
+
+// -----------------------------------------------------------------------------
+// Colors
+// -----------------------------------------------------------------------------
+#ifndef MOSAIC_STYLE_COLOR
+#define MOSAIC_STYLE_COLOR(name, category) MOSAIC_STYLE_VAR(name, Color, category)
+#endif
+
+MOSAIC_STYLE_COLOR(Text, imgui)
+MOSAIC_STYLE_COLOR(TextDisabled, imgui)
+MOSAIC_STYLE_COLOR(WindowBg, imgui)
+MOSAIC_STYLE_COLOR(ChildBg, imgui)
+MOSAIC_STYLE_COLOR(PopupBg, imgui)
+MOSAIC_STYLE_COLOR(Border, imgui)
+MOSAIC_STYLE_COLOR(BorderShadow, imgui)
+MOSAIC_STYLE_COLOR(FrameBg, imgui)
+MOSAIC_STYLE_COLOR(FrameBgHovered, imgui)
+MOSAIC_STYLE_COLOR(FrameBgActive, imgui)
+MOSAIC_STYLE_COLOR(TitleBg, imgui)
+MOSAIC_STYLE_COLOR(TitleBgActive, imgui)
+MOSAIC_STYLE_COLOR(TitleBgCollapsed, imgui)
+MOSAIC_STYLE_COLOR(MenuBarBg, imgui)
+MOSAIC_STYLE_COLOR(ScrollbarBg, imgui)
+MOSAIC_STYLE_COLOR(ScrollbarGrab, imgui)
+MOSAIC_STYLE_COLOR(ScrollbarGrabHovered, imgui)
+MOSAIC_STYLE_COLOR(ScrollbarGrabActive, imgui)
+MOSAIC_STYLE_COLOR(CheckMark, imgui)
+MOSAIC_STYLE_COLOR(CheckboxSelectedBg, imgui)
+MOSAIC_STYLE_COLOR(SliderGrab, imgui)
+MOSAIC_STYLE_COLOR(SliderGrabActive, imgui)
+MOSAIC_STYLE_COLOR(Button, imgui)
+MOSAIC_STYLE_COLOR(ButtonHovered, imgui)
+MOSAIC_STYLE_COLOR(ButtonActive, imgui)
+MOSAIC_STYLE_COLOR(Header, imgui)
+MOSAIC_STYLE_COLOR(HeaderHovered, imgui)
+MOSAIC_STYLE_COLOR(HeaderActive, imgui)
+MOSAIC_STYLE_COLOR(Separator, imgui)
+MOSAIC_STYLE_COLOR(SeparatorHovered, imgui)
+MOSAIC_STYLE_COLOR(SeparatorActive, imgui)
+MOSAIC_STYLE_COLOR(ResizeGrip, imgui)
+MOSAIC_STYLE_COLOR(ResizeGripHovered, imgui)
+MOSAIC_STYLE_COLOR(ResizeGripActive, imgui)
+MOSAIC_STYLE_COLOR(InputTextCursor, imgui)
+MOSAIC_STYLE_COLOR(TabHovered, imgui)
+MOSAIC_STYLE_COLOR(Tab, imgui)
+MOSAIC_STYLE_COLOR(TabSelected, imgui)
+MOSAIC_STYLE_COLOR(TabSelectedOverline, imgui)
+MOSAIC_STYLE_COLOR(TabDimmed, imgui)
+MOSAIC_STYLE_COLOR(TabDimmedSelected, imgui)
+MOSAIC_STYLE_COLOR(TabDimmedSelectedOverline, imgui)
+MOSAIC_STYLE_COLOR(DockingPreview, imgui)
+MOSAIC_STYLE_COLOR(DockingEmptyBg, imgui)
+MOSAIC_STYLE_COLOR(PlotLines, imgui)
+MOSAIC_STYLE_COLOR(PlotLinesHovered, imgui)
+MOSAIC_STYLE_COLOR(PlotHistogram, imgui)
+MOSAIC_STYLE_COLOR(PlotHistogramHovered, imgui)
+MOSAIC_STYLE_COLOR(TableHeaderBg, imgui)
+MOSAIC_STYLE_COLOR(TableBorderStrong, imgui)
+MOSAIC_STYLE_COLOR(TableBorderLight, imgui)
+MOSAIC_STYLE_COLOR(TableRowBg, imgui)
+MOSAIC_STYLE_COLOR(TableRowBgAlt, imgui)
+MOSAIC_STYLE_COLOR(TextLink, imgui)
+MOSAIC_STYLE_COLOR(TextSelectedBg, imgui)
+MOSAIC_STYLE_COLOR(TreeLines, imgui)
+MOSAIC_STYLE_COLOR(DragDropTarget, imgui)
+MOSAIC_STYLE_COLOR(DragDropTargetBg, imgui)
+MOSAIC_STYLE_COLOR(UnsavedMarker, imgui)
+MOSAIC_STYLE_COLOR(NavCursor, imgui)
+MOSAIC_STYLE_COLOR(NavWindowingHighlight, imgui)
+MOSAIC_STYLE_COLOR(NavWindowingDimBg, imgui)
+MOSAIC_STYLE_COLOR(ModalWindowDimBg, imgui)
+
+#undef MOSAIC_STYLE_COLOR
+
+#undef MOSAIC_STYLE_VAR

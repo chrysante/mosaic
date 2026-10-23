@@ -106,7 +106,7 @@ private:
         ui::item("Use Header",
                  [&] { ImGui::Checkbox("##use-header", &use_header); });
 
-        float v = fmodf((float)ImGui::GetTime(), 1.0f);
+        float v = (std::sin((float)ImGui::GetTime()) + 1.0f) / 2.0f;
         ui::item("", [&] {
             ImGui::ProgressBar(v, ImVec2(ImGui::CalcItemWidth(), 0));
         });
@@ -143,6 +143,7 @@ private:
             width -= ImGui::GetFontSize() +
                      2 * ImGui::GetStyle().FramePadding.x +
                      ImGui::GetStyle().ItemSpacing.x;
+            width = std::max(0.0f, width);
             ImGui::PushItemWidth(width);
             SliderFloatOnRelease("##min-width", &options.min_width, 0.0f,
                                  use_max ? options.max_width : 1000.f, "%.f",
@@ -162,6 +163,7 @@ private:
                 width -= ImGui::GetFontSize() +
                          2 * ImGui::GetStyle().FramePadding.x +
                          ImGui::GetStyle().ItemSpacing.x;
+                width = std::max(0.0f, width);
                 ImGui::PushItemWidth(width);
                 SliderFloatOnRelease("##max-width", &options.max_width,
                                      options.min_width, 1000.f, "%.f",
@@ -270,8 +272,10 @@ private:
             ImGui::End();
         }
         if (show_style_editor) {
-            if (ImGui::Begin("Style Editor", &show_style_editor))
-                style_editor.draw();
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
+            bool visible = ImGui::Begin("Style Editor", &show_style_editor);
+            ImGui::PopStyleVar();
+            if (visible) style_editor.draw();
             ImGui::End();
         }
         if (show_icon_viewer) display_icon_viewer(&show_icon_viewer);
