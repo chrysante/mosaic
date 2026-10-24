@@ -26,15 +26,15 @@ struct Rect {
     vml::float2 size;
 };
 
-class Size {
+class SizeReq {
 public:
     enum class Type { fit, fixed, fill };
 
-    static constexpr Size fit() { return {Type::fit, 0.0f}; }
+    static constexpr SizeReq fit() { return {Type::fit, 0.0f}; }
 
-    static constexpr Size fixed(float value) { return {Type::fixed, value}; }
+    static constexpr SizeReq fixed(float value) { return {Type::fixed, value}; }
 
-    static constexpr Size fill() { return {Type::fill, 0.0f}; }
+    static constexpr SizeReq fill() { return {Type::fill, 0.0f}; }
 
     constexpr Type type() const { return m_type; }
 
@@ -49,7 +49,7 @@ public:
     constexpr bool is_fill() const { return type() == Type::fill; }
 
 private:
-    constexpr Size(Type type, float value)
+    constexpr SizeReq(Type type, float value)
         : m_type(type)
         , m_value(value) {}
 
@@ -57,7 +57,7 @@ private:
     float m_value;
 };
 
-using Size2 = vml::vector<Size, 2>;
+using SizeReq2 = vml::vector<SizeReq, 2>;
 
 class View {
 public:
@@ -68,14 +68,14 @@ public:
     // The size the view naturally wants to display its content
     virtual vml::float2 intrinsic_size() const = 0;
 
-    virtual Size2 layout_requirement() const { return m_layout_requirement; }
+    virtual SizeReq2 size_requirement() const { return m_layout_requirement; }
 
 protected:
-    View(Size2 layout_requirement)
-        : m_layout_requirement(layout_requirement) {}
+    View(SizeReq2 size_requirement)
+        : m_layout_requirement(size_requirement) {}
 
 private:
-    Size2 m_layout_requirement;
+    SizeReq2 m_layout_requirement;
 };
 
 // =============================================================================
@@ -97,11 +97,11 @@ Ref<Spacer> spacer();
 
 class Button : public View {
 public:
-    static constexpr Size2 default_layout_requirement = {Size::fit(),
-                                                         Size::fit()};
+    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fit(),
+                                                            SizeReq::fit()};
 
     explicit Button(std::string&& label, std::function<void()>&& on_click,
-                    Size2 layout_requirement = default_layout_requirement);
+                    SizeReq2 size_requirement = default_layout_requirement);
 
     void display(Rect frame) override;
 
@@ -114,18 +114,18 @@ private:
 
 Ref<Button>
 button(std::string label, std::function<void()> action = {},
-       Size2 layout_requirement = Button::default_layout_requirement);
+       SizeReq2 size_requirement = Button::default_layout_requirement);
 
 // ---  Checkbox  --------------------------------------------------------------
 
 class Checkbox : public View {
 public:
-    static constexpr Size2 default_layout_requirement = {Size::fit(),
-                                                         Size::fit()};
+    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fit(),
+                                                            SizeReq::fit()};
 
     explicit Checkbox(std::function<bool()>&& state,
                       std::function<void(bool)>&& on_change,
-                      Size2 layout_requirement = default_layout_requirement);
+                      SizeReq2 size_requirement = default_layout_requirement);
 
     void display(Rect frame) override;
 
@@ -138,11 +138,11 @@ private:
 
 Ref<Checkbox>
 checkbox(std::function<bool()> state, std::function<void(bool)> on_change,
-         Size2 layout_requirement = Checkbox::default_layout_requirement);
+         SizeReq2 size_requirement = Checkbox::default_layout_requirement);
 
 Ref<Checkbox>
 checkbox(bool* value,
-         Size2 layout_requirement = Checkbox::default_layout_requirement);
+         SizeReq2 size_requirement = Checkbox::default_layout_requirement);
 
 // ---  ViewContainer  ---------------------------------------------------------
 
@@ -191,11 +191,11 @@ class StackView : public View {
 public:
     enum class Orientation { horizontal = 0, vertical = 1 };
 
-    static constexpr Size2 default_layout_requirement = {Size::fit(),
-                                                         Size::fit()};
+    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fit(),
+                                                            SizeReq::fit()};
 
     explicit StackView(Orientation orientation, ViewContainer&& children,
-                       Size2 layout_requirement);
+                       SizeReq2 size_requirement);
 
     void display(Rect frame) override;
 
@@ -211,20 +211,20 @@ private:
 
 Ref<StackView>
 vstack(ViewContainer children,
-       Size2 layout_requirement = StackView::default_layout_requirement);
+       SizeReq2 size_requirement = StackView::default_layout_requirement);
 
 Ref<StackView>
 hstack(ViewContainer children,
-       Size2 layout_requirement = StackView::default_layout_requirement);
+       SizeReq2 size_requirement = StackView::default_layout_requirement);
 
 // ---  VScrollView  -----------------------------------------------------------
 
 class VScrollView : public View {
 public:
-    static constexpr Size2 default_layout_requirement = {Size::fill(),
-                                                         Size::fill()};
+    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fill(),
+                                                            SizeReq::fill()};
 
-    explicit VScrollView(ViewContainer&& children, Size2 layout_requirement);
+    explicit VScrollView(ViewContainer&& children, SizeReq2 size_requirement);
 
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
@@ -238,6 +238,6 @@ private:
 
 Ref<VScrollView>
 vscroll(ViewContainer children,
-        Size2 layout_requirement = VScrollView::default_layout_requirement);
+        SizeReq2 size_requirement = VScrollView::default_layout_requirement);
 
 } // namespace mosaic::ui

@@ -678,11 +678,12 @@ static void display_view_test(bool* open) {
             ui::spacer(), 
             ui::vstack({
                 ui::button("Yet another button"),
-                ui::button("Yet another one")
+                ui::button("Yet another one", {}, 
+                           {ui::SizeReq::fill(), ui::SizeReq::fill()})
             }),
             ui::spacer(), 
             ui::button("...") 
-        }, {ui::Size::fill(), ui::Size::fit()}),
+        }, {ui::SizeReq::fill(), ui::SizeReq::fit()}),
         ui::vstack({
             ui::checkbox(&button_active), 
             ui::checkbox(&button_active), 

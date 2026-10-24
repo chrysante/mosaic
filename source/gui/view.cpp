@@ -13,8 +13,8 @@ using namespace mosaic;
 using namespace ui;
 
 Button::Button(std::string&& label, std::function<void()>&& on_click,
-               Size2 layout_requirement)
-    : View(layout_requirement)
+               SizeReq2 size_requirement)
+    : View(size_requirement)
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
@@ -32,15 +32,15 @@ vml::float2 Button::intrinsic_size() const {
 }
 
 Ref<Button> ui::button(std::string label, std::function<void()> on_click,
-                       Size2 layout_requirement) {
+                       SizeReq2 size_requirement) {
     return create<Button>(std::move(label), std::move(on_click),
-                          layout_requirement);
+                          size_requirement);
 }
 
 Checkbox::Checkbox(std::function<bool()>&& state,
                    std::function<void(bool)>&& on_change,
-                   Size2 layout_requirement)
-    : View(layout_requirement)
+                   SizeReq2 size_requirement)
+    : View(size_requirement)
     , m_state(std::move(state))
     , m_on_change(std::move(on_change)) {}
 
@@ -59,19 +59,19 @@ vml::float2 Checkbox::intrinsic_size() const {
 
 Ref<Checkbox> ui::checkbox(std::function<bool()> state,
                            std::function<void(bool)> on_change,
-                           Size2 layout_requirement) {
+                           SizeReq2 size_requirement) {
     return create<Checkbox>(std::move(state), std::move(on_change),
-                            layout_requirement);
+                            size_requirement);
 }
 
-Ref<Checkbox> ui::checkbox(bool* value, Size2 layout_requirement) {
+Ref<Checkbox> ui::checkbox(bool* value, SizeReq2 size_requirement) {
     return ui::checkbox([value] { return *value; },
                         [value](bool new_value) { *value = new_value; },
-                        layout_requirement);
+                        size_requirement);
 }
 
 Spacer::Spacer()
-    : View({Size::fill(), Size::fill()}) {}
+    : View({SizeReq::fill(), SizeReq::fill()}) {}
 
 void Spacer::display(Rect) {}
 
@@ -79,28 +79,27 @@ vml::float2 Spacer::intrinsic_size() const { return {0.0f, 0.0f}; }
 
 Ref<Spacer> ui::spacer() { return create<Spacer>(); }
 
-static float resolve_child_size(Size requirement, float intrinsic,
+static float resolve_child_size(SizeReq requirement, float intrinsic,
                                 float available) {
     switch (requirement.type()) {
-    case Size::Type::fixed:
+    case SizeReq::Type::fixed:
         return requirement.value();
-    case Size::Type::fit:
+    case SizeReq::Type::fit:
         return intrinsic;
-    case Size::Type::fill:
+    case SizeReq::Type::fill:
         return available >= 0 ? available : intrinsic;
     }
 }
 
 StackView::StackView(Orientation orientation, ViewContainer&& children,
-                     Size2 layout_requirement)
-    : View(layout_requirement)
+                     SizeReq2 size_requirement)
+    : View(size_requirement)
     , m_orientation(orientation)
     , m_children(std::move(children)) {}
 
 void StackView::display(Rect frame) {
     if (m_children.empty()) return;
     std::size_t main_axis = (std::size_t)m_orientation;
-    std::size_t other_axis = 1 - main_axis;
     float spacing = ImGui::GetStyle().ItemSpacing[main_axis];
     vml::float2 size_avail = frame.size;
     // Measure children and account for spacing.
@@ -111,8 +110,8 @@ void StackView::display(Rect frame) {
     for (size_t i = 0, end = m_children.size(); i < end; ++i) {
         auto& child = m_children[i];
         auto intrinsic_size = intrinsic_sizes[i] = child.intrinsic_size();
-        auto requirement = child.layout_requirement();
-        if (requirement[main_axis].type() == Size::Type::fill) ++fill_count;
+        auto requirement = child.size_requirement();
+        if (requirement[main_axis].is_fill()) ++fill_count;
         else
             fixed_main += resolve_child_size(requirement[main_axis],
                                              intrinsic_size[main_axis], -1.0f);
@@ -125,11 +124,11 @@ void StackView::display(Rect frame) {
     for (size_t i = 0, end = m_children.size(); i < end; ++i) {
         auto& child = m_children[i];
         auto intrinsic = intrinsic_sizes[i];
-        auto requirement = child.layout_requirement();
+        auto size_req = child.size_requirement();
         vml::float2 child_size =
-            vml::map(requirement, intrinsic, size_avail, resolve_child_size);
+            vml::map(size_req, intrinsic, size_avail, resolve_child_size);
         // Fill children share the remaining main-axis space.
-        if (requirement[main_axis].type() == Size::Type::fill)
+        if (size_req[main_axis].type() == SizeReq::Type::fill)
             child_size[main_axis] = fill_size;
         child.display({cursor, child_size});
         cursor[main_axis] += child_size[main_axis] + spacing;
@@ -152,18 +151,18 @@ vml::float2 StackView::intrinsic_size() const {
     return result;
 }
 
-Ref<StackView> ui::vstack(ViewContainer children, Size2 layout_requirement) {
+Ref<StackView> ui::vstack(ViewContainer children, SizeReq2 size_requirement) {
     return create<StackView>(StackView::Orientation::vertical,
-                             std::move(children), layout_requirement);
+                             std::move(children), size_requirement);
 }
 
-Ref<StackView> ui::hstack(ViewContainer children, Size2 layout_requirement) {
+Ref<StackView> ui::hstack(ViewContainer children, SizeReq2 size_requirement) {
     return create<StackView>(StackView::Orientation::horizontal,
-                             std::move(children), layout_requirement);
+                             std::move(children), size_requirement);
 }
 
-VScrollView::VScrollView(ViewContainer&& children, Size2 layout_requirement)
-    : View(layout_requirement)
+VScrollView::VScrollView(ViewContainer&& children, SizeReq2 size_requirement)
+    : View(size_requirement)
     , m_children(std::move(children)) {}
 
 void VScrollView::display(Rect frame) {
@@ -182,9 +181,9 @@ void VScrollView::display(Rect frame) {
     vml::float2 cursor = ImGui::GetCursorScreenPos();
     for (auto& child : m_children) {
         vml::float2 intrinsic_size = child.intrinsic_size();
-        Size2 requirement = child.layout_requirement();
-        vml::float2 child_size = vml::map(requirement, intrinsic_size,
-                                          size_avail, resolve_child_size);
+        SizeReq2 size_req = child.size_requirement();
+        vml::float2 child_size =
+            vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
         child.display({cursor, child_size});
         cursor.y += child_size.y + spacing;
     }
@@ -192,6 +191,7 @@ void VScrollView::display(Rect frame) {
 
 vml::float2 VScrollView::intrinsic_size() const { return {500, 500}; }
 
-Ref<VScrollView> ui::vscroll(ViewContainer children, Size2 layout_requirement) {
-    return create<VScrollView>(std::move(children), layout_requirement);
+Ref<VScrollView> ui::vscroll(ViewContainer children,
+                             SizeReq2 size_requirement) {
+    return create<VScrollView>(std::move(children), size_requirement);
 }
