@@ -668,24 +668,33 @@ static void display_view_test(bool* open) {
     static int counter = 0;
     ImGui::Text("%d", counter);
     static bool button_active = true;
-    static Alignment align = Alignment::left;
 
-    std::vector<ui::View> views;
+    // clang-format off
+    static ui::Ref<ui::View> view = ui::vscroll({
+        ui::hstack({
+            ui::button("Count", [] { if (button_active) ++counter; }),
+            ui::spacer(), 
+            ui::button("Other Button"),
+            ui::spacer(), 
+            ui::vstack({
+                ui::button("Yet another button"),
+                ui::button("Yet another one")
+            }),
+            ui::spacer(), 
+            ui::button("...") 
+        }, {ui::Size::fill(), ui::Size::fit()}),
+        ui::vstack({
+            ui::checkbox(&button_active), 
+            ui::checkbox(&button_active), 
+            ui::checkbox(&button_active), 
+        }),
+        ui::button("Toggle Align", [] {})
+    });
+    // clang-format on
 
-    views.push_back(ui::button("Count", [] {
-        if (button_active) ++counter;
-    }));
-    views.push_back(ui::checkbox("##my-checkbox", button_active,
-                                 [](bool value) { button_active = value; }));
-    views.push_back(ui::button("Toggle Align", [] {
-        align = (Alignment)(((unsigned)align + 1) % 3);
-    }));
-
-    float left = ImGui::GetCursorScreenPos().x;
-    float right = left + ImGui::GetContentRegionAvail().x;
-
-    for (auto& view : views)
-        display(view, left, right, align);
+    vml::float2 pos = ImGui::GetCursorScreenPos();
+    vml::float2 size = ImGui::GetContentRegionAvail();
+    view->display({pos, size});
 
     ImGui::End();
 }

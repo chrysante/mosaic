@@ -227,6 +227,7 @@ target_sources(mosaic PRIVATE
     source/gui/style_editor.cpp
     source/gui/toolbar.cpp
     source/gui/toolbar_renderer.cpp
+    source/gui/view.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp
