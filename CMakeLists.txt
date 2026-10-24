@@ -214,6 +214,7 @@ target_sources(mosaic PRIVATE
     source/application/window.cpp
     source/gui/appearance.cpp
     source/gui/command_palette.cpp
+    source/gui/containers.cpp
     source/gui/dockspace.cpp
     source/gui/font.cpp
     source/gui/layout.cpp
@@ -228,6 +229,7 @@ target_sources(mosaic PRIVATE
     source/gui/toolbar.cpp
     source/gui/toolbar_renderer.cpp
     source/gui/view.cpp
+    source/gui/widgets.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp

@@ -11,6 +11,7 @@
 #include <mosaic/application/input.h>
 #include <mosaic/application/window.h>
 #include <mosaic/gui/command_palette.h>
+#include <mosaic/gui/containers.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/layout.h>
@@ -22,6 +23,7 @@
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/ui_context.h>
 #include <mosaic/gui/view.h>
+#include <mosaic/gui/widgets.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
