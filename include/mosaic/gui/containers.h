@@ -11,13 +11,11 @@ namespace mosaic::ui {
 
 class StackView : public View {
 public:
-    enum class Orientation { horizontal = 0, vertical = 1 };
-
     static constexpr SizeReq2 default_layout_requirement = {SizeReq::fit(),
                                                             SizeReq::fit()};
 
     explicit StackView(Orientation orientation, ViewContainer<>&& children,
-                       SizeReq2 size_requirement);
+                       Alignment alignment, SizeReq2 size_requirement);
 
     void display(Rect frame) override;
 
@@ -28,27 +26,29 @@ public:
 
 private:
     Orientation m_orientation;
+    Alignment m_alignment;
     ViewContainer<> m_children;
 };
 
 Ref<StackView>
-vstack(ViewContainer<> children,
+vstack(ViewContainer<> children, Alignment alignment = Alignment::left,
        SizeReq2 size_requirement = StackView::default_layout_requirement);
 
 Ref<StackView>
-hstack(ViewContainer<> children,
+hstack(ViewContainer<> children, Alignment alignment = Alignment::top,
        SizeReq2 size_requirement = StackView::default_layout_requirement);
 
 // =============================================================================
 // ScrollView
 // =============================================================================
 
-class VScrollView : public View {
+class ScrollView : public View {
 public:
     static constexpr SizeReq2 default_layout_requirement = {SizeReq::fill(),
                                                             SizeReq::fill()};
 
-    explicit VScrollView(ViewContainer<>&& children, SizeReq2 size_requirement);
+    explicit ScrollView(Orientation orientation, ViewContainer<>&& children,
+                        SizeReq2 size_requirement);
 
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
@@ -57,11 +57,16 @@ public:
     ViewContainer<> const& children() const { return m_children; }
 
 private:
+    Orientation m_orientation;
     ViewContainer<> m_children;
 };
 
-Ref<VScrollView>
+Ref<ScrollView>
 vscroll(ViewContainer<> children,
-        SizeReq2 size_requirement = VScrollView::default_layout_requirement);
+        SizeReq2 size_requirement = ScrollView::default_layout_requirement);
+
+Ref<ScrollView>
+hscroll(ViewContainer<> children,
+        SizeReq2 size_requirement = ScrollView::default_layout_requirement);
 
 } // namespace mosaic::ui

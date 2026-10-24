@@ -1,3 +1,4 @@
+#include "mosaic/gui/view_support.h"
 #include <cfloat>
 #include <string>
 
@@ -643,24 +644,6 @@ void display_icon_viewer(bool* open) {
     ImGui::End();
 }
 
-namespace { enum class Alignment { left, right, center }; }
-
-static void display(ui::View& view, float left, float right, Alignment align) {
-    vml::float2 size = view.desired_size();
-    float pos_x = [&] {
-        switch (align) {
-        case Alignment::left:
-            return left;
-        case Alignment::right:
-            return right - size.x;
-        case Alignment::center:
-            return 0.5f * (left + right - size.x);
-        }
-    }();
-    float pos_y = ImGui::GetCursorScreenPos().y;
-    view.display({{pos_x, pos_y}, size});
-}
-
 static void display_view_test(bool* open) {
     if (!ImGui::Begin("View Test", open)) {
         ImGui::End();
@@ -685,13 +668,20 @@ static void display_view_test(bool* open) {
             }),
             ui::spacer(), 
             ui::button("...") 
-        }, {ui::SizeReq::fill(), ui::SizeReq::fit()}),
+        }, ui::Alignment::center, {ui::SizeReq::fill(), ui::SizeReq::fit()}),
         ui::vstack({
             ui::checkbox(&button_active), 
-            ui::checkbox(&button_active), 
-            ui::checkbox(&button_active), 
-        }),
-        ui::button("Toggle Align", [] {})
+            ui::button("One More Button"), 
+            ui::button("??"), 
+        }, ui::Alignment::center),
+        ui::button("Toggle Align", [] {}),
+        []{
+            ui::ViewContainer<> children;
+            for (int i = 0; i < 100; ++i) 
+                children.push_back(ui::button(std::to_string(i)));
+            return ui::hscroll(std::move(children), 
+                               {ui::SizeReq::fill(), ui::SizeReq::fit()});
+        }()
     });
     // clang-format on
 

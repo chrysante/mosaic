@@ -57,6 +57,10 @@ private:
 
 using SizeReq2 = vml::vector<SizeReq, 2>;
 
+enum class Orientation { horizontal = 0, vertical = 1 };
+
+enum class Alignment { left, top = left, center, right, bottom = right };
+
 template <typename V = class View> class ViewContainer {
     auto elem_view() const {
         return std::views::transform(m_elements,
