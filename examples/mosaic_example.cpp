@@ -21,6 +21,7 @@
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/ui_context.h>
+#include <mosaic/gui/view.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
@@ -31,6 +32,7 @@ static void menubar();
 static void display_properties_test(bool* open);
 static void draw_test_properties(char const* str_id);
 static void display_icon_viewer(bool* open);
+static void display_view_test(bool* open);
 
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
                                  float max, const char* format = "%.3f",
@@ -260,6 +262,7 @@ private:
             if (ImGui::Button("Properties Test")) show_properties_test = true;
             if (ImGui::Button("Style Editor")) show_style_editor = true;
             if (ImGui::Button("Icon Viewer")) show_icon_viewer = true;
+            if (ImGui::Button("View Test")) show_view_test = true;
         }
         ImGui::End();
 
@@ -279,6 +282,7 @@ private:
             ImGui::End();
         }
         if (show_icon_viewer) display_icon_viewer(&show_icon_viewer);
+        if (show_view_test) display_view_test(&show_view_test);
     }
 
     Dockspace dockspace;
@@ -290,6 +294,7 @@ private:
     bool show_properties_test = false;
     bool show_style_editor = false;
     bool show_icon_viewer = false;
+    bool show_view_test = false;
     StyleEditor style_editor;
 };
 
@@ -633,5 +638,54 @@ void display_icon_viewer(bool* open) {
         }
         ImGui::EndTable();
     }
+    ImGui::End();
+}
+
+namespace { enum class Alignment { left, right, center }; }
+
+static void display(ui::View& view, float left, float right, Alignment align) {
+    vml::float2 size = view.desired_size();
+    float pos_x = [&] {
+        switch (align) {
+        case Alignment::left:
+            return left;
+        case Alignment::right:
+            return right - size.x;
+        case Alignment::center:
+            return 0.5f * (left + right - size.x);
+        }
+    }();
+    float pos_y = ImGui::GetCursorScreenPos().y;
+    view.display({{pos_x, pos_y}, size});
+}
+
+static void display_view_test(bool* open) {
+    if (!ImGui::Begin("View Test", open)) {
+        ImGui::End();
+        return;
+    }
+
+    static int counter = 0;
+    ImGui::Text("%d", counter);
+    static bool button_active = true;
+    static Alignment align = Alignment::left;
+
+    std::vector<ui::View> views;
+
+    views.push_back(ui::button("Count", [] {
+        if (button_active) ++counter;
+    }));
+    views.push_back(ui::checkbox("##my-checkbox", button_active,
+                                 [](bool value) { button_active = value; }));
+    views.push_back(ui::button("Toggle Align", [] {
+        align = (Alignment)(((unsigned)align + 1) % 3);
+    }));
+
+    float left = ImGui::GetCursorScreenPos().x;
+    float right = left + ImGui::GetContentRegionAvail().x;
+
+    for (auto& view : views)
+        display(view, left, right, align);
+
     ImGui::End();
 }
