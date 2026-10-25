@@ -231,9 +231,13 @@ private:
 };
 
 template <typename V = View> class ViewContainer {
-    auto elem_view() const {
+    auto elem_view() {
         return std::views::transform(m_elements,
                                      [](auto& v) -> View& { return *v; });
+    }
+    auto elem_view() const {
+        return std::views::transform(m_elements,
+                                     [](auto& v) -> View const& { return *v; });
     }
 
 public:
@@ -250,7 +254,9 @@ public:
     V& operator[](std::size_t index) { return *m_elements[index]; }
     V const& operator[](std::size_t index) const { return *m_elements[index]; }
 
+    auto begin() { return elem_view().begin(); }
     auto begin() const { return elem_view().begin(); }
+    auto end() { return elem_view().end(); }
     auto end() const { return elem_view().end(); }
 
     bool erase(V* view) {
