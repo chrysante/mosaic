@@ -50,6 +50,24 @@ Ref<Checkbox> checkbox(std::function<bool()> state,
 Ref<Checkbox> checkbox(bool* value);
 
 // =============================================================================
+// Separator
+// =============================================================================
+
+class Separator : public View {
+public:
+    explicit Separator(Orientation orientation);
+    void display(Rect frame) override;
+    vml::float2 intrinsic_size() const override;
+
+private:
+    Orientation m_orientation;
+};
+
+Ref<Separator> hseparator();
+
+Ref<Separator> vseparator();
+
+// =============================================================================
 // Spacer
 // =============================================================================
 

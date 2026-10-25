@@ -58,6 +58,54 @@ Ref<Checkbox> ui::checkbox(bool* value) {
                         [value](bool new_value) { *value = new_value; });
 }
 
+static SizeReq2 separator_size_req(Orientation orientation) {
+    switch (orientation) {
+    case Orientation::horizontal:
+        return {SizeReq::fill(), SizeReq::fit()};
+    case Orientation::vertical:
+        return {SizeReq::fit(), SizeReq::fill()};
+    }
+}
+
+Separator::Separator(Orientation orientation)
+    : View(separator_size_req(orientation))
+    , m_orientation(orientation) {}
+
+void Separator::display(Rect frame) {
+    auto& style = ImGui::GetStyle();
+    auto* DL = ImGui::GetWindowDrawList();
+    switch (m_orientation) {
+    case Orientation::horizontal:
+        DL->AddLineH(
+            frame.min().x, frame.max().x, frame.origin.y + 0.5f * frame.size.y,
+            ImGui::GetColorU32(ImGuiCol_Separator), style.SeparatorSize);
+        break;
+    case Orientation::vertical:
+        DL->AddLineV(frame.origin.x + 0.5f * frame.size.x, frame.min().y,
+                     frame.max().y, ImGui::GetColorU32(ImGuiCol_Separator),
+                     style.SeparatorSize);
+        break;
+    }
+}
+
+vml::float2 Separator::intrinsic_size() const {
+    auto& style = ImGui::GetStyle();
+    switch (m_orientation) {
+    case Orientation::horizontal:
+        return {0.0f, style.SeparatorSize + 2.0f * style.ItemSpacing.y};
+    case Orientation::vertical:
+        return {style.SeparatorSize + 2.0f * style.ItemSpacing.x, 0.0f};
+    }
+}
+
+Ref<Separator> ui::hseparator() {
+    return create<Separator>(Orientation::horizontal);
+}
+
+Ref<Separator> ui::vseparator() {
+    return create<Separator>(Orientation::vertical);
+}
+
 Spacer::Spacer(float weight)
     : View({SizeReq::fill(weight), SizeReq::fill(weight)}) {}
 

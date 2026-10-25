@@ -130,10 +130,14 @@ vml::float2 StackView::intrinsic_size() const {
     std::size_t other_axis = 1 - main_axis;
     vml::float2 result = {0.0f, 0.0f};
     for (auto& child : m_children) {
+        SizeReq2 size_req = child.size_requirement();
         vml::float2 child_size = child.intrinsic_size();
-        result[main_axis] += child_size[main_axis];
+        vml::float2 resolved_size =
+            vml::map(size_req, child_size, vml::float2(-1.0f, -1.0f),
+                     resolve_child_size);
+        result[main_axis] += resolved_size[main_axis];
         result[other_axis] =
-            std::max(result[other_axis], child_size[other_axis]);
+            std::max(result[other_axis], resolved_size[other_axis]);
     }
     result[main_axis] +=
         (float)(m_children.size() - 1) * item_spacing[main_axis];

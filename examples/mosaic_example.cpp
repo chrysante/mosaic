@@ -658,26 +658,32 @@ static void display_view_test(bool* open) {
     static ui::Ref<ui::View> view = ui::vscroll({
         ui::hstack({
             ui::button("Count", [] { if (button_active) ++counter; }),
-            ui::spacer(), 
+            ui::vseparator() | ui::hfill,
             ui::button("Other Button"),
-            ui::spacer(), 
+            ui::vseparator() | ui::hfill,
             ui::vstack({
                 ui::button("Yet another button"),
+                ui::hseparator() | ui::fixed_height(50),
                 ui::button("Yet another one") | ui::hfill, 
             }),
-            ui::spacer(), 
+            ui::vseparator() | ui::hfill,
             ui::button("...") 
         }) | ui::hfill,
+        ui::hseparator(),
         ui::hstack({
             ui::spacer(1),
+            ui::vseparator(),
             ui::vstack({
                 ui::checkbox(&button_active) | ui::align_left, 
                 ui::button("One More Button") | ui::center, 
                 ui::button("??") | ui::align_right, 
             }) | ui::hfill_weight(5),
+            ui::vseparator(),
             ui::spacer(1)
         }) | ui::hfill,
+        ui::hseparator(),
         ui::button("Toggle Align", [] {}),
+        ui::hseparator(),
         []{
             ui::ViewContainer<> children;
             for (int i = 0; i < 100; ++i) 
