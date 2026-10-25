@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <ranges>
@@ -112,6 +113,31 @@ enum class Alignment { left, top = left, center, right, bottom = right };
 using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
+
+template <typename T> class Binding {
+public:
+    Binding() = default;
+
+    Binding(T* ptr)
+        : m_state([ptr] { return ptr ? *ptr : T(); })
+        , m_on_change([ptr](T const& new_value) {
+            if (ptr) *ptr = new_value;
+        }) {}
+
+    Binding(std::function<T()> state, std::function<void(T const&)> on_change)
+        : m_state(std::move(state))
+        , m_on_change(std::move(on_change)) {}
+
+    T get() const { return m_state ? m_state() : T(); }
+
+    void on_change(T const& new_value) {
+        if (m_on_change) m_on_change(new_value);
+    }
+
+private:
+    std::function<T()> m_state;
+    std::function<void(T const&)> m_on_change;
+};
 
 template <typename V = View> class ViewContainer {
     auto elem_view() const {

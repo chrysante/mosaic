@@ -32,22 +32,17 @@ Ref<Button> button(std::string label, std::function<void()> action = {});
 
 class Checkbox : public View {
 public:
-    explicit Checkbox(std::function<bool()>&& state,
-                      std::function<void(bool)>&& on_change);
+    explicit Checkbox(Binding<bool>&& state);
 
     void display(Rect frame) override;
 
     vml::float2 intrinsic_size() const override;
 
 private:
-    std::function<bool()> m_state;
-    std::function<void(bool)> m_on_change;
+    Binding<bool> m_state;
 };
 
-Ref<Checkbox> checkbox(std::function<bool()> state,
-                       std::function<void(bool)> on_change);
-
-Ref<Checkbox> checkbox(bool* value);
+Ref<Checkbox> checkbox(Binding<bool> state);
 
 // =============================================================================
 // Separator

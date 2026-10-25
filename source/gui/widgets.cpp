@@ -29,17 +29,15 @@ Ref<Button> ui::button(std::string label, std::function<void()> on_click) {
     return create<Button>(std::move(label), std::move(on_click));
 }
 
-Checkbox::Checkbox(std::function<bool()>&& state,
-                   std::function<void(bool)>&& on_change)
+Checkbox::Checkbox(Binding<bool>&& state)
     : View({SizeReq::fit(), SizeReq::fit()})
-    , m_state(std::move(state))
-    , m_on_change(std::move(on_change)) {}
+    , m_state(std::move(state)) {}
 
 void Checkbox::display(Rect frame) {
     ImGui::SetCursorScreenPos(frame.origin);
-    bool current_value = m_state ? m_state() : false;
-    if (ImGui::Checkbox("##checkbox", &current_value) && m_on_change)
-        m_on_change(current_value);
+    bool current_value = m_state.get();
+    if (ImGui::Checkbox("##checkbox", &current_value))
+        m_state.on_change(current_value);
 }
 
 vml::float2 Checkbox::intrinsic_size() const {
@@ -48,14 +46,8 @@ vml::float2 Checkbox::intrinsic_size() const {
            2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<Checkbox> ui::checkbox(std::function<bool()> state,
-                           std::function<void(bool)> on_change) {
-    return create<Checkbox>(std::move(state), std::move(on_change));
-}
-
-Ref<Checkbox> ui::checkbox(bool* value) {
-    return ui::checkbox([value] { return *value; },
-                        [value](bool new_value) { *value = new_value; });
+Ref<Checkbox> ui::checkbox(Binding<bool> state) {
+    return create<Checkbox>(std::move(state));
 }
 
 static SizeReq2 separator_size_req(Orientation orientation) {
