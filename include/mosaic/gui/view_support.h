@@ -125,9 +125,35 @@ using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
 
+template <typename T> class ValueOrRef {
+public:
+    static_assert(!std::is_reference_v<T>);
+
+    ValueOrRef(T const& value)
+        : m_value(value) {}
+    ValueOrRef(T&& value)
+        : m_value(std::move(value)) {}
+    ValueOrRef(T const* pointer)
+        : m_value(pointer) {
+        assert(pointer);
+    }
+    ValueOrRef(std::reference_wrapper<T const> ref)
+        : m_value(&ref.get()) {}
+
+    operator T const&() const { return get(); }
+
+    T const& get() const {
+        if (m_value.index() == 0) return std::get<0>(m_value);
+        else return *std::get<1>(m_value);
+    }
+
+private:
+    std::variant<T, T const*> m_value;
+};
+
 template <typename T> class Binding {
 public:
-    using Getter = std::function<T()>;
+    using Getter = std::function<ValueOrRef<T>()>;
     using Setter = std::function<void(T)>;
 
     explicit Binding(Getter&& get, Setter&& set)
@@ -136,7 +162,7 @@ public:
         assert(m_get);
     }
 
-    T get() const {
+    ValueOrRef<T> get() const {
         assert(m_get);
         return m_get();
     }
@@ -152,7 +178,7 @@ private:
 
 template <typename T> class Binding<T const> {
 public:
-    using Getter = std::function<T()>;
+    using Getter = std::function<ValueOrRef<T>()>;
 
     explicit Binding(Getter&& get)
         : m_get(std::move(get)) {
@@ -165,7 +191,7 @@ public:
     Binding(Binding<T>&& rhs)
         : m_get(std::move(rhs).m_get) {}
 
-    T get() const {
+    ValueOrRef<T> get() const {
         assert(m_get);
         return m_get();
     }
@@ -177,19 +203,19 @@ private:
 template <typename T> Binding<T> bind(T* pointer) {
     assert(pointer);
     return Binding<T>(
-        [pointer] { return *pointer; },
+        [pointer] { return std::cref(*pointer); },
         [pointer](T new_value) { *pointer = std::move(new_value); });
 }
 
 template <typename T> Binding<T const> bind(T const* pointer) {
     assert(pointer);
-    return Binding<T const>([pointer] { return *pointer; });
+    return Binding<T const>([pointer] { return std::cref(*pointer); });
 }
 
 template <typename T> Binding<T> own(T value) {
     auto storage = std::make_shared<T>(std::move(value));
     return Binding<T>(
-        [storage] { return *storage; },
+        [storage] { return std::cref(*storage); },
         [storage](T new_value) { *storage = std::move(new_value); });
 }
 

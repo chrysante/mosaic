@@ -24,7 +24,7 @@ TextView::TextView(Binding<std::string const>&& text, TextOptions options)
 void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
-    std::string text = m_text.get();
+    std::string const& text = m_text.get();
     ImGui::PushClipRect(frame.min(), frame.max(), true);
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::ItemAdd({frame.min(), frame.max()}, 0);
@@ -37,7 +37,7 @@ void TextView::do_display(Rect frame) {
 
 vml::float2 TextView::calc_intrinsic_size() const {
     if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
-    std::string text = m_text.get();
+    std::string const& text = m_text.get();
     return ImGui::CalcTextSize(text.data(), text.data() + text.size(), false);
 }
 
