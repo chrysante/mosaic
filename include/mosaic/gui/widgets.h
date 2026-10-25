@@ -86,10 +86,10 @@ struct SliderOptions {
 
 template <typename T> class SliderView : public View {
 public:
-    using DataType = vml::get_underlying_type<T>::type;
+    using ScalarType = vml::get_underlying_type<T>::type;
 
-    explicit SliderView(Binding<T>&& state, ConstBinding<DataType>&& min,
-                        ConstBinding<DataType>&& max,
+    explicit SliderView(Binding<T>&& state, ConstBinding<ScalarType>&& min,
+                        ConstBinding<ScalarType>&& max,
                         SliderOptions options = {});
 
     Binding<T> const& get_state() const { return m_state; }
@@ -101,15 +101,15 @@ private:
     vml::float2 calc_intrinsic_size() const override;
 
     Binding<T> m_state;
-    ConstBinding<DataType> m_min;
-    ConstBinding<DataType> m_max;
+    ConstBinding<ScalarType> m_min;
+    ConstBinding<ScalarType> m_max;
     SliderOptions m_options;
 };
 
 template <typename T>
 Ref<SliderView<T>> slider(Binding<T> state,
-                          ConstBinding<typename SliderView<T>::DataType> min,
-                          ConstBinding<typename SliderView<T>::DataType> max,
+                          ConstBinding<typename SliderView<T>::ScalarType> min,
+                          ConstBinding<typename SliderView<T>::ScalarType> max,
                           SliderOptions options = {}) {
     return create<SliderView<T>>(std::move(state), std::move(min),
                                  std::move(max), std::move(options));

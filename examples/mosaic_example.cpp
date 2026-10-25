@@ -695,7 +695,11 @@ static void display_view_test(bool* open) {
                     ui::spacer(2),
                 }) | ui::hfill | ui::fixed_height(100),
                 ui::hseparator(),
-                counter_text() | ui::align_right | ui::vcenter,
+                ui::hstack({
+                    counter_text() | ui::align_top,
+                    counter_text() | ui::vcenter,
+                    counter_text() | ui::align_bottom
+                }) | ui::vfill,
                 ui::hseparator(),
                 ui::button("Count", [] { if (button_active) ++counter; })
             }) | ui::hfill,

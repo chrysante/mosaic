@@ -96,8 +96,8 @@ Ref<CheckboxView> ui::checkbox(Binding<bool> state) {
 }
 
 template <typename T>
-SliderView<T>::SliderView(Binding<T>&& state, ConstBinding<DataType>&& min,
-                          ConstBinding<DataType>&& max, SliderOptions options)
+SliderView<T>::SliderView(Binding<T>&& state, ConstBinding<ScalarType>&& min,
+                          ConstBinding<ScalarType>&& max, SliderOptions options)
     : View({SizeReq::fill(), SizeReq::fit()})
     , m_state(std::move(state))
     , m_min(std::move(min))
@@ -159,8 +159,8 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     static_assert(num_components <= 4);
 
     T value = m_state.view();
-    DataType const min = m_min.view();
-    DataType const max = m_max.view();
+    ScalarType const min = m_min.view();
+    ScalarType const max = m_max.view();
 
     // Hacky way to adjust the height of the widget
     ImGuiStyle const& style = ImGui::GetStyle();
