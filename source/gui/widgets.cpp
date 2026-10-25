@@ -16,12 +16,12 @@ static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
 }
 
-Button::Button(std::string&& label, std::function<void()>&& on_click)
+ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
-void Button::display(Rect frame) {
+void ButtonView::display(Rect frame) {
     // auto* DL = ImGui::GetWindowDrawList();
     // DL->AddRect(frame.min(), frame.max(), IM_COL32(255, 255, 0, 255));
     // return;
@@ -32,22 +32,22 @@ void Button::display(Rect frame) {
         m_on_click();
 }
 
-vml::float2 Button::intrinsic_size() const {
+vml::float2 ButtonView::intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     vml::float2 text_size = ImGui::CalcTextSize(
         m_label.data(), m_label.data() + m_label.size(), true);
     return text_size + 2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<Button> ui::button(std::string label, std::function<void()> on_click) {
-    return create<Button>(std::move(label), std::move(on_click));
+Ref<ButtonView> ui::button(std::string label, std::function<void()> on_click) {
+    return create<ButtonView>(std::move(label), std::move(on_click));
 }
 
-Checkbox::Checkbox(Binding<bool>&& state)
+CheckboxView::CheckboxView(Binding<bool>&& state)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_state(std::move(state)) {}
 
-void Checkbox::display(Rect frame) {
+void CheckboxView::display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     bool current_value = m_state.get();
@@ -55,14 +55,14 @@ void Checkbox::display(Rect frame) {
         m_state.on_change(current_value);
 }
 
-vml::float2 Checkbox::intrinsic_size() const {
+vml::float2 CheckboxView::intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     return vml::float2(ImGui::GetFontSize()) +
            2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<Checkbox> ui::checkbox(Binding<bool> state) {
-    return create<Checkbox>(std::move(state));
+Ref<CheckboxView> ui::checkbox(Binding<bool> state) {
+    return create<CheckboxView>(std::move(state));
 }
 
 template <typename T>
@@ -230,11 +230,11 @@ static SizeReq2 separator_size_req(Orientation orientation) {
     }
 }
 
-Separator::Separator(Orientation orientation)
+SeparatorView::SeparatorView(Orientation orientation)
     : View(separator_size_req(orientation))
     , m_orientation(orientation) {}
 
-void Separator::display(Rect frame) {
+void SeparatorView::display(Rect frame) {
     if (!positive(frame.size)) return;
 
     auto& style = ImGui::GetStyle();
@@ -253,7 +253,7 @@ void Separator::display(Rect frame) {
     }
 }
 
-vml::float2 Separator::intrinsic_size() const {
+vml::float2 SeparatorView::intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     switch (m_orientation) {
     case Orientation::horizontal:
@@ -263,19 +263,19 @@ vml::float2 Separator::intrinsic_size() const {
     }
 }
 
-Ref<Separator> ui::hseparator() {
-    return create<Separator>(Orientation::horizontal);
+Ref<SeparatorView> ui::hseparator() {
+    return create<SeparatorView>(Orientation::horizontal);
 }
 
-Ref<Separator> ui::vseparator() {
-    return create<Separator>(Orientation::vertical);
+Ref<SeparatorView> ui::vseparator() {
+    return create<SeparatorView>(Orientation::vertical);
 }
 
-Spacer::Spacer(float weight)
+SpacerView::SpacerView(float weight)
     : View({SizeReq::fill(weight), SizeReq::fill(weight)}) {}
 
-void Spacer::display(Rect) {}
+void SpacerView::display(Rect) {}
 
-vml::float2 Spacer::intrinsic_size() const { return {0.0f, 0.0f}; }
+vml::float2 SpacerView::intrinsic_size() const { return {0.0f, 0.0f}; }
 
-Ref<Spacer> ui::spacer(float weight) { return create<Spacer>(weight); }
+Ref<SpacerView> ui::spacer(float weight) { return create<SpacerView>(weight); }

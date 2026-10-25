@@ -13,9 +13,9 @@ namespace mosaic::ui {
 // Button
 // =============================================================================
 
-class Button : public View {
+class ButtonView : public View {
 public:
-    explicit Button(std::string&& label, std::function<void()>&& on_click);
+    explicit ButtonView(std::string&& label, std::function<void()>&& on_click);
 
     void display(Rect frame) override;
 
@@ -26,15 +26,15 @@ private:
     std::function<void()> m_on_click;
 };
 
-Ref<Button> button(std::string label, std::function<void()> action = {});
+Ref<ButtonView> button(std::string label, std::function<void()> action = {});
 
 // =============================================================================
 // Checkbox
 // =============================================================================
 
-class Checkbox : public View {
+class CheckboxView : public View {
 public:
-    explicit Checkbox(Binding<bool>&& state);
+    explicit CheckboxView(Binding<bool>&& state);
 
     void display(Rect frame) override;
 
@@ -44,7 +44,7 @@ private:
     Binding<bool> m_state;
 };
 
-Ref<Checkbox> checkbox(Binding<bool> state);
+Ref<CheckboxView> checkbox(Binding<bool> state);
 
 // =============================================================================
 // Slider
@@ -100,9 +100,9 @@ Ref<SliderView<T>> slider(Binding<T> state,
 // Separator
 // =============================================================================
 
-class Separator : public View {
+class SeparatorView : public View {
 public:
-    explicit Separator(Orientation orientation);
+    explicit SeparatorView(Orientation orientation);
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
 
@@ -110,21 +110,21 @@ private:
     Orientation m_orientation;
 };
 
-Ref<Separator> hseparator();
+Ref<SeparatorView> hseparator();
 
-Ref<Separator> vseparator();
+Ref<SeparatorView> vseparator();
 
 // =============================================================================
 // Spacer
 // =============================================================================
 
-class Spacer : public View {
+class SpacerView : public View {
 public:
-    Spacer(float weight = 1.0f);
+    SpacerView(float weight = 1.0f);
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
 };
 
-Ref<Spacer> spacer(float weight = 1.0f);
+Ref<SpacerView> spacer(float weight = 1.0f);
 
 } // namespace mosaic::ui
