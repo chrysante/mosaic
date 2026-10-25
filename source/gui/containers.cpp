@@ -64,7 +64,7 @@ void handle_overflow(std::span<vml::float2> intrinsic_sizes,
     }
 }
 
-void StackView::display(Rect frame) {
+void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
     std::size_t main_axis = (std::size_t)m_orientation;
     std::size_t other_axis = 1 - main_axis;
@@ -123,7 +123,7 @@ void StackView::display(Rect frame) {
     }
 }
 
-vml::float2 StackView::intrinsic_size() const {
+vml::float2 StackView::calc_intrinsic_size() const {
     vml::float2 const item_spacing = ImGui::GetStyle().ItemSpacing;
     std::size_t main_axis = (std::size_t)m_orientation;
     std::size_t other_axis = 1 - main_axis;
@@ -160,7 +160,7 @@ ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)
     , m_orientation(orientation)
     , m_children(std::move(children)) {}
 
-void ScrollView::display(Rect frame) {
+void ScrollView::do_display(Rect frame) {
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     int window_flags = 0;
@@ -188,7 +188,7 @@ void ScrollView::display(Rect frame) {
     }
 }
 
-vml::float2 ScrollView::intrinsic_size() const { return {500, 500}; }
+vml::float2 ScrollView::calc_intrinsic_size() const { return {500, 500}; }
 
 Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
     return create<ScrollView>(Orientation::vertical, std::move(children));

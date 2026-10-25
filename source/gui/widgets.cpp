@@ -21,7 +21,7 @@ TextView::TextView(ConstBinding<std::string>&& text, TextOptions options)
     , m_options(std::move(options))
     , m_text(std::move(text)) {}
 
-void TextView::display(Rect frame) {
+void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
     std::string_view text = m_text.view();
@@ -35,7 +35,7 @@ void TextView::display(Rect frame) {
     ImGui::PopClipRect();
 }
 
-vml::float2 TextView::intrinsic_size() const {
+vml::float2 TextView::calc_intrinsic_size() const {
     if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
     std::string_view text = m_text.view();
     return ImGui::CalcTextSize(text.data(), text.data() + text.size(), false);
@@ -51,7 +51,7 @@ ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
-void ButtonView::display(Rect frame) {
+void ButtonView::do_display(Rect frame) {
     // auto* DL = ImGui::GetWindowDrawList();
     // DL->AddRect(frame.min(), frame.max(), IM_COL32(255, 255, 0, 255));
     // return;
@@ -62,7 +62,7 @@ void ButtonView::display(Rect frame) {
         m_on_click();
 }
 
-vml::float2 ButtonView::intrinsic_size() const {
+vml::float2 ButtonView::calc_intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     vml::float2 text_size = ImGui::CalcTextSize(
         m_label.data(), m_label.data() + m_label.size(), true);
@@ -77,7 +77,7 @@ CheckboxView::CheckboxView(Binding<bool>&& state)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_state(std::move(state)) {}
 
-void CheckboxView::display(Rect frame) {
+void CheckboxView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     bool current_value = m_state.view();
@@ -85,7 +85,7 @@ void CheckboxView::display(Rect frame) {
         m_state.on_change(current_value);
 }
 
-vml::float2 CheckboxView::intrinsic_size() const {
+vml::float2 CheckboxView::calc_intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     return vml::float2(ImGui::GetFontSize()) +
            2.0f * (vml::float2)style.FramePadding;
@@ -151,7 +151,7 @@ static int translate_slider_flags(SliderOptions const& options) {
     return result;
 }
 
-template <typename T> void SliderView<T>::display(Rect frame) {
+template <typename T> void SliderView<T>::do_display(Rect frame) {
     if (!positive(frame.size)) return;
 
     static constexpr unsigned num_components = get_data_dimension<T>();
@@ -202,7 +202,7 @@ template <typename T> void SliderView<T>::display(Rect frame) {
     if (changed) m_state.on_change(value);
 }
 
-template <typename T> vml::float2 SliderView<T>::intrinsic_size() const {
+template <typename T> vml::float2 SliderView<T>::calc_intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
@@ -264,7 +264,7 @@ SeparatorView::SeparatorView(Orientation orientation)
     : View(separator_size_req(orientation))
     , m_orientation(orientation) {}
 
-void SeparatorView::display(Rect frame) {
+void SeparatorView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
 
     auto& style = ImGui::GetStyle();
@@ -283,7 +283,7 @@ void SeparatorView::display(Rect frame) {
     }
 }
 
-vml::float2 SeparatorView::intrinsic_size() const {
+vml::float2 SeparatorView::calc_intrinsic_size() const {
     auto& style = ImGui::GetStyle();
     switch (m_orientation) {
     case Orientation::horizontal:
@@ -304,8 +304,8 @@ Ref<SeparatorView> ui::vseparator() {
 SpacerView::SpacerView(float weight)
     : View({SizeReq::fill(weight), SizeReq::fill(weight)}) {}
 
-void SpacerView::display(Rect) {}
+void SpacerView::do_display(Rect) {}
 
-vml::float2 SpacerView::intrinsic_size() const { return {0.0f, 0.0f}; }
+vml::float2 SpacerView::calc_intrinsic_size() const { return {0.0f, 0.0f}; }
 
 Ref<SpacerView> ui::spacer(float weight) { return create<SpacerView>(weight); }

@@ -19,14 +19,13 @@ public:
     explicit StackView(Orientation orientation, ViewContainer<>&& children,
                        std::optional<Alignment> align_override = std::nullopt);
 
-    void display(Rect frame) override;
-
-    vml::float2 intrinsic_size() const override;
-
     ViewContainer<>& children() { return m_children; }
     ViewContainer<> const& children() const { return m_children; }
 
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     Orientation m_orientation;
     std::optional<Alignment> m_align_override;
     ViewContainer<> m_children;
@@ -49,13 +48,13 @@ public:
 
     explicit ScrollView(Orientation orientation, ViewContainer<>&& children);
 
-    void display(Rect frame) override;
-    vml::float2 intrinsic_size() const override;
-
     ViewContainer<>& children() { return m_children; }
     ViewContainer<> const& children() const { return m_children; }
 
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     Orientation m_orientation;
     ViewContainer<> m_children;
 };

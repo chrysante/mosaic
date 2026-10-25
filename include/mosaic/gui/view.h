@@ -10,10 +10,14 @@ class View {
 public:
     virtual ~View() = default;
 
-    virtual void display(Rect frame) = 0;
+#if !defined(NDEBUG)
+    void display(Rect frame);
+#else
+    void display(Rect frame) { do_display(frame); }
+#endif // NDEBUG
 
     // The size the view naturally wants to display its content
-    virtual vml::float2 intrinsic_size() const = 0;
+    vml::float2 intrinsic_size() const { return calc_intrinsic_size(); }
 
     SizeReq2 size_requirement() const { return m_size_requirement; }
 
@@ -32,6 +36,10 @@ protected:
         : m_size_requirement(size_requirement) {}
 
 private:
+    virtual void do_display(Rect frame) = 0;
+
+    virtual vml::float2 calc_intrinsic_size() const = 0;
+
     SizeReq2 m_size_requirement;
     Alignment2 m_alignment_requirement;
 };

@@ -20,11 +20,10 @@ public:
     explicit TextView(ConstBinding<std::string>&& text,
                       TextOptions options = {});
 
-    void display(Rect frame) override;
-
-    vml::float2 intrinsic_size() const override;
-
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     TextOptions m_options;
     ConstBinding<std::string> m_text;
 };
@@ -40,11 +39,10 @@ class ButtonView : public View {
 public:
     explicit ButtonView(std::string&& label, std::function<void()>&& on_click);
 
-    void display(Rect frame) override;
-
-    vml::float2 intrinsic_size() const override;
-
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     std::string m_label;
     std::function<void()> m_on_click;
 };
@@ -59,11 +57,10 @@ class CheckboxView : public View {
 public:
     explicit CheckboxView(Binding<bool>&& state);
 
-    void display(Rect frame) override;
-
-    vml::float2 intrinsic_size() const override;
-
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     Binding<bool> m_state;
 };
 
@@ -95,15 +92,14 @@ public:
                         ConstBinding<DataType>&& max,
                         SliderOptions options = {});
 
-    void display(Rect frame) override;
-
-    vml::float2 intrinsic_size() const override;
-
     Binding<T> const& get_state() const { return m_state; }
 
     void set_state(Binding<T> state) { m_state = std::move(state); }
 
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     Binding<T> m_state;
     ConstBinding<DataType> m_min;
     ConstBinding<DataType> m_max;
@@ -126,10 +122,11 @@ Ref<SliderView<T>> slider(Binding<T> state,
 class SeparatorView : public View {
 public:
     explicit SeparatorView(Orientation orientation);
-    void display(Rect frame) override;
-    vml::float2 intrinsic_size() const override;
 
 private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
     Orientation m_orientation;
 };
 
@@ -144,8 +141,10 @@ Ref<SeparatorView> vseparator();
 class SpacerView : public View {
 public:
     SpacerView(float weight = 1.0f);
-    void display(Rect frame) override;
-    vml::float2 intrinsic_size() const override;
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
 };
 
 Ref<SpacerView> spacer(float weight = 1.0f);
