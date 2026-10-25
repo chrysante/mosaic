@@ -1,8 +1,11 @@
 #include "gui/containers.h"
-#include "gui/view_support.h"
+
+#include <span>
 
 #include <imgui.h>
 #include <utl/scope_guard.hpp>
+
+#include "gui/view_support.h"
 
 using namespace mosaic;
 using namespace ui;
@@ -11,7 +14,7 @@ static float resolve_child_size(SizeReq requirement, float intrinsic,
                                 float available) {
     switch (requirement.type()) {
     case SizeReq::Type::fixed:
-        return requirement.value();
+        return requirement.fixed_size();
     case SizeReq::Type::fit:
         return intrinsic;
     case SizeReq::Type::fill:

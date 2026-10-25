@@ -1,14 +1,46 @@
 #pragma once
 
 #include <cassert>
+#include <concepts>
 #include <initializer_list>
 #include <memory>
 #include <ranges>
 
+#include <type_traits>
 #include <utl/vector.hpp>
 #include <vml/vml.hpp>
 
 namespace mosaic::ui {
+
+class View;
+
+template <typename Action> struct ViewPipeAdapter { Action action; };
+
+namespace internal {
+template <typename P, typename V>
+concept PointerClass =
+    std::is_class_v<std::remove_cvref_t<P>> && requires(P const& p) {
+    {p.operator->()}->std::convertible_to<V*>;
+    {*p}->std::convertible_to<V&>;
+};
+
+template <typename P, typename V>
+inline constexpr bool is_raw_pointer =
+    std::is_pointer_v<std::remove_cvref_t<P>> &&
+    std::convertible_to<std::remove_cvref_t<P>, V*>;
+
+} // namespace internal
+
+template <typename P, typename V>
+concept PointerLike =
+    internal::is_raw_pointer<P, V> || internal::PointerClass<P, V>;
+
+template <typename V = View, PointerLike<V> ViewPtr, typename Action>
+constexpr auto operator|(ViewPtr&& view,
+                         ViewPipeAdapter<Action> const& adapter) {
+    adapter.action(*view);
+    return std::forward<ViewPtr>(view);
+}
 
 template <typename T> using Ref = std::shared_ptr<T>;
 
@@ -32,13 +64,22 @@ public:
 
     static constexpr SizeReq fixed(float value) { return {Type::fixed, value}; }
 
-    static constexpr SizeReq fill() { return {Type::fill, 0.0f}; }
+    static constexpr SizeReq fill(float weight = 1.0f) {
+        assert(weight >= 0 && "fill weight must be non-negative");
+        return {Type::fill, weight};
+    }
 
     constexpr Type type() const { return m_type; }
 
     /// \pre Must be of type `fixed`
-    constexpr float value() const {
+    constexpr float fixed_size() const {
         assert(is_fixed());
+        return m_value;
+    }
+
+    /// \pre Must be of type `fill`
+    constexpr float fill_weight() const {
+        assert(is_fill());
         return m_value;
     }
 
@@ -57,11 +98,49 @@ private:
 
 using SizeReq2 = vml::vector<SizeReq, 2>;
 
+template <typename V = View> inline auto fit(unsigned axis) {
+    return ViewPipeAdapter{
+        [axis](V& view) { view.set_size_requirement(axis, SizeReq::fit()); }};
+}
+
+template <typename V = View> inline auto hfit() { return fit<V>(0); }
+
+template <typename V = View> inline auto vfit() { return fit<V>(1); }
+
+template <typename V = View>
+inline auto fill(unsigned axis, float weight = 1.0f) {
+    return ViewPipeAdapter{[axis, weight](V& view) {
+        view.set_size_requirement(axis, SizeReq::fill(weight));
+    }};
+}
+
+template <typename V = View> inline auto hfill(float weight = 1.0f) {
+    return fill<V>(0, weight);
+}
+
+template <typename V = View> inline auto vfill(float weight = 1.0f) {
+    return fill<V>(1, weight);
+}
+
+template <typename V = View> inline auto fixed_size(unsigned axis, float size) {
+    return ViewPipeAdapter{[axis, size](V& view) {
+        view.set_size_requirement(axis, SizeReq::fixed(size));
+    }};
+}
+
+template <typename V = View> inline auto fixed_width(float size) {
+    return fixed_size<V>(0, size);
+}
+
+template <typename V = View> inline auto fixed_height(float size) {
+    return fixed_size<V>(1, size);
+}
+
 enum class Orientation { horizontal = 0, vertical = 1 };
 
 enum class Alignment { left, top = left, center, right, bottom = right };
 
-template <typename V = class View> class ViewContainer {
+template <typename V = View> class ViewContainer {
     auto elem_view() const {
         return std::views::transform(m_elements,
                                      [](auto& v) -> View& { return *v; });

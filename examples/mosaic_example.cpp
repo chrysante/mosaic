@@ -663,12 +663,11 @@ static void display_view_test(bool* open) {
             ui::spacer(), 
             ui::vstack({
                 ui::button("Yet another button"),
-                ui::button("Yet another one", {}, 
-                           {ui::SizeReq::fill(), ui::SizeReq::fill()})
+                ui::button("Yet another one") | ui::hfill(), 
             }),
             ui::spacer(), 
             ui::button("...") 
-        }, ui::Alignment::center, {ui::SizeReq::fill(), ui::SizeReq::fit()}),
+        }, ui::Alignment::center) | ui::hfill(),
         ui::vstack({
             ui::checkbox(&button_active), 
             ui::button("One More Button"), 
@@ -678,9 +677,8 @@ static void display_view_test(bool* open) {
         []{
             ui::ViewContainer<> children;
             for (int i = 0; i < 100; ++i) 
-                children.push_back(ui::button(std::to_string(i)));
-            return ui::hscroll(std::move(children), 
-                               {ui::SizeReq::fill(), ui::SizeReq::fit()});
+                children.push_back(ui::button(std::to_string(i)) | ui::vfill());
+            return ui::hscroll(std::move(children)) | ui::fixed_height(40);
         }()
     });
     // clang-format on
