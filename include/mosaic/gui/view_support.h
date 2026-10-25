@@ -125,110 +125,90 @@ using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
 
-template <typename T> class ValueOrRef {
+template <typename T> class Binding {
 public:
-    ValueOrRef(T const& t)
-        : m_value(t) {}
-    ValueOrRef(T&& t)
-        : m_value(std::move(t)) {}
+    using Getter = std::function<T()>;
+    using Setter = std::function<void(T)>;
 
-    ValueOrRef(T const* ptr)
-        : m_value(ptr) {
-        assert(ptr);
+    explicit Binding(Getter&& get, Setter&& set)
+        : m_get(std::move(get))
+        , m_set(std::move(set)) {
+        assert(m_get);
     }
 
-    operator T const&() const { return get(); }
-
-    T const& get() const {
-        if (m_value.index() == 0) return std::get<0>(m_value);
-        else return *std::get<1>(m_value);
+    T get() const {
+        assert(m_get);
+        return m_get();
     }
 
-    T materialize() const { return get(); }
+    void set(T new_value) { m_set(std::move(new_value)); }
 
 private:
-    std::variant<T, T const*> m_value;
+    template <typename> friend class Binding;
+
+    Getter m_get;
+    Setter m_set;
 };
 
-template <> class ValueOrRef<std::string> {
+template <typename T> class Binding<T const> {
 public:
-    ValueOrRef(std::string const& t)
-        : m_value(std::in_place_index<0>, t) {}
-    ValueOrRef(std::string&& t)
-        : m_value(std::move(t)) {}
+    using Getter = std::function<T()>;
 
-    ValueOrRef(std::string const* ptr)
-        : m_value(ptr) {
-        assert(ptr);
+    explicit Binding(Getter&& get)
+        : m_get(std::move(get)) {
+        assert(m_get);
     }
 
-    operator std::string_view() const { return get(); }
+    Binding(Binding<T> const& rhs)
+        : m_get(rhs.m_get) {}
 
-    std::string_view get() const {
-        if (m_value.index() == 0) return std::get<0>(m_value);
-        if (m_value.index() == 1) return *std::get<1>(m_value);
-        else return std::get<2>(m_value);
-    }
+    Binding(Binding<T>&& rhs)
+        : m_get(std::move(rhs).m_get) {}
 
-    std::string materialize() const { return std::string(get()); }
-
-private:
-    std::variant<std::string, std::string const*, std::string_view> m_value;
-};
-
-template <typename T> class ConstBinding {
-public:
-    ConstBinding()
-        : m_state([] { return ValueOrRef<T>(T()); }) {}
-
-    ConstBinding(T const& value)
-        : m_state([value = value] { return ValueOrRef<T>(&value); }) {}
-    ConstBinding(T&& value)
-        : m_state(
-              [value = std::move(value)] { return ValueOrRef<T>(&value); }) {}
-    template <typename... Args>
-    requires std::constructible_from<T, Args...> ConstBinding(Args&&... args)
-        : ConstBinding(T(std::forward<Args>(args)...)) {}
-    ConstBinding(T const* ptr)
-        : m_state([ptr] { return ValueOrRef<T>(ptr); }) {}
-    template <std::invocable F>
-    requires std::convertible_to<std::invoke_result_t<F>, T>
-    ConstBinding(F&& state)
-        : m_state(std::forward<F>(state)) {}
-    ConstBinding(std::function<ValueOrRef<T>()> state)
-        : m_state(std::move(state)) {}
-
-    ValueOrRef<T> view() const {
-        assert(m_state);
-        return m_state();
+    T get() const {
+        assert(m_get);
+        return m_get();
     }
 
 private:
-    std::function<ValueOrRef<T>()> m_state;
+    Getter m_get;
 };
 
-template <typename T> class Binding : public ConstBinding<T> {
-public:
-    Binding() = default;
+template <typename T> Binding<T> bind(T* pointer) {
+    assert(pointer);
+    return Binding<T>(
+        [pointer] { return *pointer; },
+        [pointer](T new_value) { *pointer = std::move(new_value); });
+}
 
-    Binding(T* ptr)
-        : ConstBinding<T>(ptr)
-        , m_on_change([ptr](T const& new_value) {
-            if (ptr) *ptr = new_value;
-        }) {}
+template <typename T> Binding<T const> bind(T const* pointer) {
+    assert(pointer);
+    return Binding<T const>([pointer] { return *pointer; });
+}
 
-    Binding(std::function<ValueOrRef<T>()> state,
-            std::function<void(T const&)> on_change)
-        : ConstBinding<T>(std::move(state))
-        , m_on_change(std::move(on_change)) {}
+template <typename T> Binding<T> own(T value) {
+    auto storage = std::make_shared<T>(std::move(value));
+    return Binding<T>(
+        [storage] { return *storage; },
+        [storage](T new_value) { *storage = std::move(new_value); });
+}
 
-    void on_change(T const& new_value) {
-        if (m_on_change) m_on_change(new_value);
-    }
+namespace internal {
+template <typename Getter>
+using GetterType = std::remove_cvref_t<std::invoke_result_t<Getter>>;
+}
 
-private:
-    std::function<void(T const&)> m_on_change;
-};
+template <typename Getter, typename Setter,
+          typename T = internal::GetterType<Getter>>
+requires std::invocable<Setter, T> Binding<T> computed(Getter&& get,
+                                                       Setter&& set) {
+    return Binding<T>(std::forward<Getter>(get), std::forward<Setter>(set));
+}
+
+template <typename Getter, typename T = internal::GetterType<Getter>>
+Binding<T const> computed(Getter&& get) {
+    return Binding<T const>(std::forward<Getter>(get));
+}
 
 template <typename V = View> class ViewContainer {
     auto elem_view() {

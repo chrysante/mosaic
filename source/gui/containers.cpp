@@ -217,7 +217,7 @@ void TabView::do_display(Rect frame) {
     utl::scope_guard tab_guard = [] { ImGui::EndTabBar(); };
     vml::float2 size_avail = ImGui::GetContentRegionAvail();
     for (auto& [title, child] : m_tabs) {
-        std::string title_string = title.view().materialize();
+        std::string title_string = title.get();
         if (!ImGui::BeginTabItem(title_string.c_str(), nullptr)) continue;
         vml::float2 intrinsic_size = child->intrinsic_size();
         SizeReq2 size_req = child->size_requirement();

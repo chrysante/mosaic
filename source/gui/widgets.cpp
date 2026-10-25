@@ -16,7 +16,7 @@ static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
 }
 
-TextView::TextView(ConstBinding<std::string>&& text, TextOptions options)
+TextView::TextView(Binding<std::string const>&& text, TextOptions options)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_options(std::move(options))
     , m_text(std::move(text)) {}
@@ -24,7 +24,7 @@ TextView::TextView(ConstBinding<std::string>&& text, TextOptions options)
 void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
-    std::string_view text = m_text.view();
+    std::string text = m_text.get();
     ImGui::PushClipRect(frame.min(), frame.max(), true);
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::ItemAdd({frame.min(), frame.max()}, 0);
@@ -37,11 +37,11 @@ void TextView::do_display(Rect frame) {
 
 vml::float2 TextView::calc_intrinsic_size() const {
     if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
-    std::string_view text = m_text.view();
+    std::string text = m_text.get();
     return ImGui::CalcTextSize(text.data(), text.data() + text.size(), false);
 }
 
-Ref<TextView> ui::text(ConstBinding<std::string> text_arg,
+Ref<TextView> ui::text(Binding<std::string const> text_arg,
                        TextOptions options) {
     return create<TextView>(std::move(text_arg), std::move(options));
 }
@@ -80,9 +80,9 @@ CheckboxView::CheckboxView(Binding<bool>&& state)
 void CheckboxView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
-    bool current_value = m_state.view();
+    bool current_value = m_state.get();
     if (ImGui::Checkbox("##checkbox", &current_value))
-        m_state.on_change(current_value);
+        m_state.set(current_value);
 }
 
 vml::float2 CheckboxView::calc_intrinsic_size() const {
@@ -96,8 +96,9 @@ Ref<CheckboxView> ui::checkbox(Binding<bool> state) {
 }
 
 template <typename T>
-SliderView<T>::SliderView(Binding<T>&& state, ConstBinding<ScalarType>&& min,
-                          ConstBinding<ScalarType>&& max, SliderOptions options)
+SliderView<T>::SliderView(Binding<T>&& state, Binding<ScalarType const>&& min,
+                          Binding<ScalarType const>&& max,
+                          SliderOptions options)
     : View({SizeReq::fill(), SizeReq::fit()})
     , m_state(std::move(state))
     , m_min(std::move(min))
@@ -158,9 +159,9 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     static_assert(num_components >= 1);
     static_assert(num_components <= 4);
 
-    T value = m_state.view();
-    ScalarType const min = m_min.view();
-    ScalarType const max = m_max.view();
+    T value = m_state.get();
+    ScalarType const min = m_min.get();
+    ScalarType const max = m_max.get();
 
     // Hacky way to adjust the height of the widget
     ImGuiStyle const& style = ImGui::GetStyle();
@@ -199,7 +200,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     ImGui::PopStyleVar();
     GImGui->FontSize = font_size;
 
-    if (changed) m_state.on_change(value);
+    if (changed) m_state.set(value);
 }
 
 template <typename T> vml::float2 SliderView<T>::calc_intrinsic_size() const {

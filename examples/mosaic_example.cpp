@@ -654,14 +654,15 @@ Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis
 
 static ui::Ref<ui::SliderView<float>> make_float_slider() {
     auto value = std::make_shared<float>(30.0f);
-    auto slider = ui::slider<float>({}, 0.0f, 300.0f);
-    slider->set_state(
-        {[value] { return *value; },
-         [value, weak_slider = std::weak_ptr(slider)](float new_value) {
-             *value = new_value;
-             if (auto slider = weak_slider.lock())
-                 slider |= ui::fixed_height(*value);
-         }});
+    auto slider =
+        ui::slider<float>(ui::own(0.0f), ui::own(0.0f), ui::own(300.0f));
+    slider->set_state(ui::computed(
+        [value] { return *value; },
+        [value, weak_slider = std::weak_ptr(slider)](float new_value) {
+            *value = new_value;
+            if (auto slider = weak_slider.lock())
+                slider |= ui::fixed_height(*value);
+        }));
     return slider;
 }
 
@@ -676,7 +677,7 @@ static void display_view_test(bool* open) {
     static vml::float4 color;
 
     auto counter_text = [] {
-        return ui::text([] { return std::to_string(counter); });
+        return ui::text(ui::computed([] { return std::to_string(counter); }));
     };
 
     // clang-format off
@@ -706,8 +707,9 @@ static void display_view_test(bool* open) {
             ui::vseparator(),
             ui::vstack({
                 make_float_slider(),
-                ui::slider<vml::float4>(&color, 0.0f, 1.0f, { .format = "%.3f" }),
-                ui::text(long_text(), {.wrap = true}) | ui::vfill | ui::hfill
+                ui::slider<vml::float4>(ui::bind(&color), 
+                ui::own(0.0f), ui::own(1.0f), { .format = "%.3f" }),
+                ui::text(ui::own(long_text()), {.wrap = true}) | ui::vfill | ui::hfill
             }) | ui::vfill,
             ui::vseparator(),
             ui::vstack({
@@ -723,7 +725,7 @@ static void display_view_test(bool* open) {
             ui::spacer(1),
             ui::vseparator(),
             ui::vstack({
-                ui::checkbox(&button_active) | ui::align_left, 
+                ui::checkbox(ui::bind(&button_active)) | ui::align_left, 
                 ui::button("One More Button") | ui::center, 
                 ui::button("??") | ui::align_right, 
             }) | ui::hfill_weight(5),
@@ -742,8 +744,8 @@ static void display_view_test(bool* open) {
     });
     
     static ui::Ref<ui::TabView> tab_view = ui::tab_view({
-        ui::tab("First Tab", view), 
-        ui::tab("Second Tab", ui::vstack({
+        ui::tab(ui::own<std::string>("First Tab"), view), 
+        ui::tab(ui::own<std::string>("Second Tab"), ui::vstack({
             ui::button("Other Side") | ui::center
         }) | ui::hfill | ui::vfill)
     });

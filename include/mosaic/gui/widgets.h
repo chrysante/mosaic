@@ -17,7 +17,7 @@ struct TextOptions { bool wrap = false; };
 
 class TextView : public View {
 public:
-    explicit TextView(ConstBinding<std::string>&& text,
+    explicit TextView(Binding<std::string const>&& text,
                       TextOptions options = {});
 
 private:
@@ -25,10 +25,10 @@ private:
     vml::float2 calc_intrinsic_size() const override;
 
     TextOptions m_options;
-    ConstBinding<std::string> m_text;
+    Binding<std::string const> m_text;
 };
 
-Ref<TextView> text(ConstBinding<std::string> text_arg,
+Ref<TextView> text(Binding<std::string const> text_arg,
                    TextOptions options = {});
 
 // =============================================================================
@@ -88,8 +88,8 @@ template <typename T> class SliderView : public View {
 public:
     using ScalarType = vml::get_underlying_type<T>::type;
 
-    explicit SliderView(Binding<T>&& state, ConstBinding<ScalarType>&& min,
-                        ConstBinding<ScalarType>&& max,
+    explicit SliderView(Binding<T>&& state, Binding<ScalarType const>&& min,
+                        Binding<ScalarType const>&& max,
                         SliderOptions options = {});
 
     Binding<T> const& get_state() const { return m_state; }
@@ -101,15 +101,15 @@ private:
     vml::float2 calc_intrinsic_size() const override;
 
     Binding<T> m_state;
-    ConstBinding<ScalarType> m_min;
-    ConstBinding<ScalarType> m_max;
+    Binding<ScalarType const> m_min;
+    Binding<ScalarType const> m_max;
     SliderOptions m_options;
 };
 
 template <typename T>
 Ref<SliderView<T>> slider(Binding<T> state,
-                          ConstBinding<typename SliderView<T>::ScalarType> min,
-                          ConstBinding<typename SliderView<T>::ScalarType> max,
+                          Binding<typename SliderView<T>::ScalarType const> min,
+                          Binding<typename SliderView<T>::ScalarType const> max,
                           SliderOptions options = {}) {
     return create<SliderView<T>>(std::move(state), std::move(min),
                                  std::move(max), std::move(options));

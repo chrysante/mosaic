@@ -68,11 +68,11 @@ Ref<ScrollView> hscroll(ViewContainer<> children);
 // =============================================================================
 
 struct Tab {
-    ConstBinding<std::string> title;
+    Binding<std::string const> title;
     Ref<View> content;
 };
 
-inline Tab tab(ConstBinding<std::string> title, Ref<View> content) {
+inline Tab tab(Binding<std::string const> title, Ref<View> content) {
     return {std::move(title), std::move(content)};
 }
 
