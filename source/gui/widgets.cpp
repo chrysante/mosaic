@@ -58,11 +58,11 @@ Ref<Checkbox> ui::checkbox(bool* value) {
                         [value](bool new_value) { *value = new_value; });
 }
 
-Spacer::Spacer()
-    : View({SizeReq::fill(), SizeReq::fill()}) {}
+Spacer::Spacer(float weight)
+    : View({SizeReq::fill(weight), SizeReq::fill(weight)}) {}
 
 void Spacer::display(Rect) {}
 
 vml::float2 Spacer::intrinsic_size() const { return {0.0f, 0.0f}; }
 
-Ref<Spacer> ui::spacer() { return create<Spacer>(); }
+Ref<Spacer> ui::spacer(float weight) { return create<Spacer>(weight); }

@@ -30,10 +30,10 @@ static float resolve_child_size(SizeReq requirement, float intrinsic,
 }
 
 StackView::StackView(Orientation orientation, ViewContainer<>&& children,
-                     Alignment alignment)
+                     std::optional<Alignment> align_override)
     : View(default_size_requirement)
     , m_orientation(orientation)
-    , m_alignment(alignment)
+    , m_align_override(align_override)
     , m_children(std::move(children)) {}
 
 void handle_overflow(std::span<vml::float2> intrinsic_sizes,
@@ -105,7 +105,9 @@ void StackView::display(Rect frame) {
             }
         }
         float offset = [&] {
-            switch (m_alignment) {
+            auto alignment = m_align_override.value_or(
+                child.alignment_requirement()[other_axis]);
+            switch (alignment) {
             case Alignment::left:
                 return 0.0f;
             case Alignment::center:
@@ -138,14 +140,16 @@ vml::float2 StackView::intrinsic_size() const {
     return result;
 }
 
-Ref<StackView> ui::vstack(ViewContainer<> children, Alignment alignment) {
+Ref<StackView> ui::vstack(ViewContainer<> children,
+                          std::optional<Alignment> align_override) {
     return create<StackView>(Orientation::vertical, std::move(children),
-                             alignment);
+                             align_override);
 }
 
-Ref<StackView> ui::hstack(ViewContainer<> children, Alignment alignment) {
+Ref<StackView> ui::hstack(ViewContainer<> children,
+                          std::optional<Alignment> align_override) {
     return create<StackView>(Orientation::horizontal, std::move(children),
-                             alignment);
+                             align_override);
 }
 
 ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)

@@ -663,21 +663,25 @@ static void display_view_test(bool* open) {
             ui::spacer(), 
             ui::vstack({
                 ui::button("Yet another button"),
-                ui::button("Yet another one") | ui::hfill(), 
+                ui::button("Yet another one") | ui::hfill, 
             }),
             ui::spacer(), 
             ui::button("...") 
-        }, ui::Alignment::center) | ui::hfill(),
-        ui::vstack({
-            ui::checkbox(&button_active), 
-            ui::button("One More Button"), 
-            ui::button("??"), 
-        }, ui::Alignment::center),
+        }) | ui::hfill,
+        ui::hstack({
+            ui::spacer(1),
+            ui::vstack({
+                ui::checkbox(&button_active) | ui::align_left, 
+                ui::button("One More Button") | ui::center, 
+                ui::button("??") | ui::align_right, 
+            }) | ui::hfill_weight(5),
+            ui::spacer(1)
+        }) | ui::hfill,
         ui::button("Toggle Align", [] {}),
         []{
             ui::ViewContainer<> children;
             for (int i = 0; i < 100; ++i) 
-                children.push_back(ui::button(std::to_string(i)) | ui::vfill());
+                children.push_back(ui::button(std::to_string(i)) | ui::vfill);
             return ui::hscroll(std::move(children)) | ui::fixed_height(40);
         }()
     });

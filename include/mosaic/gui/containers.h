@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
 
@@ -15,7 +17,7 @@ public:
                                                           SizeReq::fit()};
 
     explicit StackView(Orientation orientation, ViewContainer<>&& children,
-                       Alignment alignment);
+                       std::optional<Alignment> align_override = std::nullopt);
 
     void display(Rect frame) override;
 
@@ -26,15 +28,15 @@ public:
 
 private:
     Orientation m_orientation;
-    Alignment m_alignment;
+    std::optional<Alignment> m_align_override;
     ViewContainer<> m_children;
 };
 
 Ref<StackView> vstack(ViewContainer<> children,
-                      Alignment alignment = Alignment::left);
+                      std::optional<Alignment> align_override = std::nullopt);
 
 Ref<StackView> hstack(ViewContainer<> children,
-                      Alignment alignment = Alignment::top);
+                      std::optional<Alignment> align_override = std::nullopt);
 
 // =============================================================================
 // ScrollView

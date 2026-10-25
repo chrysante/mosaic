@@ -42,6 +42,15 @@ constexpr auto operator|(ViewPtr&& view,
     return std::forward<ViewPtr>(view);
 }
 
+template <typename Action1, typename Action2>
+constexpr auto operator|(ViewPipeAdapter<Action1> const& adapter1,
+                         ViewPipeAdapter<Action2> const& adapter2) {
+    return ViewPipeAdapter{[=]<typename V = View>(V& view) {
+        adapter1.action(view);
+        adapter2.action(view);
+    }};
+}
+
 template <typename T> using Ref = std::shared_ptr<T>;
 
 template <typename T, typename... Args> static Ref<T> create(Args&&... args) {
@@ -98,47 +107,11 @@ private:
 
 using SizeReq2 = vml::vector<SizeReq, 2>;
 
-template <typename V = View> inline auto fit(unsigned axis) {
-    return ViewPipeAdapter{
-        [axis](V& view) { view.set_size_requirement(axis, SizeReq::fit()); }};
-}
+enum class Alignment { left, top = left, center, right, bottom = right };
 
-template <typename V = View> inline auto hfit() { return fit<V>(0); }
-
-template <typename V = View> inline auto vfit() { return fit<V>(1); }
-
-template <typename V = View>
-inline auto fill(unsigned axis, float weight = 1.0f) {
-    return ViewPipeAdapter{[axis, weight](V& view) {
-        view.set_size_requirement(axis, SizeReq::fill(weight));
-    }};
-}
-
-template <typename V = View> inline auto hfill(float weight = 1.0f) {
-    return fill<V>(0, weight);
-}
-
-template <typename V = View> inline auto vfill(float weight = 1.0f) {
-    return fill<V>(1, weight);
-}
-
-template <typename V = View> inline auto fixed_size(unsigned axis, float size) {
-    return ViewPipeAdapter{[axis, size](V& view) {
-        view.set_size_requirement(axis, SizeReq::fixed(size));
-    }};
-}
-
-template <typename V = View> inline auto fixed_width(float size) {
-    return fixed_size<V>(0, size);
-}
-
-template <typename V = View> inline auto fixed_height(float size) {
-    return fixed_size<V>(1, size);
-}
+using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
-
-enum class Alignment { left, top = left, center, right, bottom = right };
 
 template <typename V = View> class ViewContainer {
     auto elem_view() const {

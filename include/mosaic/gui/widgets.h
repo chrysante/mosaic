@@ -55,11 +55,11 @@ Ref<Checkbox> checkbox(bool* value);
 
 class Spacer : public View {
 public:
-    Spacer();
+    Spacer(float weight = 1.0f);
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
 };
 
-Ref<Spacer> spacer();
+Ref<Spacer> spacer(float weight = 1.0f);
 
 } // namespace mosaic::ui
