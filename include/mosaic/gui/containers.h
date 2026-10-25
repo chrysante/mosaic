@@ -11,11 +11,11 @@ namespace mosaic::ui {
 
 class StackView : public View {
 public:
-    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fit(),
-                                                            SizeReq::fit()};
+    static constexpr SizeReq2 default_size_requirement = {SizeReq::fit(),
+                                                          SizeReq::fit()};
 
     explicit StackView(Orientation orientation, ViewContainer<>&& children,
-                       Alignment alignment, SizeReq2 size_requirement);
+                       Alignment alignment);
 
     void display(Rect frame) override;
 
@@ -30,13 +30,11 @@ private:
     ViewContainer<> m_children;
 };
 
-Ref<StackView>
-vstack(ViewContainer<> children, Alignment alignment = Alignment::left,
-       SizeReq2 size_requirement = StackView::default_layout_requirement);
+Ref<StackView> vstack(ViewContainer<> children,
+                      Alignment alignment = Alignment::left);
 
-Ref<StackView>
-hstack(ViewContainer<> children, Alignment alignment = Alignment::top,
-       SizeReq2 size_requirement = StackView::default_layout_requirement);
+Ref<StackView> hstack(ViewContainer<> children,
+                      Alignment alignment = Alignment::top);
 
 // =============================================================================
 // ScrollView
@@ -44,11 +42,10 @@ hstack(ViewContainer<> children, Alignment alignment = Alignment::top,
 
 class ScrollView : public View {
 public:
-    static constexpr SizeReq2 default_layout_requirement = {SizeReq::fill(),
-                                                            SizeReq::fill()};
+    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
+                                                          SizeReq::fill()};
 
-    explicit ScrollView(Orientation orientation, ViewContainer<>&& children,
-                        SizeReq2 size_requirement);
+    explicit ScrollView(Orientation orientation, ViewContainer<>&& children);
 
     void display(Rect frame) override;
     vml::float2 intrinsic_size() const override;
@@ -61,12 +58,8 @@ private:
     ViewContainer<> m_children;
 };
 
-Ref<ScrollView>
-vscroll(ViewContainer<> children,
-        SizeReq2 size_requirement = ScrollView::default_layout_requirement);
+Ref<ScrollView> vscroll(ViewContainer<> children);
 
-Ref<ScrollView>
-hscroll(ViewContainer<> children,
-        SizeReq2 size_requirement = ScrollView::default_layout_requirement);
+Ref<ScrollView> hscroll(ViewContainer<> children);
 
 } // namespace mosaic::ui

@@ -1,4 +1,5 @@
 #include "gui/widgets.h"
+#include "gui/view_support.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -6,9 +7,8 @@
 using namespace mosaic;
 using namespace ui;
 
-Button::Button(std::string&& label, std::function<void()>&& on_click,
-               SizeReq2 size_requirement)
-    : View(size_requirement)
+Button::Button(std::string&& label, std::function<void()>&& on_click)
+    : View({SizeReq::fit(), SizeReq::fit()})
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
@@ -25,16 +25,13 @@ vml::float2 Button::intrinsic_size() const {
     return text_size + 2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<Button> ui::button(std::string label, std::function<void()> on_click,
-                       SizeReq2 size_requirement) {
-    return create<Button>(std::move(label), std::move(on_click),
-                          size_requirement);
+Ref<Button> ui::button(std::string label, std::function<void()> on_click) {
+    return create<Button>(std::move(label), std::move(on_click));
 }
 
 Checkbox::Checkbox(std::function<bool()>&& state,
-                   std::function<void(bool)>&& on_change,
-                   SizeReq2 size_requirement)
-    : View(size_requirement)
+                   std::function<void(bool)>&& on_change)
+    : View({SizeReq::fit(), SizeReq::fit()})
     , m_state(std::move(state))
     , m_on_change(std::move(on_change)) {}
 
@@ -52,16 +49,13 @@ vml::float2 Checkbox::intrinsic_size() const {
 }
 
 Ref<Checkbox> ui::checkbox(std::function<bool()> state,
-                           std::function<void(bool)> on_change,
-                           SizeReq2 size_requirement) {
-    return create<Checkbox>(std::move(state), std::move(on_change),
-                            size_requirement);
+                           std::function<void(bool)> on_change) {
+    return create<Checkbox>(std::move(state), std::move(on_change));
 }
 
-Ref<Checkbox> ui::checkbox(bool* value, SizeReq2 size_requirement) {
+Ref<Checkbox> ui::checkbox(bool* value) {
     return ui::checkbox([value] { return *value; },
-                        [value](bool new_value) { *value = new_value; },
-                        size_requirement);
+                        [value](bool new_value) { *value = new_value; });
 }
 
 Spacer::Spacer()

@@ -1,6 +1,7 @@
 #include "gui/containers.h"
 
 #include <algorithm>
+#include <mach/memory_object_types.h>
 #include <span>
 
 #include <imgui.h>
@@ -29,8 +30,8 @@ static float resolve_child_size(SizeReq requirement, float intrinsic,
 }
 
 StackView::StackView(Orientation orientation, ViewContainer<>&& children,
-                     Alignment alignment, SizeReq2 size_requirement)
-    : View(size_requirement)
+                     Alignment alignment)
+    : View(default_size_requirement)
     , m_orientation(orientation)
     , m_alignment(alignment)
     , m_children(std::move(children)) {}
@@ -137,21 +138,18 @@ vml::float2 StackView::intrinsic_size() const {
     return result;
 }
 
-Ref<StackView> ui::vstack(ViewContainer<> children, Alignment alignment,
-                          SizeReq2 size_requirement) {
+Ref<StackView> ui::vstack(ViewContainer<> children, Alignment alignment) {
     return create<StackView>(Orientation::vertical, std::move(children),
-                             alignment, size_requirement);
+                             alignment);
 }
 
-Ref<StackView> ui::hstack(ViewContainer<> children, Alignment alignment,
-                          SizeReq2 size_requirement) {
+Ref<StackView> ui::hstack(ViewContainer<> children, Alignment alignment) {
     return create<StackView>(Orientation::horizontal, std::move(children),
-                             alignment, size_requirement);
+                             alignment);
 }
 
-ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children,
-                       SizeReq2 size_requirement)
-    : View(size_requirement)
+ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)
+    : View(default_size_requirement)
     , m_orientation(orientation)
     , m_children(std::move(children)) {}
 
@@ -185,14 +183,10 @@ void ScrollView::display(Rect frame) {
 
 vml::float2 ScrollView::intrinsic_size() const { return {500, 500}; }
 
-Ref<ScrollView> ui::vscroll(ViewContainer<> children,
-                            SizeReq2 size_requirement) {
-    return create<ScrollView>(Orientation::vertical, std::move(children),
-                              size_requirement);
+Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
+    return create<ScrollView>(Orientation::vertical, std::move(children));
 }
 
-Ref<ScrollView> ui::hscroll(ViewContainer<> children,
-                            SizeReq2 size_requirement) {
-    return create<ScrollView>(Orientation::horizontal, std::move(children),
-                              size_requirement);
+Ref<ScrollView> ui::hscroll(ViewContainer<> children) {
+    return create<ScrollView>(Orientation::horizontal, std::move(children));
 }
