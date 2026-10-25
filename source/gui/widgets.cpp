@@ -52,10 +52,6 @@ ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
     , m_on_click(std::move(on_click)) {}
 
 void ButtonView::do_display(Rect frame) {
-    // auto* DL = ImGui::GetWindowDrawList();
-    // DL->AddRect(frame.min(), frame.max(), IM_COL32(255, 255, 0, 255));
-    // return;
-
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     if (ImGui::ButtonEx(m_label.c_str(), frame.size) && m_on_click)
