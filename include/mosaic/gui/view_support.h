@@ -181,9 +181,14 @@ public:
     ConstBinding()
         : m_state([] { return ValueOrRef<T>(T()); }) {}
 
-    ConstBinding(T value)
+    ConstBinding(T const& value)
+        : m_state([value = value] { return ValueOrRef<T>(&value); }) {}
+    ConstBinding(T&& value)
         : m_state(
               [value = std::move(value)] { return ValueOrRef<T>(&value); }) {}
+    template <typename... Args>
+    requires std::constructible_from<T, Args...> ConstBinding(Args&&... args)
+        : ConstBinding(T(std::forward<Args>(args)...)) {}
     ConstBinding(T const* ptr)
         : m_state([ptr] { return ValueOrRef<T>(ptr); }) {}
     template <std::invocable F>

@@ -740,11 +740,18 @@ static void display_view_test(bool* open) {
             return ui::hscroll(std::move(children)) | ui::fixed_height(40);
         }()
     });
+    
+    static ui::Ref<ui::TabView> tab_view = ui::tab_view({
+        ui::tab("First Tab", view), 
+        ui::tab("Second Tab", ui::vstack({
+            ui::button("Other Side") | ui::center
+        }) | ui::hfill | ui::vfill)
+    });
     // clang-format on
 
     vml::float2 pos = ImGui::GetCursorScreenPos();
     vml::float2 size = ImGui::GetContentRegionAvail();
-    view->display({pos, size});
+    tab_view->display({pos, size});
 
     ImGui::End();
 }

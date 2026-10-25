@@ -188,7 +188,7 @@ void ScrollView::do_display(Rect frame) {
     }
 }
 
-vml::float2 ScrollView::calc_intrinsic_size() const { return {500, 500}; }
+vml::float2 ScrollView::calc_intrinsic_size() const { return {0.0f, 0.0f}; }
 
 Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
     return create<ScrollView>(Orientation::vertical, std::move(children));
@@ -197,3 +197,105 @@ Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
 Ref<ScrollView> ui::hscroll(ViewContainer<> children) {
     return create<ScrollView>(Orientation::horizontal, std::move(children));
 }
+
+TabView::TabView(std::vector<Tab>&& tabs)
+    : View(default_size_requirement)
+    , m_tabs(std::move(tabs)) {}
+
+void TabView::do_display(Rect frame) {
+    ImGui::SetCursorScreenPos(frame.origin);
+    ImGui::PushID(this);
+    int window_flags = 0;
+    bool visible = ImGui::BeginChild("##tab-view", frame.size,
+                                     ImGuiChildFlags_None, window_flags);
+    utl::scope_guard window_guard = [] {
+        ImGui::EndChild();
+        ImGui::PopID();
+    };
+    if (!visible) return;
+    if (!ImGui::BeginTabBar("##tab-bar")) return;
+    utl::scope_guard tab_guard = [] { ImGui::EndTabBar(); };
+    vml::float2 size_avail = ImGui::GetContentRegionAvail();
+    for (auto& [title, child] : m_tabs) {
+        std::string title_string = title.view().materialize();
+        if (!ImGui::BeginTabItem(title_string.c_str(), nullptr)) continue;
+        vml::float2 intrinsic_size = child->intrinsic_size();
+        SizeReq2 size_req = child->size_requirement();
+        vml::float2 child_size =
+            vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
+        vml::float2 pos = ImGui::GetCursorScreenPos();
+        child->display({pos, child_size});
+        ImGui::EndTabItem();
+    }
+}
+
+vml::float2 TabView::calc_intrinsic_size() const { return {0.0f, 0.0f}; }
+
+Ref<TabView> ui::tab_view(std::vector<Tab> tabs) {
+    return create<TabView>(std::move(tabs));
+}
+
+#if 0
+ColumnView::ColumnView(ViewContainer<>&& children)
+    : View(default_size_requirement)
+    , m_children(std::move(children)) {}
+
+static void distribute_delta(
+    std::span<ui::ColumnLayout const> columns, std::span<float> widths,
+    std::size_t begin, std::size_t end, float delta, float max_layout_width,
+    std::size_t preferred = std::numeric_limits<std::size_t>::max()) {
+    if (begin >= end || std::abs(delta) < 0.01f) return;
+    auto get_bounds = [&](std::size_t i) {
+        float const lo = ImMax(0.0f, columns[i].min_width);
+        float const hi =
+            ImMax(lo, ImMin(columns[i].max_width, max_layout_width));
+        return std::pair{lo, hi};
+    };
+    // First, let the preferred column absorb as much of the delta
+    // as possible. Other columns remain untouched if it can absorb
+    // the entire change.
+    if (preferred >= begin && preferred < end) {
+        auto const [lo, hi] = get_bounds(preferred);
+        float const old_width = widths[preferred];
+        widths[preferred] = ImClamp(old_width + delta, lo, hi);
+        delta -= widths[preferred] - old_width;
+        if (std::abs(delta) < 0.01f) return;
+    }
+    // Redistribute only the remaining delta among the other columns.
+    for (std::size_t iteration = 0; iteration < end - begin + 1; ++iteration) {
+        if (std::abs(delta) < 0.01f) break;
+        std::size_t active = 0;
+        for (std::size_t i = begin; i < end; ++i) {
+            if (i == preferred) continue;
+            auto const [lo, hi] = get_bounds(i);
+            float const capacity =
+                delta > 0.0f ? hi - widths[i] : widths[i] - lo;
+            if (capacity > 0.001f) ++active;
+        }
+        if (active == 0) break;
+        float const share = delta / static_cast<float>(active);
+        float applied = 0.0f;
+        for (std::size_t i = begin; i < end; ++i) {
+            if (i == preferred) continue;
+            auto const [lo, hi] = get_bounds(i);
+            float const capacity =
+                delta > 0.0f ? hi - widths[i] : widths[i] - lo;
+            if (capacity <= 0.001f) continue;
+            float const amount = delta > 0.0f ? ImMin(share, capacity)
+                                              : -ImMin(-share, capacity);
+            widths[i] += amount;
+            applied += amount;
+        }
+        if (std::abs(applied) < 0.001f) break;
+        delta -= applied;
+    }
+}
+
+void ColumnView::do_display(Rect frame) {}
+
+vml::float2 ColumnView::calc_intrinsic_size() const {}
+
+Ref<ColumnView> ui::columns(ViewContainer<> children) {
+    return create<ColumnView>(std::move(children));
+}
+#endif

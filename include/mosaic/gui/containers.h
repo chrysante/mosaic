@@ -63,4 +63,63 @@ Ref<ScrollView> vscroll(ViewContainer<> children);
 
 Ref<ScrollView> hscroll(ViewContainer<> children);
 
+// =============================================================================
+// TabView
+// =============================================================================
+
+struct Tab {
+    ConstBinding<std::string> title;
+    Ref<View> content;
+};
+
+inline Tab tab(ConstBinding<std::string> title, Ref<View> content) {
+    return {std::move(title), std::move(content)};
+}
+
+class TabView : public View {
+public:
+    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
+                                                          SizeReq::fill()};
+
+    explicit TabView(std::vector<Tab>&& tabs);
+
+    std::vector<Tab>& children() { return m_tabs; }
+    std::vector<Tab> const& children() const { return m_tabs; }
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
+    std::vector<Tab> m_tabs;
+};
+
+Ref<TabView> tab_view(std::vector<Tab> children);
+
+// =============================================================================
+// ColumnView
+// =============================================================================
+
+#if 0
+
+class ColumnView : public View {
+public:
+    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
+                                                          SizeReq::fill()};
+
+    explicit ColumnView(ViewContainer<>&& children);
+
+    ViewContainer<>& children() { return m_children; }
+    ViewContainer<> const& children() const { return m_children; }
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
+    ViewContainer<> m_children;
+};
+
+Ref<ColumnView> columns(ViewContainer<> children);
+
+#endif
+
 } // namespace mosaic::ui
