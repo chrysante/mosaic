@@ -16,6 +16,36 @@ static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
 }
 
+TextView::TextView(ConstBinding<std::string>&& text, TextOptions options)
+    : View({SizeReq::fit(), SizeReq::fit()})
+    , m_options(std::move(options))
+    , m_text(std::move(text)) {}
+
+void TextView::display(Rect frame) {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return;
+    std::string_view text = m_text.view();
+    ImGui::PushClipRect(frame.min(), frame.max(), true);
+    ImGui::SetCursorScreenPos(frame.origin);
+    ImGui::ItemAdd({frame.min(), frame.max()}, 0);
+    float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
+    auto* DL = ImGui::GetWindowDrawList();
+    DL->AddText(nullptr, 0.0f, frame.origin, ImGui::GetColorU32(ImGuiCol_Text),
+                text.data(), text.data() + text.size(), wrap_width);
+    ImGui::PopClipRect();
+}
+
+vml::float2 TextView::intrinsic_size() const {
+    if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
+    std::string_view text = m_text.view();
+    return ImGui::CalcTextSize(text.data(), text.data() + text.size(), false);
+}
+
+Ref<TextView> ui::text(ConstBinding<std::string> text_arg,
+                       TextOptions options) {
+    return create<TextView>(std::move(text_arg), std::move(options));
+}
+
 ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_label(std::move(label))
@@ -50,7 +80,7 @@ CheckboxView::CheckboxView(Binding<bool>&& state)
 void CheckboxView::display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
-    bool current_value = m_state.get();
+    bool current_value = m_state.view();
     if (ImGui::Checkbox("##checkbox", &current_value))
         m_state.on_change(current_value);
 }
@@ -128,9 +158,9 @@ template <typename T> void SliderView<T>::display(Rect frame) {
     static_assert(num_components >= 1);
     static_assert(num_components <= 4);
 
-    T value = m_state.get();
-    DataType const min = m_min.get();
-    DataType const max = m_max.get();
+    T value = m_state.view();
+    DataType const min = m_min.view();
+    DataType const max = m_max.view();
 
     // Hacky way to adjust the height of the widget
     ImGuiStyle const& style = ImGui::GetStyle();

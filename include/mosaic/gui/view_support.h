@@ -6,6 +6,10 @@
 #include <initializer_list>
 #include <memory>
 #include <ranges>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <variant>
 
 #include <type_traits>
 #include <utl/vector.hpp>
@@ -121,22 +125,81 @@ using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
 
-template <typename T> class ConstBinding {
+template <typename T> class ValueOrRef {
 public:
-    ConstBinding() = default;
-    ConstBinding(T value)
-        : m_state([value] { return value; }) {}
-    ConstBinding(T const* ptr)
-        : m_state([ptr] { return ptr ? *ptr : T(); }) {}
-    ConstBinding(std::function<T()> state)
-        : m_state(std::move(state)) {}
+    ValueOrRef(T const& t)
+        : m_value(t) {}
+    ValueOrRef(T&& t)
+        : m_value(std::move(t)) {}
 
-    T get() const { return m_state ? m_state() : T(); }
+    ValueOrRef(T const* ptr)
+        : m_value(ptr) {
+        assert(ptr);
+    }
 
-    bool has_value() const { return m_state != nullptr; }
+    operator T const&() const { return get(); }
+
+    T const& get() const {
+        if (m_value.index() == 0) return std::get<0>(m_value);
+        else return *std::get<1>(m_value);
+    }
+
+    T materialize() const { return get(); }
 
 private:
-    std::function<T()> m_state;
+    std::variant<T, T const*> m_value;
+};
+
+template <> class ValueOrRef<std::string> {
+public:
+    ValueOrRef(std::string const& t)
+        : m_value(std::in_place_index<0>, t) {}
+    ValueOrRef(std::string&& t)
+        : m_value(std::move(t)) {}
+
+    ValueOrRef(std::string const* ptr)
+        : m_value(ptr) {
+        assert(ptr);
+    }
+
+    operator std::string_view() const { return get(); }
+
+    std::string_view get() const {
+        if (m_value.index() == 0) return std::get<0>(m_value);
+        if (m_value.index() == 1) return *std::get<1>(m_value);
+        else return std::get<2>(m_value);
+    }
+
+    std::string materialize() const { return std::string(get()); }
+
+private:
+    std::variant<std::string, std::string const*, std::string_view> m_value;
+};
+
+template <typename T> class ConstBinding {
+public:
+    ConstBinding()
+        : m_state([] { return ValueOrRef<T>(T()); }) {}
+
+    ConstBinding(T value)
+        : m_state(
+              [value = std::move(value)] { return ValueOrRef<T>(&value); }) {}
+    ConstBinding(T const* ptr)
+        : m_state([ptr] { return ValueOrRef<T>(ptr); }) {}
+    template <std::invocable F>
+    requires std::convertible_to<std::invoke_result_t<F>, T>
+    ConstBinding(F&& state)
+        : m_state(std::forward<F>(state)) {}
+    ConstBinding(std::function<ValueOrRef<T>()> state)
+        : m_state(std::move(state)) {}
+
+    ValueOrRef<T> view() const {
+        assert(m_state);
+        return m_state();
+    }
+
+private:
+    std::function<ValueOrRef<T>()> m_state;
 };
 
 template <typename T> class Binding : public ConstBinding<T> {
@@ -149,7 +212,8 @@ public:
             if (ptr) *ptr = new_value;
         }) {}
 
-    Binding(std::function<T()> state, std::function<void(T const&)> on_change)
+    Binding(std::function<ValueOrRef<T>()> state,
+            std::function<void(T const&)> on_change)
         : ConstBinding<T>(std::move(state))
         , m_on_change(std::move(on_change)) {}
 

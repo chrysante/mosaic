@@ -10,6 +10,29 @@
 namespace mosaic::ui {
 
 // =============================================================================
+// Text
+// =============================================================================
+
+struct TextOptions { bool wrap = false; };
+
+class TextView : public View {
+public:
+    explicit TextView(ConstBinding<std::string>&& text,
+                      TextOptions options = {});
+
+    void display(Rect frame) override;
+
+    vml::float2 intrinsic_size() const override;
+
+private:
+    TextOptions m_options;
+    ConstBinding<std::string> m_text;
+};
+
+Ref<TextView> text(ConstBinding<std::string> text_arg,
+                   TextOptions options = {});
+
+// =============================================================================
 // Button
 // =============================================================================
 
