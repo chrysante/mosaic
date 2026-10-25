@@ -36,11 +36,18 @@ template <typename P, typename V>
 concept PointerLike =
     internal::is_raw_pointer<P, V> || internal::PointerClass<P, V>;
 
-template <typename V = View, PointerLike<V> ViewPtr, typename Action>
+template <PointerLike<View> ViewPtr, typename Action>
 constexpr auto operator|(ViewPtr&& view,
                          ViewPipeAdapter<Action> const& adapter) {
     adapter.action(*view);
     return std::forward<ViewPtr>(view);
+}
+
+template <PointerLike<View> ViewPtr, typename Action>
+constexpr ViewPtr const& operator|=(ViewPtr const& view,
+                                    ViewPipeAdapter<Action> const& adapter) {
+    adapter.action(*view);
+    return view;
 }
 
 template <typename Action1, typename Action2>
@@ -114,28 +121,43 @@ using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
 
-template <typename T> class Binding {
+template <typename T> class ConstBinding {
+public:
+    ConstBinding() = default;
+    ConstBinding(T value)
+        : m_state([value] { return value; }) {}
+    ConstBinding(T const* ptr)
+        : m_state([ptr] { return ptr ? *ptr : T(); }) {}
+    ConstBinding(std::function<T()> state)
+        : m_state(std::move(state)) {}
+
+    T get() const { return m_state ? m_state() : T(); }
+
+    bool has_value() const { return m_state != nullptr; }
+
+private:
+    std::function<T()> m_state;
+};
+
+template <typename T> class Binding : public ConstBinding<T> {
 public:
     Binding() = default;
 
     Binding(T* ptr)
-        : m_state([ptr] { return ptr ? *ptr : T(); })
+        : ConstBinding<T>(ptr)
         , m_on_change([ptr](T const& new_value) {
             if (ptr) *ptr = new_value;
         }) {}
 
     Binding(std::function<T()> state, std::function<void(T const&)> on_change)
-        : m_state(std::move(state))
+        : ConstBinding<T>(std::move(state))
         , m_on_change(std::move(on_change)) {}
-
-    T get() const { return m_state ? m_state() : T(); }
 
     void on_change(T const& new_value) {
         if (m_on_change) m_on_change(new_value);
     }
 
 private:
-    std::function<T()> m_state;
     std::function<void(T const&)> m_on_change;
 };
 

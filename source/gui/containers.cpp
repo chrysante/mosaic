@@ -118,8 +118,7 @@ void StackView::display(Rect frame) {
         }();
         vml::float2 pos = cursor;
         pos[other_axis] += offset;
-        if (child_size.map([](float v) { return v > 0; }).all())
-            child.display({pos, child_size});
+        child.display({pos, child_size});
         cursor[main_axis] += child_size[main_axis] + spacing;
     }
 }

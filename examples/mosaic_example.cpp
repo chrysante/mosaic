@@ -644,6 +644,19 @@ void display_icon_viewer(bool* open) {
     ImGui::End();
 }
 
+static ui::Ref<ui::SliderView<float>> make_float_slider() {
+    auto value = std::make_shared<float>(30.0f);
+    auto slider = ui::slider<float>({}, 0.0f, 300.0f);
+    slider->set_state(
+        {[value] { return *value; },
+         [value, weak_slider = std::weak_ptr(slider)](float new_value) {
+             *value = new_value;
+             if (auto slider = weak_slider.lock())
+                 slider |= ui::fixed_height(*value);
+         }});
+    return slider;
+}
+
 static void display_view_test(bool* open) {
     if (!ImGui::Begin("View Test", open)) {
         ImGui::End();
@@ -659,7 +672,10 @@ static void display_view_test(bool* open) {
         ui::hstack({
             ui::button("Count", [] { if (button_active) ++counter; }),
             ui::vseparator() | ui::hfill,
-            ui::button("Other Button"),
+            ui::vstack({
+                make_float_slider(),
+                ui::slider<vml::float4>({}, 0.0f, 1.0f, { .format = "%.3f" })
+            }),
             ui::vseparator() | ui::hfill,
             ui::vstack({
                 ui::button("Yet another button"),
