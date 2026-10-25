@@ -1,13 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <functional>
 #include <initializer_list>
 #include <memory>
-#include <ranges>
-#include <string>
-#include <string_view>
 #include <utility>
 #include <variant>
 
@@ -140,8 +138,6 @@ public:
     ValueOrRef(std::reference_wrapper<T const> ref)
         : m_value(&ref.get()) {}
 
-    operator T const&() const { return get(); }
-
     T const& get() const {
         if (m_value.index() == 0) return std::get<0>(m_value);
         else return *std::get<1>(m_value);
@@ -152,6 +148,8 @@ private:
 };
 
 template <typename T> class Binding {
+    static_assert(std::is_object_v<T>, "T must be an object type");
+
 public:
     using Getter = std::function<ValueOrRef<T>()>;
     using Setter = std::function<void(T)>;
@@ -166,6 +164,8 @@ public:
         assert(m_get);
         return m_get();
     }
+
+    T materialize() const { return get().get(); }
 
     void set(T new_value) { m_set(std::move(new_value)); }
 
@@ -195,6 +195,8 @@ public:
         assert(m_get);
         return m_get();
     }
+
+    T materialize() const { return get().get(); }
 
 private:
     Getter m_get;

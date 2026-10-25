@@ -24,21 +24,24 @@ TextView::TextView(Binding<std::string const>&& text, TextOptions options)
 void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
-    std::string const& text = m_text.get();
+    auto text = m_text.get();
     ImGui::PushClipRect(frame.min(), frame.max(), true);
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::ItemAdd({frame.min(), frame.max()}, 0);
     float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
     auto* DL = ImGui::GetWindowDrawList();
+    auto const& text_ref = text.get();
     DL->AddText(nullptr, 0.0f, frame.origin, ImGui::GetColorU32(ImGuiCol_Text),
-                text.data(), text.data() + text.size(), wrap_width);
+                text_ref.data(), text_ref.data() + text_ref.size(), wrap_width);
     ImGui::PopClipRect();
 }
 
 vml::float2 TextView::calc_intrinsic_size() const {
     if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
-    std::string const& text = m_text.get();
-    return ImGui::CalcTextSize(text.data(), text.data() + text.size(), false);
+    auto text = m_text.get();
+    auto const& text_ref = text.get();
+    return ImGui::CalcTextSize(text_ref.data(),
+                               text_ref.data() + text_ref.size(), false);
 }
 
 Ref<TextView> ui::text(Binding<std::string const> text_arg,
@@ -76,7 +79,7 @@ CheckboxView::CheckboxView(Binding<bool>&& state)
 void CheckboxView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
-    bool current_value = m_state.get();
+    bool current_value = m_state.materialize();
     if (ImGui::Checkbox("##checkbox", &current_value))
         m_state.set(current_value);
 }
@@ -155,9 +158,9 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     static_assert(num_components >= 1);
     static_assert(num_components <= 4);
 
-    T value = m_state.get();
-    ScalarType const min = m_min.get();
-    ScalarType const max = m_max.get();
+    T value = m_state.materialize();
+    ScalarType const min = m_min.materialize();
+    ScalarType const max = m_max.materialize();
 
     // Hacky way to adjust the height of the widget
     ImGuiStyle const& style = ImGui::GetStyle();
