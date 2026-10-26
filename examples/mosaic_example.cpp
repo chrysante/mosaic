@@ -743,7 +743,7 @@ static void display_view_test(bool* open) {
             ui::ViewContainer<> children;
             for (int i = 0; i < 100; ++i) 
                 children.push_back(ui::button(std::to_string(i)) | ui::vfill);
-            return ui::hscroll(std::move(children)) | ui::fixed_height(40);
+            return ui::hscroll(std::move(children)) | ui::vfit;
         }()
     });
     

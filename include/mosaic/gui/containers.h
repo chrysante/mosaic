@@ -85,8 +85,8 @@ public:
 
     explicit TabView(std::vector<Tab>&& tabs);
 
-    std::vector<Tab>& children() { return m_tabs; }
-    std::vector<Tab> const& children() const { return m_tabs; }
+    std::vector<Tab>& tabs() { return m_tabs; }
+    std::vector<Tab> const& tabs() const { return m_tabs; }
 
 private:
     void do_display(Rect frame) override;
@@ -130,5 +130,36 @@ private:
 };
 
 Ref<ColumnView> columns(std::vector<Column> columns);
+
+// =============================================================================
+// SwitchView
+// =============================================================================
+
+template <typename Index = int> class SwitchView : public View {
+public:
+    static constexpr SizeReq2 default_size_requirement = {SizeReq::fit(),
+                                                          SizeReq::fit()};
+
+    explicit SwitchView(Property<Index> index, ViewContainer<>&& children);
+
+    ViewContainer<>& children() { return m_children; }
+    ViewContainer<> const& children() const { return m_children; }
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 calc_intrinsic_size() const override;
+
+    Property<Index> m_index;
+    ViewContainer<> m_children;
+};
+
+using ConditionalView = SwitchView<bool>;
+
+Ref<ConditionalView> if_view(Property<bool> condition, Ref<View> then_view);
+
+Ref<ConditionalView> if_view(Property<bool> condition, Ref<View> then_view,
+                             Ref<View> else_view);
+
+Ref<SwitchView<>> switch_view(Property<int> index, ViewContainer<> cases);
 
 } // namespace mosaic::ui

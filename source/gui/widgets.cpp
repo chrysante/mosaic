@@ -81,8 +81,10 @@ void CheckboxView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     bool current_value = m_state.materialize();
-    if (ImGui::Checkbox("##checkbox", &current_value))
-        m_state.set(current_value);
+    ImGui::PushID(this);
+    bool active = ImGui::Checkbox("##checkbox", &current_value);
+    ImGui::PopID();
+    if (active) m_state.set(current_value);
 }
 
 vml::float2 CheckboxView::calc_intrinsic_size() const {
@@ -186,6 +188,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     GImGui->FontSize = adjusted_font_size;
     ImGui::SetNextItemWidth(frame.size.x);
     ImGui::SetCursorScreenPos(frame.origin);
+    ImGui::PushID(this);
     int flags = translate_slider_flags(m_options);
     bool changed = [&] {
         if constexpr (num_components == 1)
@@ -197,6 +200,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
                                         value.data(), num_components, &min,
                                         &max, m_options.format.c_str(), flags);
     }();
+    ImGui::PopID();
     ImGui::PopStyleVar();
     GImGui->FontSize = font_size;
 

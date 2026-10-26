@@ -6,10 +6,11 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <utl/common.hpp>
 #include <utl/scope_guard.hpp>
 
 #include "gui/view_support.h"
-#include "utl/common.hpp"
+#include "support/logger.h"
 
 using namespace mosaic;
 using namespace ui;
@@ -498,4 +499,59 @@ vml::float2 ColumnView::calc_intrinsic_size() const {
 
 Ref<ColumnView> ui::columns(std::vector<Column> columns) {
     return create<ColumnView>(std::move(columns));
+}
+
+template <typename Index>
+SwitchView<Index>::SwitchView(Property<Index> index, ViewContainer<>&& children)
+    : View(default_size_requirement)
+    , m_index(std::move(index))
+    , m_children(std::move(children)) {}
+
+template <typename Index> void SwitchView<Index>::do_display(Rect frame) {
+    Index index = m_index.materialize();
+    if (index < 0 || (std::size_t)index >= m_children.size()) {
+        Logger::error("SwitchView: index out of range");
+        return;
+    }
+    auto& active_child = m_children[(std::size_t)index];
+    active_child.display(frame);
+}
+
+template <typename Index>
+vml::float2 SwitchView<Index>::calc_intrinsic_size() const {
+    vml::float2 size = {0.0f, 0.0f};
+    for (auto& child : m_children)
+        size = vml::max(size, child.intrinsic_size());
+    return size;
+}
+
+template class ui::SwitchView<int>;
+template class ui::SwitchView<bool>;
+
+namespace {
+
+struct NullView : View {
+    NullView()
+        : View({SizeReq::fit(), SizeReq::fit()}) {}
+    void do_display(Rect) override {}
+    vml::float2 calc_intrinsic_size() const override { return {0.0f, 0.0f}; }
+};
+
+} // namespace
+
+Ref<ConditionalView> ui::if_view(Property<bool> condition,
+                                 Ref<View> then_view) {
+    return if_view(std::move(condition), std::move(then_view),
+                   create<NullView>());
+}
+
+Ref<ConditionalView> ui::if_view(Property<bool> condition, Ref<View> then_view,
+                                 Ref<View> else_view) {
+    return create<ConditionalView>(
+        std::move(condition),
+        ViewContainer<>{std::move(else_view), std::move(then_view)});
+}
+
+Ref<SwitchView<>> ui::switch_view(Property<int> index, ViewContainer<> cases) {
+    return create<SwitchView<>>(std::move(index), std::move(cases));
 }

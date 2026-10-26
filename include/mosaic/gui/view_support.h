@@ -166,9 +166,8 @@ template <typename T> struct PropertyInterface {
     virtual std::unique_ptr<PropertyInterface> clone() = 0;
 };
 
-template <typename T>
-std::unique_ptr<PropertyInterface<T>>
-make_value_property(std::type_identity_t<T>&& value) {
+template <typename T, std::convertible_to<T> U>
+std::unique_ptr<PropertyInterface<T>> make_value_property(U&& value) {
     struct ValueProperty final : PropertyInterface<T> {
         explicit ValueProperty(T&& value)
             : value(std::move(value)) {}
@@ -185,7 +184,7 @@ make_value_property(std::type_identity_t<T>&& value) {
 
         T value;
     };
-    return std::make_unique<ValueProperty>(std::move(value));
+    return std::make_unique<ValueProperty>(std::forward<U>(value));
 }
 
 } // namespace internal

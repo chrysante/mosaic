@@ -1,6 +1,8 @@
 #include "view_test.h"
+#include "mosaic/gui/view_support.h"
 
 #include <imgui.h>
+#include <memory>
 #include <mosaic/gui/containers.h>
 #include <mosaic/gui/widgets.h>
 
@@ -25,6 +27,11 @@ struct TestState {
     vml::float2 float2_value = {0.25f, 0.75f};
     vml::float3 float3_value = {0.2f, 0.5f, 0.8f};
     vml::float4 float4_value = {0.1f, 0.3f, 0.6f, 1.0f};
+
+    // Conditional views
+    bool one_arm_visible = false;
+    bool two_arm_visible = false;
+    int switch_index = 0;
 };
 
 // =============================================================================
@@ -54,11 +61,14 @@ Ref<View> make_double_slider(TestState& state) {
 }
 
 Ref<View> make_int_slider(TestState& state) {
-    return slider<int>(bind(&state.int_value), 0, 100) | hfill;
+    return slider<int>(bind(&state.int_value), 0, 100, {.format = "%d"}) |
+           hfill;
 }
 
 Ref<View> make_unsigned_slider(TestState& state) {
-    return slider<unsigned>(bind(&state.unsigned_value), 0u, 100u) | hfill;
+    return slider<unsigned>(bind(&state.unsigned_value), 0u, 100u,
+                            {.format = "%u"}) |
+           hfill;
 }
 
 Ref<View> make_float2_slider(TestState& state) {
@@ -267,6 +277,41 @@ Ref<View> make_tab_examples() {
            hfill | fixed_height(260.0f);
 }
 
+static Ref<View> make_conditional_examples(TestState& state) {
+    ViewContainer<> views;
+    views.push_back(text("Conditional View with one arm"));
+    views.push_back(hstack({
+        text("Visible"),
+        checkbox(bind(&state.one_arm_visible)),
+    }));
+    views.push_back(if_view(bind(&state.one_arm_visible),
+                            hstack({button("Create"), button("Cancel")})));
+
+    views.push_back(text("Conditional View with two arms"));
+    views.push_back(hstack({
+        text("Visible"),
+        checkbox(bind(&state.two_arm_visible)),
+    }));
+    views.push_back(if_view(bind(&state.two_arm_visible),
+                            hstack({button("Create"), button("Cancel")}),
+                            text("Default")));
+
+    int num_switch_cases = 10;
+    views.push_back(text("Switch view"));
+    views.push_back(hstack(
+        {text("Index"),
+         slider(computed([&] { return state.switch_index + 1; },
+                         [&](int value) { state.switch_index = value - 1; }),
+                1, num_switch_cases, {.format = "%d"})}));
+    ViewContainer<> switch_cases;
+    for (int i = 0; i < num_switch_cases; ++i)
+        switch_cases.push_back(text("Switch Case " + std::to_string(i + 1)));
+    views.push_back(
+        switch_view(bind(&state.switch_index), std::move(switch_cases)));
+
+    return vstack(std::move(views));
+}
+
 // =============================================================================
 // Root
 // =============================================================================
@@ -291,8 +336,10 @@ Ref<View> make_demo_content(TestState& state) {
         make_scroll_examples(),
         hseparator(),
 
-        text("Nested tabs"),
         make_tab_examples(),
+        hseparator(),
+
+        make_conditional_examples(state),
     });
 }
 
