@@ -29,6 +29,8 @@
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
 
+#include "view_test.h"
+
 using namespace mosaic;
 
 static void menubar();
@@ -266,6 +268,7 @@ private:
             if (ImGui::Button("Style Editor")) show_style_editor = true;
             if (ImGui::Button("Icon Viewer")) show_icon_viewer = true;
             if (ImGui::Button("View Test")) show_view_test = true;
+            if (ImGui::Button("View Test 2")) ui_test.show();
         }
         ImGui::End();
 
@@ -286,6 +289,7 @@ private:
         }
         if (show_icon_viewer) display_icon_viewer(&show_icon_viewer);
         if (show_view_test) display_view_test(&show_view_test);
+        ui_test.display();
     }
 
     Dockspace dockspace;
@@ -297,6 +301,7 @@ private:
     bool show_properties_test = false;
     bool show_style_editor = false;
     bool show_icon_viewer = false;
+    UiTest ui_test;
     bool show_view_test = false;
     StyleEditor style_editor;
 };
@@ -667,7 +672,7 @@ static ui::Ref<ui::SliderView<float>> make_float_slider() {
 }
 
 static void display_view_test(bool* open) {
-    if (!ImGui::Begin("View Test", open)) {
+    if (!ImGui::Begin("View Test_", open)) {
         ImGui::End();
         return;
     }

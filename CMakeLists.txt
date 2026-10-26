@@ -349,6 +349,7 @@ mosaic_configure_app(mosaic_example)
 
 target_sources(mosaic_example PRIVATE
     examples/mosaic_example.cpp
+    examples/view_test.cpp
 )
 
 target_link_libraries(mosaic_example

@@ -66,8 +66,8 @@ void handle_overflow(std::span<vml::float2> intrinsic_sizes,
 
 void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
-    std::size_t main_axis = (std::size_t)m_orientation;
-    std::size_t other_axis = 1 - main_axis;
+    unsigned main_axis = (unsigned)m_orientation;
+    unsigned other_axis = 1 - main_axis;
     float spacing = ImGui::GetStyle().ItemSpacing[main_axis];
     vml::float2 size_avail = frame.size;
     // Measure children and account for spacing.
@@ -125,8 +125,8 @@ void StackView::do_display(Rect frame) {
 
 vml::float2 StackView::calc_intrinsic_size() const {
     vml::float2 const item_spacing = ImGui::GetStyle().ItemSpacing;
-    std::size_t main_axis = (std::size_t)m_orientation;
-    std::size_t other_axis = 1 - main_axis;
+    unsigned main_axis = (unsigned)m_orientation;
+    unsigned other_axis = 1 - main_axis;
     vml::float2 result = {0.0f, 0.0f};
     for (auto& child : m_children) {
         SizeReq2 size_req = child.size_requirement();
@@ -161,22 +161,31 @@ ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)
     , m_children(std::move(children)) {}
 
 void ScrollView::do_display(Rect frame) {
+    unsigned main_axis = (unsigned)m_orientation;
+    unsigned other_axis = 1 - main_axis;
+    auto& style = ImGui::GetStyle();
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     int window_flags = 0;
     if (m_orientation == Orientation::horizontal)
         window_flags |= ImGuiWindowFlags_HorizontalScrollbar;
-    bool visible = ImGui::BeginChild("##scroll-view", frame.size,
-                                     ImGuiChildFlags_None, window_flags);
+    vml::float2 content_size;
+    content_size[main_axis] = 0.0f;
+    content_size[other_axis] = frame.size[other_axis] -
+                               2.0f * style.WindowPadding[other_axis] -
+                               style.ScrollbarSize;
+    ImGui::SetNextWindowContentSize(content_size);
+    bool visible =
+        ImGui::BeginChild("##scroll-view", frame.size,
+                          ImGuiChildFlags_AlwaysUseWindowPadding, window_flags);
     utl::scope_guard guard = [] {
         ImGui::EndChild();
         ImGui::PopID();
     };
     if (!visible) return;
-    std::size_t main_axis = (std::size_t)m_orientation;
     vml::float2 size_avail = ImGui::GetContentRegionAvail();
     size_avail[main_axis] = -1.0f;
-    float spacing = ImGui::GetStyle().ItemSpacing[main_axis];
+    float spacing = style.ItemSpacing[main_axis];
     vml::float2 cursor = ImGui::GetCursorScreenPos();
     for (auto& child : m_children) {
         vml::float2 intrinsic_size = child.intrinsic_size();
@@ -188,7 +197,17 @@ void ScrollView::do_display(Rect frame) {
     }
 }
 
-vml::float2 ScrollView::calc_intrinsic_size() const { return {0.0f, 0.0f}; }
+vml::float2 ScrollView::calc_intrinsic_size() const {
+    unsigned other_axis = 1 - (unsigned)m_orientation;
+    float extend = 0.0f;
+    for (auto& child : m_children)
+        extend = std::max(extend, child.intrinsic_size()[other_axis]);
+    auto& style = ImGui::GetStyle();
+    vml::float2 size = {0.0f, 0.0f};
+    size[other_axis] =
+        extend + 2.0f * style.WindowPadding[other_axis] + style.ScrollbarSize;
+    return size;
+}
 
 Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
     return create<ScrollView>(Orientation::vertical, std::move(children));

@@ -10,10 +10,10 @@ using namespace ui;
 
 #if !defined(NDEBUG)
 void View::display(Rect frame) {
+    do_display(frame);
     if (want_debug_overlays()) {
         auto* DL = ImGui::GetWindowDrawList();
         DL->AddRect(frame.min(), frame.max(), IM_COL32(255, 128, 0, 200));
     }
-    do_display(frame);
 }
 #endif
