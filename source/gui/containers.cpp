@@ -50,8 +50,8 @@ void handle_overflow(std::span<vml::float2> intrinsic_sizes,
                          intrinsic_sizes[j][main_axis];
               });
     std::size_t num_remaining = intrinsic_sizes.size();
-    float share = overflow / (float)num_remaining;
     for (unsigned i : indices) {
+        float share = overflow / (float)num_remaining;
         --num_remaining;
         float& value = intrinsic_sizes[i][main_axis];
         assert(value >= 0);
@@ -62,7 +62,6 @@ void handle_overflow(std::span<vml::float2> intrinsic_sizes,
         }
         overflow -= value;
         value = 0.0f;
-        share = overflow / (float)num_remaining;
     }
 }
 
