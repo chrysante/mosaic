@@ -41,59 +41,58 @@ Ref<View> make_message_text(TestState& state) {
 }
 
 Ref<View> make_float_slider(TestState& state) {
-    return slider<float>(bind(&state.float_value), own(0.0f), own(1.0f),
+    return slider<float>(bind(&state.float_value), 0.0f, 1.0f,
                          {.format = "%.2f"}) |
            hfill;
 }
 
 Ref<View> make_double_slider(TestState& state) {
-    return slider<double>(bind(&state.double_value), own(0.0), own(1.0),
+    return slider<double>(bind(&state.double_value), 0.0, 1.0,
                           {.format = "%.3f"}) |
            hfill;
 }
 
 Ref<View> make_int_slider(TestState& state) {
-    return slider<int>(bind(&state.int_value), own(0), own(100)) | hfill;
+    return slider<int>(bind(&state.int_value), 0, 100) | hfill;
 }
 
 Ref<View> make_unsigned_slider(TestState& state) {
-    return slider<unsigned>(bind(&state.unsigned_value), own(0u), own(100u)) |
-           hfill;
+    return slider<unsigned>(bind(&state.unsigned_value), 0u, 100u) | hfill;
 }
 
 Ref<View> make_float2_slider(TestState& state) {
-    return slider<vml::float2>(bind(&state.float2_value), own(0.0f), own(1.0f),
+    return slider<vml::float2>(bind(&state.float2_value), 0.0f, 1.0f,
                                {.format = "%.2f"}) |
            hfill;
 }
 
 Ref<View> make_float3_slider(TestState& state) {
-    return slider<vml::float3>(bind(&state.float3_value), own(0.0f), own(1.0f),
+    return slider<vml::float3>(bind(&state.float3_value), 0.0f, 1.0f,
                                {.format = "%.2f"}) |
            hfill;
 }
 
 Ref<View> make_float4_slider(TestState& state) {
-    return slider<vml::float4>(bind(&state.float4_value), own(0.0f), own(1.0f),
+    return slider<vml::float4>(bind(&state.float4_value), 0.0f, 1.0f,
                                {.format = "%.3f"}) |
            hfill;
 }
 
 Ref<View> make_slider_examples(TestState& state) {
     return vstack({
-               text(own<std::string>("Floating-point sliders")),
+               text("Floating-point sliders"),
                make_float_slider(state),
                make_double_slider(state),
 
                hseparator(),
 
-               text(own<std::string>("Integer sliders")),
+               text("Integer sliders"),
                make_int_slider(state),
                make_unsigned_slider(state),
 
                hseparator(),
 
-               text(own<std::string>("Vector sliders")),
+               text("Vector sliders"),
                make_float2_slider(state),
                make_float3_slider(state),
                make_float4_slider(state),
@@ -107,7 +106,7 @@ Ref<View> make_slider_examples(TestState& state) {
 
 Ref<View> make_header(TestState& state) {
     return hstack({
-               text(own<std::string>("Mosaic UI — View Test")),
+               text("Mosaic UI — View Test"),
                spacer(),
                make_message_text(state),
            }) |
@@ -131,7 +130,7 @@ Ref<View> make_basic_widgets(TestState& state) {
     auto checkbox_row = checkbox(bind(&state.buttons_enabled)) | align_left;
 
     return vstack({
-        text(own<std::string>("Basic widgets")),
+        text("Basic widgets"),
         std::move(actions),
         std::move(checkbox_row),
     });
@@ -148,14 +147,14 @@ Ref<View> make_alignment_examples() {
                                 hfill | fixed_height(48.0f);
 
     auto sizing = hstack({
-                      text(own<std::string>("Fixed width")),
+                      text("Fixed width"),
                       button("120 px") | fixed_width(120.0f),
                       button("Fill") | hfill,
                   }) |
                   hfill;
 
     return vstack({
-        text(own<std::string>("Sizing and alignment")),
+        text("Sizing and alignment"),
         std::move(horizontal_alignment),
         std::move(sizing),
     });
@@ -164,7 +163,7 @@ Ref<View> make_alignment_examples() {
 Ref<View> make_weighted_columns() {
     auto make_column = [](std::string title, std::string label) -> Ref<View> {
         return vstack({
-                   text(own(std::move(title))),
+                   text(std::move(title)),
                    button(std::move(label)) | hfill,
                }) |
                hfill;
@@ -175,7 +174,7 @@ Ref<View> make_weighted_columns() {
     auto right = make_column("Weight 1", "C") | hfill_weight(1.0f);
 
     return vstack({
-               text(own<std::string>("Flexible space")),
+               text("Flexible space"),
 
                hstack({
                    std::move(left),
@@ -206,12 +205,12 @@ Ref<View> make_scroll_examples() {
     auto horizontal_scroll = hscroll(std::move(horizontal_items)) | vfit;
 
     return vstack({
-               text(own<std::string>("Scroll views")),
+               text("Scroll views"),
 
-               text(own<std::string>("Vertical scrolling")),
+               text("Vertical scrolling"),
                std::move(vertical_scroll),
 
-               text(own<std::string>("Horizontal scrolling")),
+               text("Horizontal scrolling"),
                std::move(horizontal_scroll),
            }) |
            hfill;
@@ -219,8 +218,8 @@ Ref<View> make_scroll_examples() {
 
 Ref<View> make_tab_examples() {
     auto first_tab = vscroll({
-        text(own<std::string>("First tab")),
-        text(own<std::string>("This tab contains a vertical list of buttons.")),
+        text("First tab"),
+        text("This tab contains a vertical list of buttons."),
         hseparator(),
 
         [] {
@@ -233,7 +232,7 @@ Ref<View> make_tab_examples() {
     });
 
     auto second_tab = vstack({
-                          text(own<std::string>("Second tab")),
+                          text("Second tab"),
                           hstack({
                               button("Left"),
                               spacer(),
@@ -245,18 +244,18 @@ Ref<View> make_tab_examples() {
                       hfill | vfill;
 
     auto third_tab = hstack({
-                         text(own<std::string>("A")),
+                         text("A"),
                          vseparator(),
-                         text(own<std::string>("B")),
+                         text("B"),
                          vseparator(),
-                         text(own<std::string>("C")),
+                         text("C"),
                      }) |
                      hfill | vfill;
 
     return tab_view({
-               tab(own<std::string>("List"), std::move(first_tab)),
-               tab(own<std::string>("Controls"), std::move(second_tab)),
-               tab(own<std::string>("Columns"), std::move(third_tab)),
+               tab("List", std::move(first_tab)),
+               tab("Controls", std::move(second_tab)),
+               tab("Columns", std::move(third_tab)),
            }) |
            hfill | fixed_height(260.0f);
 }
@@ -285,7 +284,7 @@ Ref<View> make_demo_content(TestState& state) {
         make_scroll_examples(),
         hseparator(),
 
-        text(own<std::string>("Nested tabs")),
+        text("Nested tabs"),
         make_tab_examples(),
     });
 }

@@ -15,6 +15,10 @@
 
 namespace mosaic::ui {
 
+// =============================================================================
+// Pipe adapters
+// =============================================================================
+
 class View;
 
 template <typename Action> struct ViewPipeAdapter { Action action; };
@@ -67,6 +71,10 @@ template <typename T, typename... Args> static Ref<T> create(Args&&... args) {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
+// =============================================================================
+// Layout primitives
+// =============================================================================
+
 struct Rect {
     vml::float2 min() const { return origin; }
     vml::float2 max() const { return origin + size; }
@@ -117,11 +125,15 @@ private:
 
 using SizeReq2 = vml::vector<SizeReq, 2>;
 
-enum class Alignment { left, top = left, center, right, bottom = right };
+enum class Alignment { low, mid, high };
 
 using Alignment2 = vml::vector<Alignment, 2>;
 
 enum class Orientation { horizontal = 0, vertical = 1 };
+
+// =============================================================================
+// Property<T>
+// =============================================================================
 
 template <typename T> class ValueOrRef {
 public:
@@ -131,10 +143,8 @@ public:
         : m_value(value) {}
     ValueOrRef(T&& value)
         : m_value(std::move(value)) {}
-    ValueOrRef(T const* pointer)
-        : m_value(pointer) {
-        assert(pointer);
-    }
+    ValueOrRef(std::reference_wrapper<T> ref)
+        : m_value(&ref.get()) {}
     ValueOrRef(std::reference_wrapper<T const> ref)
         : m_value(&ref.get()) {}
 
@@ -147,96 +157,198 @@ private:
     std::variant<T, T const*> m_value;
 };
 
-template <typename T> class Binding {
+namespace internal {
+
+template <typename T> struct PropertyInterface {
+    virtual ~PropertyInterface() = default;
+    virtual ValueOrRef<T> get() const = 0;
+    virtual void set(T&&) {}
+    virtual std::unique_ptr<PropertyInterface> clone() = 0;
+};
+
+template <typename T>
+std::unique_ptr<PropertyInterface<T>>
+make_value_property(std::type_identity_t<T>&& value) {
+    struct ValueProperty final : PropertyInterface<T> {
+        explicit ValueProperty(T&& value)
+            : value(std::move(value)) {}
+        explicit ValueProperty(T const& value)
+            : value(value) {}
+
+        ValueOrRef<T> get() const override { return std::ref(value); }
+
+        void set(T&& new_value) override { value = std::move(new_value); }
+
+        std::unique_ptr<PropertyInterface<T>> clone() {
+            return std::make_unique<ValueProperty>(value);
+        }
+
+        T value;
+    };
+    return std::make_unique<ValueProperty>(std::move(value));
+}
+
+} // namespace internal
+
+template <typename T> class Property {
+    static_assert(std::is_object_v<T>, "T must be an object type");
+
+    friend class Property<T const>;
+
+public:
+    Property(Property&&) noexcept = default;
+    Property& operator=(Property&&) noexcept = default;
+
+    Property(Property const& rhs)
+        : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
+
+    Property& operator=(Property const& rhs) {
+        if (this != &rhs && rhs.m_impl) m_impl = rhs.m_impl->clone();
+        return *this;
+    }
+
+    explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
+        : m_impl(std::move(impl)) {}
+
+    ValueOrRef<T> get() const { return m_impl->get(); }
+
+    T materialize() const { return get().get(); }
+
+    void set(T new_value) { m_impl->set(std::move(new_value)); }
+
+private:
+    std::unique_ptr<internal::PropertyInterface<T>> m_impl;
+};
+
+template <typename T> class Property<T const> {
     static_assert(std::is_object_v<T>, "T must be an object type");
 
 public:
-    using Getter = std::function<ValueOrRef<T>()>;
-    using Setter = std::function<void(T)>;
+    Property(Property&&) noexcept = default;
+    Property& operator=(Property&&) noexcept = default;
 
-    explicit Binding(Getter&& get, Setter&& set)
-        : m_get(std::move(get))
-        , m_set(std::move(set)) {
-        assert(m_get);
+    Property(Property const& rhs)
+        : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
+
+    Property& operator=(Property const& rhs) {
+        if (this != &rhs && rhs.m_impl) m_impl = rhs.m_impl->clone();
+        return *this;
     }
 
-    ValueOrRef<T> get() const {
-        assert(m_get);
-        return m_get();
-    }
+    Property(Property<T> const& rhs)
+        : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
 
-    T materialize() const { return get().get(); }
+    Property(Property<T>&& rhs)
+        : m_impl(std::move(rhs.m_impl)) {}
 
-    void set(T new_value) { m_set(std::move(new_value)); }
+    // Const properties have an implicit value constructor
+    template <std::convertible_to<T> U>
+    Property(U&& value)
+        : m_impl(internal::make_value_property<T>(std::forward<U>(value))) {}
 
-private:
-    template <typename> friend class Binding;
+    explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
+        : m_impl(std::move(impl)) {}
 
-    Getter m_get;
-    Setter m_set;
-};
-
-template <typename T> class Binding<T const> {
-public:
-    using Getter = std::function<ValueOrRef<T>()>;
-
-    explicit Binding(Getter&& get)
-        : m_get(std::move(get)) {
-        assert(m_get);
-    }
-
-    Binding(Binding<T> const& rhs)
-        : m_get(rhs.m_get) {}
-
-    Binding(Binding<T>&& rhs)
-        : m_get(std::move(rhs).m_get) {}
-
-    ValueOrRef<T> get() const {
-        assert(m_get);
-        return m_get();
-    }
+    ValueOrRef<T> get() const { return m_impl->get(); }
 
     T materialize() const { return get().get(); }
 
 private:
-    Getter m_get;
+    std::unique_ptr<internal::PropertyInterface<T>> m_impl;
 };
 
-template <typename T> Binding<T> bind(T* pointer) {
-    assert(pointer);
-    return Binding<T>(
-        [pointer] { return std::cref(*pointer); },
-        [pointer](T new_value) { *pointer = std::move(new_value); });
+template <typename T> Property<T> own(T value) {
+    return Property<T>(internal::make_value_property<T>(std::move(value)));
 }
 
-template <typename T> Binding<T const> bind(T const* pointer) {
-    assert(pointer);
-    return Binding<T const>([pointer] { return std::cref(*pointer); });
-}
+template <typename T> Property<T> bind(T* pointer) {
+    struct BindingProperty final : internal::PropertyInterface<T> {
+        explicit BindingProperty(T* ptr)
+            : ptr(ptr) {}
 
-template <typename T> Binding<T> own(T value) {
-    auto storage = std::make_shared<T>(std::move(value));
-    return Binding<T>(
-        [storage] { return std::cref(*storage); },
-        [storage](T new_value) { *storage = std::move(new_value); });
+        ValueOrRef<T> get() const override { return std::ref(*ptr); }
+
+        void set(T&& new_value) override {
+            if constexpr (!std::is_const_v<T>) *ptr = std::move(new_value);
+            else assert(false);
+        }
+
+        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+            return std::make_unique<BindingProperty>(ptr);
+        }
+
+        T* ptr;
+    };
+
+    assert(pointer);
+    return Property<T>(std::make_unique<BindingProperty>(pointer));
 }
 
 namespace internal {
-template <typename Getter>
-using GetterType = std::remove_cvref_t<std::invoke_result_t<Getter>>;
+
+template <typename Getter> struct ComputePropertyType {
+    using GetterRet = std::invoke_result_t<Getter>;
+    static_assert(!std::is_reference_v<GetterRet>);
+    using Unwrapped = std::unwrap_ref_decay_t<GetterRet>;
+    using type = std::remove_cvref_t<Unwrapped>;
+};
+
+} // namespace internal
+
+template <typename Getter,
+          typename T = internal::ComputePropertyType<Getter>::type>
+Property<T const> computed(Getter&& get) {
+    struct ComputedProperty final : internal::PropertyInterface<T> {
+        explicit ComputedProperty(Getter&& getter)
+            : getter(std::move(getter)) {}
+        explicit ComputedProperty(Getter const& getter)
+            : getter(getter) {}
+
+        ValueOrRef<T> get() const override { return std::invoke(getter); }
+
+        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+            return std::make_unique<ComputedProperty>(getter);
+        }
+
+        Getter getter;
+    };
+    return Property<T>(
+        std::make_unique<ComputedProperty>(std::forward<Getter>(get)));
 }
 
 template <typename Getter, typename Setter,
-          typename T = internal::GetterType<Getter>>
-requires std::invocable<Setter, T> Binding<T> computed(Getter&& get,
-                                                       Setter&& set) {
-    return Binding<T>(std::forward<Getter>(get), std::forward<Setter>(set));
+          typename T = internal::ComputePropertyType<Getter>::type>
+requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
+                                                        Setter&& set) {
+    struct ComputedProperty final : internal::PropertyInterface<T> {
+        explicit ComputedProperty(Getter&& getter, Setter&& setter)
+            : getter(std::move(getter))
+            , setter(std::move(setter)) {}
+        explicit ComputedProperty(Getter const& getter, Setter const& setter)
+            : getter(getter)
+            , setter(setter) {}
+
+        ValueOrRef<T> get() const override { return std::invoke(getter); }
+
+        void set(T&& new_value) override {
+            std::invoke(setter, std::move(new_value));
+        }
+
+        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+            return std::make_unique<ComputedProperty>(getter, setter);
+        }
+
+        Getter getter;
+        Setter setter;
+    };
+
+    return Property<T>(std::make_unique<ComputedProperty>(
+        std::forward<Getter>(get), std::forward<Setter>(set)));
 }
 
-template <typename Getter, typename T = internal::GetterType<Getter>>
-Binding<T const> computed(Getter&& get) {
-    return Binding<T const>(std::forward<Getter>(get));
-}
+// =============================================================================
+// ViewContainer
+// =============================================================================
 
 template <typename V = View> class ViewContainer {
     auto elem_view() {

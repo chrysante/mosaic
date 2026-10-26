@@ -17,7 +17,7 @@ struct TextOptions { bool wrap = false; };
 
 class TextView : public View {
 public:
-    explicit TextView(Binding<std::string const>&& text,
+    explicit TextView(Property<std::string const>&& text,
                       TextOptions options = {});
 
 private:
@@ -25,10 +25,10 @@ private:
     vml::float2 calc_intrinsic_size() const override;
 
     TextOptions m_options;
-    Binding<std::string const> m_text;
+    Property<std::string const> m_text;
 };
 
-Ref<TextView> text(Binding<std::string const> text_arg,
+Ref<TextView> text(Property<std::string const> text_arg,
                    TextOptions options = {});
 
 // =============================================================================
@@ -55,16 +55,16 @@ Ref<ButtonView> button(std::string label, std::function<void()> action = {});
 
 class CheckboxView : public View {
 public:
-    explicit CheckboxView(Binding<bool>&& state);
+    explicit CheckboxView(Property<bool>&& state);
 
 private:
     void do_display(Rect frame) override;
     vml::float2 calc_intrinsic_size() const override;
 
-    Binding<bool> m_state;
+    Property<bool> m_state;
 };
 
-Ref<CheckboxView> checkbox(Binding<bool> state);
+Ref<CheckboxView> checkbox(Property<bool> state);
 
 // =============================================================================
 // Slider
@@ -88,29 +88,30 @@ template <typename T> class SliderView : public View {
 public:
     using ScalarType = vml::get_underlying_type<T>::type;
 
-    explicit SliderView(Binding<T>&& state, Binding<ScalarType const>&& min,
-                        Binding<ScalarType const>&& max,
+    explicit SliderView(Property<T>&& state, Property<ScalarType const>&& min,
+                        Property<ScalarType const>&& max,
                         SliderOptions options = {});
 
-    Binding<T> const& get_state() const { return m_state; }
+    Property<T> const& get_state() const { return m_state; }
 
-    void set_state(Binding<T> state) { m_state = std::move(state); }
+    void set_state(Property<T> state) { m_state = std::move(state); }
 
 private:
     void do_display(Rect frame) override;
     vml::float2 calc_intrinsic_size() const override;
 
-    Binding<T> m_state;
-    Binding<ScalarType const> m_min;
-    Binding<ScalarType const> m_max;
+    Property<T> m_state;
+    Property<ScalarType const> m_min;
+    Property<ScalarType const> m_max;
     SliderOptions m_options;
 };
 
 template <typename T>
-Ref<SliderView<T>> slider(Binding<T> state,
-                          Binding<typename SliderView<T>::ScalarType const> min,
-                          Binding<typename SliderView<T>::ScalarType const> max,
-                          SliderOptions options = {}) {
+Ref<SliderView<T>>
+slider(Property<T> state,
+       Property<typename SliderView<T>::ScalarType const> min,
+       Property<typename SliderView<T>::ScalarType const> max,
+       SliderOptions options = {}) {
     return create<SliderView<T>>(std::move(state), std::move(min),
                                  std::move(max), std::move(options));
 }

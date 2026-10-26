@@ -16,7 +16,7 @@ static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
 }
 
-TextView::TextView(Binding<std::string const>&& text, TextOptions options)
+TextView::TextView(Property<std::string const>&& text, TextOptions options)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_options(std::move(options))
     , m_text(std::move(text)) {}
@@ -27,6 +27,7 @@ void TextView::do_display(Rect frame) {
     auto text = m_text.get();
     ImGui::PushClipRect(frame.min(), frame.max(), true);
     ImGui::SetCursorScreenPos(frame.origin);
+    ImGui::ItemSize(frame.size);
     ImGui::ItemAdd({frame.min(), frame.max()}, 0);
     float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
     auto* DL = ImGui::GetWindowDrawList();
@@ -44,7 +45,7 @@ vml::float2 TextView::calc_intrinsic_size() const {
                                text_ref.data() + text_ref.size(), false);
 }
 
-Ref<TextView> ui::text(Binding<std::string const> text_arg,
+Ref<TextView> ui::text(Property<std::string const> text_arg,
                        TextOptions options) {
     return create<TextView>(std::move(text_arg), std::move(options));
 }
@@ -72,7 +73,7 @@ Ref<ButtonView> ui::button(std::string label, std::function<void()> on_click) {
     return create<ButtonView>(std::move(label), std::move(on_click));
 }
 
-CheckboxView::CheckboxView(Binding<bool>&& state)
+CheckboxView::CheckboxView(Property<bool>&& state)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_state(std::move(state)) {}
 
@@ -90,13 +91,13 @@ vml::float2 CheckboxView::calc_intrinsic_size() const {
            2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<CheckboxView> ui::checkbox(Binding<bool> state) {
+Ref<CheckboxView> ui::checkbox(Property<bool> state) {
     return create<CheckboxView>(std::move(state));
 }
 
 template <typename T>
-SliderView<T>::SliderView(Binding<T>&& state, Binding<ScalarType const>&& min,
-                          Binding<ScalarType const>&& max,
+SliderView<T>::SliderView(Property<T>&& state, Property<ScalarType const>&& min,
+                          Property<ScalarType const>&& max,
                           SliderOptions options)
     : View({SizeReq::fill(), SizeReq::fit()})
     , m_state(std::move(state))

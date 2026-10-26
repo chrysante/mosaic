@@ -108,11 +108,11 @@ void StackView::do_display(Rect frame) {
             auto alignment = m_align_override.value_or(
                 child.alignment_requirement()[other_axis]);
             switch (alignment) {
-            case Alignment::left:
+            case Alignment::low:
                 return 0.0f;
-            case Alignment::center:
+            case Alignment::mid:
                 return 0.5f * (frame.size[other_axis] - child_size[other_axis]);
-            case Alignment::right:
+            case Alignment::high:
                 return frame.size[other_axis] - child_size[other_axis];
             }
         }();

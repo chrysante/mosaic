@@ -659,8 +659,7 @@ Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis
 
 static ui::Ref<ui::SliderView<float>> make_float_slider() {
     auto value = std::make_shared<float>(30.0f);
-    auto slider =
-        ui::slider<float>(ui::own(0.0f), ui::own(0.0f), ui::own(300.0f));
+    auto slider = ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
     slider->set_state(ui::computed(
         [value] { return *value; },
         [value, weak_slider = std::weak_ptr(slider)](float new_value) {

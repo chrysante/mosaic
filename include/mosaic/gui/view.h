@@ -41,7 +41,7 @@ private:
     virtual vml::float2 calc_intrinsic_size() const = 0;
 
     SizeReq2 m_size_requirement;
-    Alignment2 m_alignment_requirement;
+    Alignment2 m_alignment_requirement{Alignment::low, Alignment::low};
 };
 
 // =============================================================================
@@ -90,17 +90,17 @@ constexpr auto align(unsigned axis, Alignment alignment) {
     }};
 }
 
-constexpr auto align_left = align(0, Alignment::left);
+constexpr auto align_left = align(0, Alignment::low);
 
-constexpr auto align_right = align(0, Alignment::right);
+constexpr auto align_right = align(0, Alignment::high);
 
-constexpr auto align_top = align(1, Alignment::top);
+constexpr auto align_top = align(1, Alignment::low);
 
-constexpr auto align_bottom = align(1, Alignment::bottom);
+constexpr auto align_bottom = align(1, Alignment::high);
 
-constexpr auto hcenter = align(0, Alignment::center);
+constexpr auto hcenter = align(0, Alignment::mid);
 
-constexpr auto vcenter = align(1, Alignment::center);
+constexpr auto vcenter = align(1, Alignment::mid);
 
 constexpr auto center = hcenter | vcenter;
 
