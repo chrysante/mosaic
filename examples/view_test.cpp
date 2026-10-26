@@ -1,7 +1,8 @@
 #include "view_test.h"
-#include "mosaic/gui/view.h"
 
 #include <imgui.h>
+#include <mosaic/gui/containers.h>
+#include <mosaic/gui/widgets.h>
 
 using namespace mosaic::ui;
 
@@ -189,29 +190,35 @@ Ref<View> make_weighted_columns() {
 }
 
 Ref<View> make_scroll_examples() {
-    ViewContainer<> vertical_items;
-    for (int i = 0; i < 20; ++i) {
-        vertical_items.push_back(button("Vertical item " + std::to_string(i)));
-    }
 
     ViewContainer<> horizontal_items;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 20; ++i)
         horizontal_items.push_back(button("Item " + std::to_string(i)) | vfill);
-    }
 
-    auto vertical_scroll =
-        vscroll(std::move(vertical_items)) | fixed_height(250.0f);
+    auto vertical_scroll = [j = 0] mutable {
+        ViewContainer<> items;
+        for (int i = 0; i < 20; ++i)
+            items.push_back(button("Vertical item " + std::to_string(++j)));
+        return vscroll(std::move(items)) | fixed_height(250.0f);
+    };
 
     auto horizontal_scroll = hscroll(std::move(horizontal_items)) | vfit;
+
+    std::vector<Column> cols;
+    for (int i = 0; i < 4; ++i)
+        cols.push_back(column(vertical_scroll()));
 
     return vstack({
                text("Scroll views"),
 
                text("Vertical scrolling"),
-               std::move(vertical_scroll),
+               vertical_scroll(),
 
                text("Horizontal scrolling"),
                std::move(horizontal_scroll),
+
+               text("Scrolling in columns"),
+               columns(std::move(cols)) | fixed_height(300.0f),
            }) |
            hfill;
 }

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cfloat>
 #include <optional>
+#include <vector>
 
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
@@ -99,27 +101,34 @@ Ref<TabView> tab_view(std::vector<Tab> children);
 // ColumnView
 // =============================================================================
 
-#if 0
+struct Column {
+    Ref<View> content;
+    float min_width = 100.0f;
+    float max_width = FLT_MAX;
+};
+
+inline Column column(Ref<View> content, float min_width = 100.0f,
+                     float max_width = FLT_MAX) {
+    return Column{std::move(content), min_width, max_width};
+}
 
 class ColumnView : public View {
 public:
     static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
                                                           SizeReq::fill()};
 
-    explicit ColumnView(ViewContainer<>&& children);
+    explicit ColumnView(std::vector<Column>&& columns);
 
-    ViewContainer<>& children() { return m_children; }
-    ViewContainer<> const& children() const { return m_children; }
+    std::vector<Column>& columns() { return m_columns; }
+    std::vector<Column> const& columns() const { return m_columns; }
 
 private:
     void do_display(Rect frame) override;
     vml::float2 calc_intrinsic_size() const override;
 
-    ViewContainer<> m_children;
+    std::vector<Column> m_columns;
 };
 
-Ref<ColumnView> columns(ViewContainer<> children);
-
-#endif
+Ref<ColumnView> columns(std::vector<Column> columns);
 
 } // namespace mosaic::ui

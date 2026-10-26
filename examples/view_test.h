@@ -1,6 +1,4 @@
-#include <mosaic/gui/containers.h>
 #include <mosaic/gui/view.h>
-#include <mosaic/gui/widgets.h>
 
 struct UiTest {
     void display();
