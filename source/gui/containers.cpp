@@ -65,6 +65,10 @@ void handle_overflow(std::span<vml::float2> intrinsic_sizes,
     }
 }
 
+static float size_one_less(std::size_t size) {
+    return size == 0 ? 0.0f : (float)(size - 1);
+}
+
 void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
     unsigned main_axis = (unsigned)m_orientation;
@@ -88,8 +92,8 @@ void StackView::do_display(Rect frame) {
         fixed_main += resolve_child_size(requirement[main_axis],
                                          intrinsic_size[main_axis], -1.0f);
     }
-    float remaining =
-        size_avail[main_axis] - fixed_main - spacing * (m_children.size() - 1);
+    float total_spacing = spacing * size_one_less(m_children.size());
+    float remaining = size_avail[main_axis] - fixed_main - total_spacing;
     bool have_overflow = remaining < 0;
     if (have_overflow) handle_overflow(intrinsic_sizes, main_axis, -remaining);
     vml::float2 cursor = frame.origin;
@@ -144,8 +148,7 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
         result[cross_axis] =
             std::max(result[cross_axis], resolved_size[cross_axis]);
     }
-    result[main_axis] +=
-        (float)(m_children.size() - 1) * item_spacing[main_axis];
+    result[main_axis] += size_one_less(m_children.size());
     return result;
 }
 
