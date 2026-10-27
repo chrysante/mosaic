@@ -1,3 +1,4 @@
+#include "mosaic/gui/view_support.h"
 #include <cfloat>
 #include <string>
 
@@ -11,6 +12,7 @@
 #include <mosaic/application/input.h>
 #include <mosaic/application/window.h>
 #include <mosaic/gui/command_palette.h>
+#include <mosaic/gui/containers.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/layout.h>
@@ -21,9 +23,13 @@
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/ui_context.h>
+#include <mosaic/gui/view.h>
+#include <mosaic/gui/widgets.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
+
+#include "view_test.h"
 
 using namespace mosaic;
 
@@ -31,6 +37,7 @@ static void menubar();
 static void display_properties_test(bool* open);
 static void draw_test_properties(char const* str_id);
 static void display_icon_viewer(bool* open);
+static void display_view_test(bool* open);
 
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
                                  float max, const char* format = "%.3f",
@@ -260,6 +267,8 @@ private:
             if (ImGui::Button("Properties Test")) show_properties_test = true;
             if (ImGui::Button("Style Editor")) show_style_editor = true;
             if (ImGui::Button("Icon Viewer")) show_icon_viewer = true;
+            if (ImGui::Button("View Test")) show_view_test = true;
+            if (ImGui::Button("View Test 2")) ui_test.show();
         }
         ImGui::End();
 
@@ -279,6 +288,8 @@ private:
             ImGui::End();
         }
         if (show_icon_viewer) display_icon_viewer(&show_icon_viewer);
+        if (show_view_test) display_view_test(&show_view_test);
+        ui_test.display();
     }
 
     Dockspace dockspace;
@@ -290,6 +301,8 @@ private:
     bool show_properties_test = false;
     bool show_style_editor = false;
     bool show_icon_viewer = false;
+    UiTest ui_test;
+    bool show_view_test = false;
     StyleEditor style_editor;
 };
 
@@ -633,5 +646,118 @@ void display_icon_viewer(bool* open) {
         }
         ImGui::EndTable();
     }
+    ImGui::End();
+}
+
+static std::string long_text() {
+    return R"( Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur neque leo, ultricies in quam vel, bibendum tristique nisi. Pellentesque viverra ullamcorper dui sit amet lobortis. Nulla quis arcu lacus. Duis placerat id felis eu gravida. In et elit egestas, efficitur elit ac, dictum enim. Quisque hendrerit ac dui eu ullamcorper. Ut velit lectus, vulputate sit amet vestibulum quis, scelerisque at nisi. Integer vitae mi sapien. Duis tincidunt, purus vitae fringilla consectetur, lorem ligula mattis augue, vel accumsan tortor eros ut eros. Integer libero erat, bibendum ut efficitur quis, scelerisque vitae odio. Mauris tristique lacus a maximus congue. Integer posuere, urna efficitur tempus facilisis, elit ligula aliquet nulla, ut ornare lorem turpis at ante.
+In congue felis in nisl mattis ornare. Suspendisse convallis sem quis sem consectetur elementum. Morbi lacinia ligula lectus, eget pulvinar odio maximus eu. Interdum et malesuada fames ac ante ipsum primis in faucibus. Fusce auctor velit ex, in volutpat nulla mattis et. Donec cursus nibh eu magna euismod accumsan. Nam sem nunc, posuere nec lacus nec, egestas gravida dui.
+Aliquam scelerisque lacus ac nisl volutpat semper. Sed a nibh ac lorem placerat porta eu in tellus. Pellentesque aliquet diam at libero sodales, at bibendum leo tincidunt. Donec eu lobortis erat. Morbi facilisis orci erat, ultricies pharetra lorem consectetur eget. Phasellus tincidunt egestas condimentum. Mauris vel ligula eu odio mattis bibendum. Aenean tincidunt sem massa, a tincidunt magna mattis vitae. Phasellus sapien leo, gravida eu placerat pretium, volutpat vel tortor. Curabitur metus libero, ornare ac sagittis sed, imperdiet id justo. Duis et mattis orci. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
+Duis mauris mi, dignissim in tincidunt vitae, egestas eget lorem. Praesent congue erat vel nulla dapibus fringilla. Cras vitae lobortis sem. Aenean semper nec nunc id ornare. Phasellus a sapien vitae justo egestas scelerisque eu non purus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam hendrerit ultrices diam vel volutpat. Maecenas sit amet lacinia dui.
+Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis, scelerisque in nisi non, porta sodales odio. Nunc scelerisque laoreet eros ac rutrum. Donec interdum, elit eget fermentum sollicitudin, purus eros mollis neque, a pellentesque turpis massa non odio. Nullam varius dui tortor, eget varius augue malesuada vitae. Phasellus rutrum ligula purus, eu sodales augue molestie faucibus. Morbi mattis, ipsum vitae ultricies blandit, leo urna ultrices nibh, id sagittis felis orci ac velit. Vivamus mattis consequat nisl nec laoreet. Suspendisse a mollis dui. Fusce vitae sollicitudin odio, sed aliquam quam. Ut suscipit enim et mauris hendrerit, id lobortis nulla consequat. Praesent ac turpis eget ex tincidunt dapibus. Aliquam nec urna id leo tristique pellentesque non quis velit. Vestibulum finibus risus mattis efficitur pharetra. Quisque vel ullamcorper urna, id faucibus urna. )";
+}
+
+static ui::Ref<ui::SliderView<float>> make_float_slider() {
+    auto value = std::make_shared<float>(30.0f);
+    auto slider = ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
+    slider->set_state(ui::computed(
+        [value] { return *value; },
+        [value, weak_slider = std::weak_ptr(slider)](float new_value) {
+            *value = new_value;
+            if (auto slider = weak_slider.lock())
+                slider |= ui::fixed_height(*value);
+        }));
+    return slider;
+}
+
+static void display_view_test(bool* open) {
+    if (!ImGui::Begin("View Test_", open)) {
+        ImGui::End();
+        return;
+    }
+
+    static int counter = 0;
+    static bool button_active = true;
+    static vml::float4 color;
+
+    auto counter_text = [] {
+        return ui::text(ui::computed([] { return std::to_string(counter); }));
+    };
+
+    // clang-format off
+    static ui::Ref<ui::View> view = ui::vscroll({
+        ui::hstack({
+            ui::vstack({
+                counter_text(),
+                ui::hseparator(),
+                ui::hstack({
+                    ui::spacer(2),
+                    counter_text() | ui::align_top,
+                    ui::spacer(),
+                    counter_text() | ui::center,
+                    ui::spacer(),
+                    counter_text() | ui::align_bottom,
+                    ui::spacer(2),
+                }) | ui::hfill | ui::fixed_height(100),
+                ui::hseparator(),
+                ui::hstack({
+                    counter_text() | ui::align_top,
+                    counter_text() | ui::vcenter,
+                    counter_text() | ui::align_bottom
+                }) | ui::vfill,
+                ui::hseparator(),
+                ui::button("Count", [] { if (button_active) ++counter; })
+            }) | ui::hfill,
+            ui::vseparator(),
+            ui::vstack({
+                make_float_slider(),
+                ui::slider<vml::float4>(ui::bind(&color), 
+                ui::own(0.0f), ui::own(1.0f), { .format = "%.3f" }),
+                ui::text(ui::own(long_text()), {.wrap = true}) | ui::vfill | ui::hfill
+            }) | ui::vfill,
+            ui::vseparator(),
+            ui::vstack({
+                ui::button("Yet another button"),
+                ui::hseparator() | ui::fixed_height(50),
+                ui::button("Yet another one") | ui::hfill, 
+            }),
+            ui::vseparator(),
+            ui::button("...") 
+        }) | ui::hfill,
+        ui::hseparator(),
+        ui::hstack({
+            ui::spacer(1),
+            ui::vseparator(),
+            ui::vstack({
+                ui::checkbox(ui::bind(&button_active)) | ui::align_left, 
+                ui::button("One More Button") | ui::center, 
+                ui::button("??") | ui::align_right, 
+            }) | ui::hfill_weight(5),
+            ui::vseparator(),
+            ui::spacer(1)
+        }) | ui::hfill,
+        ui::hseparator(),
+        ui::button("Toggle Align", [] {}),
+        ui::hseparator(),
+        []{
+            ui::ViewContainer<> children;
+            for (int i = 0; i < 100; ++i) 
+                children.push_back(ui::button(std::to_string(i)) | ui::vfill);
+            return ui::hscroll(std::move(children)) | ui::vfit;
+        }()
+    });
+    
+    static ui::Ref<ui::TabView> tab_view = ui::tab_view({
+        ui::tab(ui::own<std::string>("First Tab"), view), 
+        ui::tab(ui::own<std::string>("Second Tab"), ui::vstack({
+            ui::button("Other Side") | ui::center
+        }) | ui::hfill | ui::vfill)
+    });
+    // clang-format on
+
+    vml::float2 pos = ImGui::GetCursorScreenPos();
+    vml::float2 size = ImGui::GetContentRegionAvail();
+    tab_view->display({pos, size});
+
     ImGui::End();
 }
