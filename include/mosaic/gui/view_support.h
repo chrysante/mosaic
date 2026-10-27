@@ -162,8 +162,8 @@ namespace internal {
 template <typename T> struct PropertyInterface {
     virtual ~PropertyInterface() = default;
     virtual ValueOrRef<T> get() const = 0;
-    virtual void set(T&&) {}
-    virtual std::unique_ptr<PropertyInterface> clone() = 0;
+    virtual void set(T&&) = 0;
+    virtual std::unique_ptr<PropertyInterface> clone() const = 0;
 };
 
 template <typename T, std::convertible_to<T> U>
@@ -178,7 +178,7 @@ std::unique_ptr<PropertyInterface<T>> make_value_property(U&& value) {
 
         void set(T&& new_value) override { value = std::move(new_value); }
 
-        std::unique_ptr<PropertyInterface<T>> clone() override {
+        std::unique_ptr<PropertyInterface<T>> clone() const override {
             return std::make_unique<ValueProperty>(value);
         }
 
@@ -273,7 +273,7 @@ template <typename T> Property<T> bind(T* pointer) {
             else assert(false);
         }
 
-        std::unique_ptr<internal::PropertyInterface<U>> clone() override {
+        std::unique_ptr<internal::PropertyInterface<U>> clone() const override {
             return std::make_unique<BindingProperty>(ptr);
         }
 
@@ -306,7 +306,9 @@ Property<T const> computed(Getter&& get) {
 
         ValueOrRef<T> get() const override { return std::invoke(getter); }
 
-        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+        void set(T&&) override { assert(false); }
+
+        std::unique_ptr<internal::PropertyInterface<T>> clone() const override {
             return std::make_unique<ComputedProperty>(getter);
         }
 
@@ -334,7 +336,7 @@ requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
             std::invoke(setter, std::move(new_value));
         }
 
-        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+        std::unique_ptr<internal::PropertyInterface<T>> clone() const override {
             return std::make_unique<ComputedProperty>(getter, setter);
         }
 
