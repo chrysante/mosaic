@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cfloat>
+#include <cmath>
 #include <optional>
 
 #include <mosaic/gui/view.h>
@@ -92,12 +93,18 @@ template <std::size_t N> Owner<ScrollView> hscroll(Owner<View> (&&elems)[N]) {
 // =============================================================================
 
 struct Tab {
+    explicit Tab(Property<std::string const> title, Owner<View> content)
+        : title(std::move(title))
+        , content(std::move(content)) {
+        assert(this->content);
+    }
+
     Property<std::string const> title;
     Owner<View> content;
 };
 
 inline Tab tab(Property<std::string const> title, Owner<View> content) {
-    return {std::move(title), std::move(content)};
+    return Tab(std::move(title), std::move(content));
 }
 
 class TabView : public View {
@@ -129,6 +136,17 @@ template <std::size_t N> Owner<TabView> tab_view(Tab (&&children)[N]) {
 // =============================================================================
 
 struct Column {
+    explicit Column(Owner<View> content, float min_width, float max_width)
+        : content(std::move(content))
+        , min_width(min_width)
+        , max_width(max_width) {
+        assert(this->content);
+        assert(std::isfinite(min_width));
+        assert(std::isfinite(max_width) || std::isinf(max_width));
+        if (min_width < 0.0f) min_width = 0.0f;
+        if (min_width > max_width) min_width = max_width;
+    }
+
     Owner<View> content;
     float min_width = 100.0f;
     float max_width = FLT_MAX;
@@ -136,7 +154,7 @@ struct Column {
 
 inline Column column(Owner<View> content, float min_width = 100.0f,
                      float max_width = FLT_MAX) {
-    return Column{std::move(content), min_width, max_width};
+    return Column(std::move(content), min_width, max_width);
 }
 
 class ColumnView : public View {

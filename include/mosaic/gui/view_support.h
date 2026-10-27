@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <concepts>
 #include <functional>
 #include <iterator>
@@ -90,9 +91,13 @@ public:
 
     static constexpr SizeReq fit() { return {Type::fit, 0.0f}; }
 
-    static constexpr SizeReq fixed(float value) { return {Type::fixed, value}; }
+    static constexpr SizeReq fixed(float value) {
+        assert(std::isfinite(value));
+        return {Type::fixed, value};
+    }
 
     static constexpr SizeReq fill(float weight = 1.0f) {
+        assert(std::isfinite(weight));
         assert(weight >= 0 && "fill weight must be non-negative");
         return {Type::fill, weight};
     }
@@ -350,7 +355,7 @@ requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
 }
 
 // =============================================================================
-// MoveArray
+// Array
 // =============================================================================
 
 template <typename T, std::size_t inline_cap =
@@ -383,17 +388,27 @@ template <typename V = View> class ViewContainer {
         return std::views::transform(m_elements,
                                      [](auto& v) -> View const& { return *v; });
     }
+    bool all_none_null() const {
+        return std::ranges::all_of(m_elements,
+                                   [](auto& v) { return v != nullptr; });
+    }
 
 public:
     ViewContainer() = default;
     ViewContainer(Array<Owner<V>> elements)
-        : m_elements(std::move(elements)) {}
+        : m_elements(std::move(elements)) {
+        assert(all_none_null());
+    }
     template <std::input_iterator It, std::sentinel_for<It> Sen>
     ViewContainer(It begin, Sen end)
-        : m_elements(begin, end) {}
+        : m_elements(begin, end) {
+        assert(all_none_null());
+    }
     template <std::size_t N>
     ViewContainer(Owner<V> (&&elements)[N])
-        : m_elements(std::move(elements)) {}
+        : m_elements(std::move(elements)) {
+        assert(all_none_null());
+    }
 
     std::size_t size() const { return m_elements.size(); }
 
@@ -415,7 +430,10 @@ public:
         return true;
     }
 
-    void push_back(Owner<V> view) { m_elements.push_back(std::move(view)); }
+    void push_back(Owner<V> view) {
+        assert(view);
+        m_elements.push_back(std::move(view));
+    }
 
 private:
     Array<Owner<V>> m_elements;

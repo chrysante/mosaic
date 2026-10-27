@@ -11,6 +11,8 @@ using namespace ui;
 
 #ifndef NDEBUG
 void View::display(Rect frame) {
+    assert(vml::isfinite(frame.origin).all());
+    assert(vml::isfinite(frame.size).all());
     debug_begin_node(*this);
     do_display(frame);
     if (want_debug_overlays()) {
@@ -22,3 +24,8 @@ void View::display(Rect frame) {
 #else
 void View::display(Rect frame) { do_display(frame); }
 #endif
+
+vml::float2 View::calc_intrinsic_size(vml::float2 max_size) const {
+    assert((vml::isfinite(max_size) | vml::isinf(max_size)).all());
+    return do_calc_intrinsic_size(max_size);
+}

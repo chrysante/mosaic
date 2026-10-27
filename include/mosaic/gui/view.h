@@ -13,9 +13,7 @@ public:
     void display(Rect frame);
 
     // The size the view naturally wants to display its content
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const {
-        return do_calc_intrinsic_size(max_size);
-    }
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const;
 
     bool is_leaf() const { return do_is_leaf(); }
 
