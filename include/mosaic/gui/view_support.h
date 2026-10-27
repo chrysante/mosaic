@@ -4,12 +4,13 @@
 #include <cassert>
 #include <concepts>
 #include <functional>
-#include <initializer_list>
+#include <iterator>
 #include <memory>
+#include <ranges>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
-#include <type_traits>
 #include <utl/vector.hpp>
 #include <vml/vml.hpp>
 
@@ -65,10 +66,10 @@ constexpr auto operator|(ViewPipeAdapter<Action1> const& adapter1,
     }};
 }
 
-template <typename T> using Ref = std::shared_ptr<T>;
+template <typename T> using Owner = std::unique_ptr<T>;
 
-template <typename T, typename... Args> static Ref<T> create(Args&&... args) {
-    return std::make_shared<T>(std::forward<Args>(args)...);
+template <typename T, typename... Args> Owner<T> allocate(Args&&... args) {
+    return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 // =============================================================================
@@ -349,6 +350,27 @@ requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
 }
 
 // =============================================================================
+// MoveArray
+// =============================================================================
+
+template <typename T, std::size_t inline_cap =
+                          utl::default_inline_capacity<T, std::allocator<T>>>
+class Array : public utl::small_vector<T, inline_cap> {
+    using ImplType = utl::small_vector<T, inline_cap>;
+
+public:
+    Array() = default;
+    template <std::input_iterator It, std::sentinel_for<It> Sen>
+    Array(It begin, Sen end)
+        : ImplType(begin, end) {}
+
+    template <std::size_t N>
+    Array(T (&&elements)[N])
+        : ImplType(std::make_move_iterator(std::begin(elements)),
+                   std::make_move_iterator(std::end(elements))) {}
+};
+
+// =============================================================================
 // ViewContainer
 // =============================================================================
 
@@ -364,10 +386,14 @@ template <typename V = View> class ViewContainer {
 
 public:
     ViewContainer() = default;
-    ViewContainer(utl::small_vector<Ref<V>> elements)
+    ViewContainer(Array<Owner<V>> elements)
         : m_elements(std::move(elements)) {}
-    ViewContainer(std::initializer_list<Ref<V>> elements)
-        : m_elements(elements) {}
+    template <std::input_iterator It, std::sentinel_for<It> Sen>
+    ViewContainer(It begin, Sen end)
+        : m_elements(begin, end) {}
+    template <std::size_t N>
+    ViewContainer(Owner<V> (&&elements)[N])
+        : m_elements(std::move(elements)) {}
 
     std::size_t size() const { return m_elements.size(); }
 
@@ -389,10 +415,10 @@ public:
         return true;
     }
 
-    void push_back(Ref<V> view) { m_elements.push_back(std::move(view)); }
+    void push_back(Owner<V> view) { m_elements.push_back(std::move(view)); }
 
 private:
-    utl::small_vector<Ref<V>> m_elements;
+    Array<Owner<V>> m_elements;
 };
 
 } // namespace mosaic::ui

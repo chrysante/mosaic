@@ -657,16 +657,15 @@ Duis mauris mi, dignissim in tincidunt vitae, egestas eget lorem. Praesent congu
 Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis, scelerisque in nisi non, porta sodales odio. Nunc scelerisque laoreet eros ac rutrum. Donec interdum, elit eget fermentum sollicitudin, purus eros mollis neque, a pellentesque turpis massa non odio. Nullam varius dui tortor, eget varius augue malesuada vitae. Phasellus rutrum ligula purus, eu sodales augue molestie faucibus. Morbi mattis, ipsum vitae ultricies blandit, leo urna ultrices nibh, id sagittis felis orci ac velit. Vivamus mattis consequat nisl nec laoreet. Suspendisse a mollis dui. Fusce vitae sollicitudin odio, sed aliquam quam. Ut suscipit enim et mauris hendrerit, id lobortis nulla consequat. Praesent ac turpis eget ex tincidunt dapibus. Aliquam nec urna id leo tristique pellentesque non quis velit. Vestibulum finibus risus mattis efficitur pharetra. Quisque vel ullamcorper urna, id faucibus urna. )";
 }
 
-static ui::Ref<ui::SliderView<float>> make_float_slider() {
+static ui::Owner<ui::SliderView<float>> make_float_slider() {
     auto value = std::make_shared<float>(30.0f);
     auto slider = ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
-    slider->set_state(ui::computed(
-        [value] { return *value; },
-        [value, weak_slider = std::weak_ptr(slider)](float new_value) {
-            *value = new_value;
-            if (auto slider = weak_slider.lock())
-                slider |= ui::fixed_height(*value);
-        }));
+    slider->set_state(
+        ui::computed([value] { return *value; },
+                     [value, slider = slider.get()](float new_value) {
+                         *value = new_value;
+                         slider |= ui::fixed_height(*value);
+                     }));
     return slider;
 }
 
@@ -685,7 +684,7 @@ static void display_view_test(bool* open) {
     };
 
     // clang-format off
-    static ui::Ref<ui::View> view = ui::vscroll({
+    static ui::Owner<ui::View> view = ui::vscroll({
         ui::hstack({
             ui::vstack({
                 counter_text(),
@@ -747,8 +746,8 @@ static void display_view_test(bool* open) {
         }()
     });
     
-    static ui::Ref<ui::TabView> tab_view = ui::tab_view({
-        ui::tab(ui::own<std::string>("First Tab"), view), 
+    static ui::Owner<ui::TabView> tab_view = ui::tab_view({
+        ui::tab(ui::own<std::string>("First Tab"), std::move(view)), 
         ui::tab(ui::own<std::string>("Second Tab"), ui::vstack({
             ui::button("Other Side") | ui::center
         }) | ui::hfill | ui::vfill)

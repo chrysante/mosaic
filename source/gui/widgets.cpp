@@ -85,9 +85,9 @@ vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
         text_ref.data(), text_ref.data() + text_ref.size(), false, wrap_width);
 }
 
-Ref<TextView> ui::text(Property<std::string const> text_arg,
-                       TextOptions options) {
-    return create<TextView>(std::move(text_arg), std::move(options));
+Owner<TextView> ui::text(Property<std::string const> text_arg,
+                         TextOptions options) {
+    return allocate<TextView>(std::move(text_arg), std::move(options));
 }
 
 ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
@@ -109,8 +109,9 @@ vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     return text_size + 2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<ButtonView> ui::button(std::string label, std::function<void()> on_click) {
-    return create<ButtonView>(std::move(label), std::move(on_click));
+Owner<ButtonView> ui::button(std::string label,
+                             std::function<void()> on_click) {
+    return allocate<ButtonView>(std::move(label), std::move(on_click));
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)
@@ -133,8 +134,8 @@ vml::float2 CheckboxView::do_calc_intrinsic_size(vml::float2) const {
            2.0f * (vml::float2)style.FramePadding;
 }
 
-Ref<CheckboxView> ui::checkbox(Property<bool> state) {
-    return create<CheckboxView>(std::move(state));
+Owner<CheckboxView> ui::checkbox(Property<bool> state) {
+    return allocate<CheckboxView>(std::move(state));
 }
 
 template <typename T>
@@ -344,14 +345,14 @@ vml::float2 ColorEditView<N>::do_calc_intrinsic_size(vml::float2) const {
 template class ui::ColorEditView<3>;
 template class ui::ColorEditView<4>;
 
-Ref<ColorEditView<3>> ui::color_edit(Property<vml::float3> state,
-                                     ColorEditOptions options) {
-    return create<ColorEditView<3>>(std::move(state), std::move(options));
+Owner<ColorEditView<3>> ui::color_edit(Property<vml::float3> state,
+                                       ColorEditOptions options) {
+    return allocate<ColorEditView<3>>(std::move(state), std::move(options));
 }
 
-Ref<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
-                                     ColorEditOptions options) {
-    return create<ColorEditView<4>>(std::move(state), std::move(options));
+Owner<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
+                                       ColorEditOptions options) {
+    return allocate<ColorEditView<4>>(std::move(state), std::move(options));
 }
 
 static SizeReq2 separator_size_req(Orientation orientation) {
@@ -396,12 +397,12 @@ vml::float2 SeparatorView::do_calc_intrinsic_size(vml::float2) const {
     }
 }
 
-Ref<SeparatorView> ui::hseparator() {
-    return create<SeparatorView>(Orientation::horizontal);
+Owner<SeparatorView> ui::hseparator() {
+    return allocate<SeparatorView>(Orientation::horizontal);
 }
 
-Ref<SeparatorView> ui::vseparator() {
-    return create<SeparatorView>(Orientation::vertical);
+Owner<SeparatorView> ui::vseparator() {
+    return allocate<SeparatorView>(Orientation::vertical);
 }
 
 SpacerView::SpacerView(float weight)
@@ -413,7 +414,9 @@ vml::float2 SpacerView::do_calc_intrinsic_size(vml::float2) const {
     return {0.0f, 0.0f};
 }
 
-Ref<SpacerView> ui::spacer(float weight) { return create<SpacerView>(weight); }
+Owner<SpacerView> ui::spacer(float weight) {
+    return allocate<SpacerView>(weight);
+}
 
 ImageView::ImageView(void const* image, float aspect_ratio)
     : View({SizeReq::fill(), SizeReq::fit()})
@@ -449,6 +452,6 @@ vml::float2 ImageView::do_calc_intrinsic_size(vml::float2 max_size) const {
     return {width, height};
 }
 
-Ref<ImageView> ui::image(void const* image, float aspect_ratio) {
-    return create<ImageView>(image, aspect_ratio);
+Owner<ImageView> ui::image(void const* image, float aspect_ratio) {
+    return allocate<ImageView>(image, aspect_ratio);
 }

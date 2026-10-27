@@ -50,58 +50,58 @@ Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis
 // Shared state-backed views
 // =============================================================================
 
-Ref<View> make_counter_text(TestState& state) {
+Owner<View> make_counter_text(TestState& state) {
     return text(computed([&state] {
         return std::string("Counter: ") + std::to_string(state.counter);
     }));
 }
 
-Ref<View> make_message_text(TestState const& state) {
+Owner<View> make_message_text(TestState const& state) {
     return text(computed([&state] { return state.message; }));
 }
 
-Ref<View> make_float_slider(TestState& state) {
+Owner<View> make_float_slider(TestState& state) {
     return slider<float>(bind(&state.float_value), 0.0f, 1.0f,
                          {.format = "%.2f"}) |
            hfill;
 }
 
-Ref<View> make_double_slider(TestState& state) {
+Owner<View> make_double_slider(TestState& state) {
     return slider<double>(bind(&state.double_value), 0.0, 1.0,
                           {.format = "%.3f"}) |
            hfill;
 }
 
-Ref<View> make_int_slider(TestState& state) {
+Owner<View> make_int_slider(TestState& state) {
     return slider<int>(bind(&state.int_value), 0, 100, {.format = "%d"}) |
            hfill;
 }
 
-Ref<View> make_unsigned_slider(TestState& state) {
+Owner<View> make_unsigned_slider(TestState& state) {
     return slider<unsigned>(bind(&state.unsigned_value), 0u, 100u,
                             {.format = "%u"}) |
            hfill;
 }
 
-Ref<View> make_float2_slider(TestState& state) {
+Owner<View> make_float2_slider(TestState& state) {
     return slider<vml::float2>(bind(&state.float2_value), 0.0f, 1.0f,
                                {.format = "%.2f"}) |
            hfill;
 }
 
-Ref<View> make_float3_slider(TestState& state) {
+Owner<View> make_float3_slider(TestState& state) {
     return slider<vml::float3>(bind(&state.float3_value), 0.0f, 1.0f,
                                {.format = "%.2f"}) |
            hfill;
 }
 
-Ref<View> make_float4_slider(TestState& state) {
+Owner<View> make_float4_slider(TestState& state) {
     return slider<vml::float4>(bind(&state.float4_value), 0.0f, 1.0f,
                                {.format = "%.3f"}) |
            hfill;
 }
 
-Ref<View> make_slider_examples(TestState& state) {
+Owner<View> make_slider_examples(TestState& state) {
     return vstack({
                text("Floating-point sliders"),
                make_float_slider(state),
@@ -123,7 +123,7 @@ Ref<View> make_slider_examples(TestState& state) {
            hfill;
 }
 
-Ref<View> make_color_examples(TestState& state) {
+Owner<View> make_color_examples(TestState& state) {
     return vstack({
                text("Color editor"),
                color_edit(bind(&state.color3)),
@@ -136,7 +136,7 @@ Ref<View> make_color_examples(TestState& state) {
 // Sections
 // =============================================================================
 
-Ref<View> make_header(TestState const& state) {
+Owner<View> make_header(TestState const& state) {
     return hstack({
                text("Mosaic UI — View Test"),
                spacer(),
@@ -145,7 +145,7 @@ Ref<View> make_header(TestState const& state) {
            hfill;
 }
 
-Ref<View> make_basic_widgets(TestState& state) {
+Owner<View> make_basic_widgets(TestState& state) {
     auto actions = hstack({
                        button("Increment",
                               [&state] {
@@ -168,7 +168,7 @@ Ref<View> make_basic_widgets(TestState& state) {
     });
 }
 
-Ref<View> make_alignment_examples() {
+Owner<View> make_alignment_examples() {
     auto horizontal_alignment = hstack({
                                     button("Left") | align_left,
                                     spacer(),
@@ -192,8 +192,8 @@ Ref<View> make_alignment_examples() {
     });
 }
 
-Ref<View> make_weighted_columns() {
-    auto make_column = [](std::string title, std::string label) -> Ref<View> {
+Owner<View> make_weighted_columns() {
+    auto make_column = [](std::string title, std::string label) -> Owner<View> {
         return vstack({
                    text(std::move(title)),
                    button(std::move(label)) | hfill,
@@ -220,7 +220,7 @@ Ref<View> make_weighted_columns() {
            hfill;
 }
 
-Ref<View> make_scroll_examples() {
+Owner<View> make_scroll_examples() {
     ViewContainer<> horizontal_items;
     for (int i = 0; i < 20; ++i)
         horizontal_items.push_back(button("Item " + std::to_string(i)) | vfill);
@@ -234,7 +234,7 @@ Ref<View> make_scroll_examples() {
 
     auto horizontal_scroll = hscroll(std::move(horizontal_items)) | vfit;
 
-    std::vector<Column> cols;
+    Array<Column> cols;
     for (int i = 0; i < 4; ++i)
         cols.push_back(column(vertical_scroll()));
 
@@ -253,7 +253,7 @@ Ref<View> make_scroll_examples() {
            hfill;
 }
 
-Ref<View> make_tab_examples() {
+Owner<View> make_tab_examples() {
     auto first_tab = vscroll({
         text("First tab"),
         text("This tab contains a vertical list of buttons."),
@@ -297,7 +297,7 @@ Ref<View> make_tab_examples() {
            hfill | fixed_height(260.0f);
 }
 
-static Ref<View> make_conditional_examples(TestState& state) {
+static Owner<View> make_conditional_examples(TestState& state) {
     ViewContainer<> views;
     views.push_back(text("Conditional View with one arm"));
     views.push_back(hstack({
@@ -332,9 +332,9 @@ static Ref<View> make_conditional_examples(TestState& state) {
     return vstack(std::move(views));
 }
 
-static Ref<View> make_image_example() { return image(nullptr, 1.5); }
+static Owner<View> make_image_example() { return image(nullptr, 1.5); }
 
-static Ref<View> make_wrapping_text_demo(TestState const& state) {
+static Owner<View> make_wrapping_text_demo(TestState const& state) {
     return vscroll(
         {text("Wrapping text hfit"), hseparator(),
          text(bind(&state.long_text), {.wrap = true}) | hfit,
@@ -374,7 +374,7 @@ static Ref<View> make_wrapping_text_demo(TestState const& state) {
 // Root
 // =============================================================================
 
-Ref<View> make_demo_content(TestState& state) {
+Owner<View> make_demo_content(TestState& state) {
     auto main_page = vscroll({make_header(state), hseparator(),
 
                               make_basic_widgets(state), hseparator(),
@@ -395,13 +395,13 @@ Ref<View> make_demo_content(TestState& state) {
 
                               make_image_example()});
     auto wrapping_text = make_wrapping_text_demo(state);
-    return tab_view(
-        {tab("Main", main_page), tab("Wrapping Text", wrapping_text)});
+    return tab_view({tab("Main", std::move(main_page)),
+                     tab("Wrapping Text", std::move(wrapping_text))});
 }
 
 } // namespace
 
-static std::pair<Ref<View>, std::shared_ptr<void>> render_test_view() {
+static std::pair<Owner<View>, std::shared_ptr<void>> render_test_view() {
     auto state = std::make_shared<TestState>();
     auto root = make_demo_content(*state);
 

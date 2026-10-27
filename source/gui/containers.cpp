@@ -154,16 +154,16 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
     return result;
 }
 
-Ref<StackView> ui::vstack(ViewContainer<> children,
-                          std::optional<Alignment> align_override) {
-    return create<StackView>(Orientation::vertical, std::move(children),
-                             align_override);
+Owner<StackView> ui::vstack(ViewContainer<> children,
+                            std::optional<Alignment> align_override) {
+    return allocate<StackView>(Orientation::vertical, std::move(children),
+                               align_override);
 }
 
-Ref<StackView> ui::hstack(ViewContainer<> children,
-                          std::optional<Alignment> align_override) {
-    return create<StackView>(Orientation::horizontal, std::move(children),
-                             align_override);
+Owner<StackView> ui::hstack(ViewContainer<> children,
+                            std::optional<Alignment> align_override) {
+    return allocate<StackView>(Orientation::horizontal, std::move(children),
+                               align_override);
 }
 
 ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)
@@ -227,15 +227,15 @@ vml::float2 ScrollView::do_calc_intrinsic_size(vml::float2 max_size) const {
     return size;
 }
 
-Ref<ScrollView> ui::vscroll(ViewContainer<> children) {
-    return create<ScrollView>(Orientation::vertical, std::move(children));
+Owner<ScrollView> ui::vscroll(ViewContainer<> children) {
+    return allocate<ScrollView>(Orientation::vertical, std::move(children));
 }
 
-Ref<ScrollView> ui::hscroll(ViewContainer<> children) {
-    return create<ScrollView>(Orientation::horizontal, std::move(children));
+Owner<ScrollView> ui::hscroll(ViewContainer<> children) {
+    return allocate<ScrollView>(Orientation::horizontal, std::move(children));
 }
 
-TabView::TabView(std::vector<Tab>&& tabs)
+TabView::TabView(Array<Tab>&& tabs)
     : View(default_size_requirement)
     , m_tabs(std::move(tabs)) {}
 
@@ -270,11 +270,11 @@ vml::float2 TabView::do_calc_intrinsic_size(vml::float2) const {
     return {0.0f, 0.0f};
 }
 
-Ref<TabView> ui::tab_view(std::vector<Tab> tabs) {
-    return create<TabView>(std::move(tabs));
+Owner<TabView> ui::tab_view(Array<Tab> tabs) {
+    return allocate<TabView>(std::move(tabs));
 }
 
-ColumnView::ColumnView(std::vector<Column>&& columns)
+ColumnView::ColumnView(Array<Column>&& columns)
     : View(default_size_requirement)
     , m_columns(std::move(columns)) {}
 
@@ -517,8 +517,8 @@ vml::float2 ColumnView::do_calc_intrinsic_size(vml::float2 max_size) const {
     return size;
 }
 
-Ref<ColumnView> ui::columns(std::vector<Column> columns) {
-    return create<ColumnView>(std::move(columns));
+Owner<ColumnView> ui::columns(Array<Column> columns) {
+    return allocate<ColumnView>(std::move(columns));
 }
 
 template <typename Index>
@@ -562,19 +562,21 @@ struct NullView : View {
 
 } // namespace
 
-Ref<ConditionalView> ui::if_view(Property<bool> condition,
-                                 Ref<View> then_view) {
+Owner<ConditionalView> ui::if_view(Property<bool> condition,
+                                   Owner<View> then_view) {
     return if_view(std::move(condition), std::move(then_view),
-                   create<NullView>());
+                   allocate<NullView>());
 }
 
-Ref<ConditionalView> ui::if_view(Property<bool> condition, Ref<View> then_view,
-                                 Ref<View> else_view) {
-    return create<ConditionalView>(
+Owner<ConditionalView> ui::if_view(Property<bool> condition,
+                                   Owner<View> then_view,
+                                   Owner<View> else_view) {
+    return allocate<ConditionalView>(
         std::move(condition),
-        ViewContainer<>{std::move(else_view), std::move(then_view)});
+        ViewContainer<>({std::move(else_view), std::move(then_view)}));
 }
 
-Ref<SwitchView<>> ui::switch_view(Property<int> index, ViewContainer<> cases) {
-    return create<SwitchView<>>(std::move(index), std::move(cases));
+Owner<SwitchView<>> ui::switch_view(Property<int> index,
+                                    ViewContainer<> cases) {
+    return allocate<SwitchView<>>(std::move(index), std::move(cases));
 }

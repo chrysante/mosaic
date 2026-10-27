@@ -38,8 +38,8 @@ private:
     Property<std::string const> m_text;
 };
 
-Ref<TextView> text(Property<std::string const> text_arg,
-                   TextOptions options = {});
+Owner<TextView> text(Property<std::string const> text_arg,
+                     TextOptions options = {});
 
 // =============================================================================
 // Button
@@ -57,7 +57,7 @@ private:
     std::function<void()> m_on_click;
 };
 
-Ref<ButtonView> button(std::string label, std::function<void()> action = {});
+Owner<ButtonView> button(std::string label, std::function<void()> action = {});
 
 // =============================================================================
 // Checkbox
@@ -74,7 +74,7 @@ private:
     Property<bool> m_state;
 };
 
-Ref<CheckboxView> checkbox(Property<bool> state);
+Owner<CheckboxView> checkbox(Property<bool> state);
 
 // =============================================================================
 // Slider
@@ -117,13 +117,13 @@ private:
 };
 
 template <typename T>
-Ref<SliderView<T>>
+Owner<SliderView<T>>
 slider(Property<T> state,
        Property<typename SliderView<T>::ScalarType const> min,
        Property<typename SliderView<T>::ScalarType const> max,
        SliderOptions options = {}) {
-    return create<SliderView<T>>(std::move(state), std::move(min),
-                                 std::move(max), std::move(options));
+    return allocate<SliderView<T>>(std::move(state), std::move(min),
+                                   std::move(max), std::move(options));
 }
 
 // =============================================================================
@@ -159,11 +159,11 @@ private:
     ColorEditOptions m_options;
 };
 
-Ref<ColorEditView<3>> color_edit(Property<vml::float3> state,
-                                 ColorEditOptions options = {});
+Owner<ColorEditView<3>> color_edit(Property<vml::float3> state,
+                                   ColorEditOptions options = {});
 
-Ref<ColorEditView<4>> color_edit(Property<vml::float4> state,
-                                 ColorEditOptions options = {});
+Owner<ColorEditView<4>> color_edit(Property<vml::float4> state,
+                                   ColorEditOptions options = {});
 
 // =============================================================================
 // Separator
@@ -180,9 +180,9 @@ private:
     Orientation m_orientation;
 };
 
-Ref<SeparatorView> hseparator();
+Owner<SeparatorView> hseparator();
 
-Ref<SeparatorView> vseparator();
+Owner<SeparatorView> vseparator();
 
 // =============================================================================
 // Spacer
@@ -197,7 +197,7 @@ private:
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 };
 
-Ref<SpacerView> spacer(float weight = 1.0f);
+Owner<SpacerView> spacer(float weight = 1.0f);
 
 // =============================================================================
 // Image
@@ -216,6 +216,6 @@ private:
 };
 
 /// \p aspect_ratio means `width / height`
-Ref<ImageView> image(void const* image, float aspect_ratio);
+Owner<ImageView> image(void const* image, float aspect_ratio);
 
 } // namespace mosaic::ui

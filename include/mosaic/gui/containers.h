@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cfloat>
+#include <iterator>
 #include <optional>
 #include <vector>
 
@@ -33,11 +34,25 @@ private:
     ViewContainer<> m_children;
 };
 
-Ref<StackView> vstack(ViewContainer<> children,
-                      std::optional<Alignment> align_override = std::nullopt);
+Owner<StackView> vstack(ViewContainer<> children,
+                        std::optional<Alignment> align_override = std::nullopt);
 
-Ref<StackView> hstack(ViewContainer<> children,
-                      std::optional<Alignment> align_override = std::nullopt);
+template <std::size_t N>
+Owner<StackView>
+vstack(Owner<View> (&&elems)[N],
+       std::optional<Alignment> align_override = std::nullopt) {
+    return vstack(ViewContainer<>(std::move(elems)), align_override);
+}
+
+Owner<StackView> hstack(ViewContainer<> children,
+                        std::optional<Alignment> align_override = std::nullopt);
+
+template <std::size_t N>
+Owner<StackView>
+hstack(Owner<View> (&&elems)[N],
+       std::optional<Alignment> align_override = std::nullopt) {
+    return hstack(ViewContainer<>(std::move(elems)), align_override);
+}
 
 // =============================================================================
 // ScrollView
@@ -61,9 +76,17 @@ private:
     ViewContainer<> m_children;
 };
 
-Ref<ScrollView> vscroll(ViewContainer<> children);
+Owner<ScrollView> vscroll(ViewContainer<> children);
 
-Ref<ScrollView> hscroll(ViewContainer<> children);
+template <std::size_t N> Owner<ScrollView> vscroll(Owner<View> (&&elems)[N]) {
+    return vscroll(ViewContainer<>(std::move(elems)));
+}
+
+Owner<ScrollView> hscroll(ViewContainer<> children);
+
+template <std::size_t N> Owner<ScrollView> hscroll(Owner<View> (&&elems)[N]) {
+    return hscroll(ViewContainer<>(std::move(elems)));
+}
 
 // =============================================================================
 // TabView
@@ -71,10 +94,10 @@ Ref<ScrollView> hscroll(ViewContainer<> children);
 
 struct Tab {
     Property<std::string const> title;
-    Ref<View> content;
+    Owner<View> content;
 };
 
-inline Tab tab(Property<std::string const> title, Ref<View> content) {
+inline Tab tab(Property<std::string const> title, Owner<View> content) {
     return {std::move(title), std::move(content)};
 }
 
@@ -83,31 +106,35 @@ public:
     static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
                                                           SizeReq::fill()};
 
-    explicit TabView(std::vector<Tab>&& tabs);
+    explicit TabView(Array<Tab>&& tabs);
 
-    std::vector<Tab>& tabs() { return m_tabs; }
-    std::vector<Tab> const& tabs() const { return m_tabs; }
+    Array<Tab>& tabs() { return m_tabs; }
+    Array<Tab> const& tabs() const { return m_tabs; }
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    std::vector<Tab> m_tabs;
+    Array<Tab> m_tabs;
 };
 
-Ref<TabView> tab_view(std::vector<Tab> children);
+Owner<TabView> tab_view(Array<Tab> children);
+
+template <std::size_t N> Owner<TabView> tab_view(Tab (&&children)[N]) {
+    return tab_view(Array<Tab>(std::move(children)));
+}
 
 // =============================================================================
 // ColumnView
 // =============================================================================
 
 struct Column {
-    Ref<View> content;
+    Owner<View> content;
     float min_width = 100.0f;
     float max_width = FLT_MAX;
 };
 
-inline Column column(Ref<View> content, float min_width = 100.0f,
+inline Column column(Owner<View> content, float min_width = 100.0f,
                      float max_width = FLT_MAX) {
     return Column{std::move(content), min_width, max_width};
 }
@@ -117,19 +144,23 @@ public:
     static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
                                                           SizeReq::fill()};
 
-    explicit ColumnView(std::vector<Column>&& columns);
+    explicit ColumnView(Array<Column>&& columns);
 
-    std::vector<Column>& columns() { return m_columns; }
-    std::vector<Column> const& columns() const { return m_columns; }
+    Array<Column>& columns() { return m_columns; }
+    Array<Column> const& columns() const { return m_columns; }
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    std::vector<Column> m_columns;
+    Array<Column> m_columns;
 };
 
-Ref<ColumnView> columns(std::vector<Column> columns);
+Owner<ColumnView> columns(Array<Column> columns);
+
+template <std::size_t N> Owner<ColumnView> columns(Column (&&columns)[N]) {
+    return columns(Array<Column>(std::move(columns)));
+}
 
 // =============================================================================
 // SwitchView
@@ -155,11 +186,16 @@ private:
 
 using ConditionalView = SwitchView<bool>;
 
-Ref<ConditionalView> if_view(Property<bool> condition, Ref<View> then_view);
+Owner<ConditionalView> if_view(Property<bool> condition, Owner<View> then_view);
 
-Ref<ConditionalView> if_view(Property<bool> condition, Ref<View> then_view,
-                             Ref<View> else_view);
+Owner<ConditionalView> if_view(Property<bool> condition, Owner<View> then_view,
+                               Owner<View> else_view);
 
-Ref<SwitchView<>> switch_view(Property<int> index, ViewContainer<> cases);
+Owner<SwitchView<>> switch_view(Property<int> index, ViewContainer<> cases);
+
+template <std::size_t N>
+Owner<SwitchView<>> switch_view(Property<int> index, Owner<View> (&&elems)[N]) {
+    return switch_view(std::move(index), ViewContainer<>(std::move(elems)));
+}
 
 } // namespace mosaic::ui
