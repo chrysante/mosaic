@@ -1,5 +1,6 @@
 #include "gui/widgets.h"
 
+#include <cmath>
 #include <cstdint>
 
 #include <imgui.h>
@@ -351,3 +352,41 @@ vml::float2 SpacerView::do_calc_intrinsic_size(vml::float2) const {
 }
 
 Ref<SpacerView> ui::spacer(float weight) { return create<SpacerView>(weight); }
+
+ImageView::ImageView(void const* image, float aspect_ratio)
+    : View({SizeReq::fill(), SizeReq::fit()})
+    , m_image(image)
+    , m_aspect_ratio(aspect_ratio) {}
+
+static bool is_valid_ratio(float ratio) {
+    return ratio > 0.0f && !std::isinf(ratio) && !std::isnan(ratio);
+}
+
+void ImageView::do_display(Rect frame) {
+    if (!is_valid_ratio(m_aspect_ratio)) return;
+    if (frame.size.x <= 0.0f || frame.size.y <= 0.0f) return;
+    ImGui::SetCursorScreenPos(frame.origin);
+    ImGui::Image(reinterpret_cast<std::uintptr_t>(m_image), frame.size);
+    return;
+}
+
+vml::float2 ImageView::do_calc_intrinsic_size(vml::float2 max_size) const {
+    if (!is_valid_ratio(m_aspect_ratio)) return {};
+    float const default_width = 400.0f;
+    float const default_height = default_width / m_aspect_ratio;
+    if (max_size.x < 0.0f && max_size.y < 0.0f)
+        max_size = {default_width, default_height};
+    else if (max_size.x < 0.0f) max_size.x = max_size.y * m_aspect_ratio;
+    else if (max_size.y < 0.0f) max_size.y = max_size.x / m_aspect_ratio;
+    float width = max_size.x;
+    float height = width / m_aspect_ratio;
+    if (height > max_size.y) {
+        height = max_size.y;
+        width = height * m_aspect_ratio;
+    }
+    return {width, height};
+}
+
+Ref<ImageView> ui::image(void const* image, float aspect_ratio) {
+    return create<ImageView>(image, aspect_ratio);
+}

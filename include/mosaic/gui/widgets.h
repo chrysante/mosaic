@@ -160,4 +160,23 @@ private:
 
 Ref<SpacerView> spacer(float weight = 1.0f);
 
+// =============================================================================
+// Image
+// =============================================================================
+
+class ImageView : public View {
+public:
+    ImageView(void const* image, float aspect_ratio);
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    void const* m_image;
+    float m_aspect_ratio;
+};
+
+/// \p aspect_ratio means `width / height`
+Ref<ImageView> image(void const* image, float aspect_ratio);
+
 } // namespace mosaic::ui

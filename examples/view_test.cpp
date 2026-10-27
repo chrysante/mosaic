@@ -320,6 +320,8 @@ static Ref<View> make_conditional_examples(TestState& state) {
     return vstack(std::move(views));
 }
 
+static Ref<View> make_image_example() { return image(nullptr, 1.5); }
+
 static Ref<View> make_wrapping_text_demo(TestState const& state) {
     return vscroll(
         {text("Wrapping text hfit"), hseparator(),
@@ -361,32 +363,23 @@ static Ref<View> make_wrapping_text_demo(TestState const& state) {
 // =============================================================================
 
 Ref<View> make_demo_content(TestState& state) {
-    auto main_page = vscroll({
-        make_header(state),
-        hseparator(),
+    auto main_page = vscroll({make_header(state), hseparator(),
 
-        make_basic_widgets(state),
-        hseparator(),
+                              make_basic_widgets(state), hseparator(),
 
-        make_alignment_examples(),
-        hseparator(),
+                              make_alignment_examples(), hseparator(),
 
-        make_slider_examples(state),
-        hseparator(),
+                              make_slider_examples(state), hseparator(),
 
-        make_weighted_columns(),
-        hseparator(),
+                              make_weighted_columns(), hseparator(),
 
-        make_scroll_examples(),
-        hseparator(),
+                              make_scroll_examples(), hseparator(),
 
-        make_tab_examples(),
-        hseparator(),
+                              make_tab_examples(), hseparator(),
 
-        make_conditional_examples(state),
-        hseparator(),
+                              make_conditional_examples(state), hseparator(),
 
-    });
+                              make_image_example()});
     auto wrapping_text = make_wrapping_text_demo(state);
     return tab_view(
         {tab("Main", main_page), tab("Wrapping Text", wrapping_text)});
