@@ -135,7 +135,7 @@ enum class Alignment { low, mid, high };
 
 using Alignment2 = vml::vector<Alignment, 2>;
 
-enum class Orientation { horizontal = 0, vertical = 1 };
+enum class Axis { horizontal = 0, vertical = 1 };
 
 // =============================================================================
 // ValueOrRef<T>

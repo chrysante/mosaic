@@ -18,8 +18,12 @@ public:
     static constexpr SizeReq2 default_size_requirement = {SizeReq::fit(),
                                                           SizeReq::fit()};
 
-    explicit StackView(Orientation orientation, ViewContainer<>&& children,
+    explicit StackView(Axis main_axis, ViewContainer<>&& children,
                        std::optional<Alignment> align_override = std::nullopt);
+
+    /// The axis along which the content is layed out, i.e. `vertical` for a
+    /// `VStack` and `horizontal` for an `HStack`
+    Axis main_axis() const { return m_main_axis; }
 
     ViewContainer<>& children() { return m_children; }
     ViewContainer<> const& children() const { return m_children; }
@@ -28,7 +32,7 @@ private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    Orientation m_orientation;
+    Axis m_main_axis;
     std::optional<Alignment> m_align_override;
     ViewContainer<> m_children;
 };
@@ -62,7 +66,11 @@ public:
     static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
                                                           SizeReq::fill()};
 
-    explicit ScrollView(Orientation orientation, ViewContainer<>&& children);
+    explicit ScrollView(Axis main_axis, ViewContainer<>&& children);
+
+    /// The axis along which the content is layed out, i.e. `vertical` for a
+    /// `VStack` and `horizontal` for an `HStack`
+    Axis main_axis() const { return m_main_axis; }
 
     ViewContainer<>& children() { return m_children; }
     ViewContainer<> const& children() const { return m_children; }
@@ -72,7 +80,7 @@ private:
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
     bool do_is_leaf() const override { return false; }
 
-    Orientation m_orientation;
+    Axis m_main_axis;
     ViewContainer<> m_children;
 };
 

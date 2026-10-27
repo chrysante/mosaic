@@ -34,10 +34,10 @@ static float resolve_child_size(SizeReq requirement, float intrinsic,
     }
 }
 
-StackView::StackView(Orientation orientation, ViewContainer<>&& children,
+StackView::StackView(Axis main_axis, ViewContainer<>&& children,
                      std::optional<Alignment> align_override)
     : View(default_size_requirement)
-    , m_orientation(orientation)
+    , m_main_axis(main_axis)
     , m_align_override(align_override)
     , m_children(std::move(children)) {}
 
@@ -140,7 +140,7 @@ static float size_one_less(std::size_t size) {
 void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
 
-    const unsigned main_axis = static_cast<unsigned>(m_orientation);
+    const unsigned main_axis = (unsigned)m_main_axis;
     const unsigned cross_axis = 1 - main_axis;
     const vml::float2 size_avail = frame.size;
 
@@ -244,7 +244,7 @@ void StackView::do_display(Rect frame) {
 
 vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
     vml::float2 const item_spacing = ImGui::GetStyle().ItemSpacing;
-    unsigned main_axis = (unsigned)m_orientation;
+    unsigned main_axis = (unsigned)m_main_axis;
     unsigned cross_axis = 1 - main_axis;
     vml::float2 result = {0.0f, 0.0f};
     for (auto& child : m_children) {
@@ -266,29 +266,29 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
 
 Owner<StackView> ui::vstack(ViewContainer<> children,
                             std::optional<Alignment> align_override) {
-    return allocate<StackView>(Orientation::vertical, std::move(children),
+    return allocate<StackView>(Axis::vertical, std::move(children),
                                align_override);
 }
 
 Owner<StackView> ui::hstack(ViewContainer<> children,
                             std::optional<Alignment> align_override) {
-    return allocate<StackView>(Orientation::horizontal, std::move(children),
+    return allocate<StackView>(Axis::horizontal, std::move(children),
                                align_override);
 }
 
-ScrollView::ScrollView(Orientation orientation, ViewContainer<>&& children)
+ScrollView::ScrollView(Axis main_axis, ViewContainer<>&& children)
     : View(default_size_requirement)
-    , m_orientation(orientation)
+    , m_main_axis(main_axis)
     , m_children(std::move(children)) {}
 
 void ScrollView::do_display(Rect frame) {
-    unsigned main_axis = (unsigned)m_orientation;
+    unsigned main_axis = (unsigned)m_main_axis;
     unsigned cross_axis = 1 - main_axis;
     auto& style = ImGui::GetStyle();
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     int window_flags = 0;
-    if (m_orientation == Orientation::horizontal)
+    if (m_main_axis == Axis::horizontal)
         window_flags |= ImGuiWindowFlags_HorizontalScrollbar;
     vml::float2 content_size;
     content_size[main_axis] = 0.0f;
@@ -319,7 +319,7 @@ void ScrollView::do_display(Rect frame) {
 }
 
 vml::float2 ScrollView::do_calc_intrinsic_size(vml::float2 max_size) const {
-    unsigned main_axis = (unsigned)m_orientation;
+    unsigned main_axis = (unsigned)m_main_axis;
     unsigned cross_axis = 1 - main_axis;
     auto& style = ImGui::GetStyle();
     float cross_axis_padding =
@@ -338,11 +338,11 @@ vml::float2 ScrollView::do_calc_intrinsic_size(vml::float2 max_size) const {
 }
 
 Owner<ScrollView> ui::vscroll(ViewContainer<> children) {
-    return allocate<ScrollView>(Orientation::vertical, std::move(children));
+    return allocate<ScrollView>(Axis::vertical, std::move(children));
 }
 
 Owner<ScrollView> ui::hscroll(ViewContainer<> children) {
-    return allocate<ScrollView>(Orientation::horizontal, std::move(children));
+    return allocate<ScrollView>(Axis::horizontal, std::move(children));
 }
 
 TabView::TabView(Array<Tab>&& tabs)

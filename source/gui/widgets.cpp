@@ -361,31 +361,31 @@ Owner<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
     return allocate<ColorEditView<4>>(std::move(state), std::move(options));
 }
 
-static SizeReq2 separator_size_req(Orientation orientation) {
-    switch (orientation) {
-    case Orientation::horizontal:
+static SizeReq2 separator_size_req(Axis main_axis) {
+    switch (main_axis) {
+    case Axis::horizontal:
         return {SizeReq::fill(), SizeReq::fit()};
-    case Orientation::vertical:
+    case Axis::vertical:
         return {SizeReq::fit(), SizeReq::fill()};
     }
 }
 
-SeparatorView::SeparatorView(Orientation orientation)
-    : View(separator_size_req(orientation))
-    , m_orientation(orientation) {}
+SeparatorView::SeparatorView(Axis main_axis)
+    : View(separator_size_req(main_axis))
+    , m_main_axis(main_axis) {}
 
 void SeparatorView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
 
     auto& style = ImGui::GetStyle();
     auto* DL = ImGui::GetWindowDrawList();
-    switch (m_orientation) {
-    case Orientation::horizontal:
+    switch (m_main_axis) {
+    case Axis::horizontal:
         DL->AddLineH(
             frame.min().x, frame.max().x, frame.origin.y + 0.5f * frame.size.y,
             ImGui::GetColorU32(ImGuiCol_Separator), style.SeparatorSize);
         break;
-    case Orientation::vertical:
+    case Axis::vertical:
         DL->AddLineV(frame.origin.x + 0.5f * frame.size.x, frame.min().y,
                      frame.max().y, ImGui::GetColorU32(ImGuiCol_Separator),
                      style.SeparatorSize);
@@ -395,20 +395,20 @@ void SeparatorView::do_display(Rect frame) {
 
 vml::float2 SeparatorView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    switch (m_orientation) {
-    case Orientation::horizontal:
+    switch (m_main_axis) {
+    case Axis::horizontal:
         return {0.0f, style.SeparatorSize + 2.0f * style.ItemSpacing.y};
-    case Orientation::vertical:
+    case Axis::vertical:
         return {style.SeparatorSize + 2.0f * style.ItemSpacing.x, 0.0f};
     }
 }
 
 Owner<SeparatorView> ui::hseparator() {
-    return allocate<SeparatorView>(Orientation::horizontal);
+    return allocate<SeparatorView>(Axis::horizontal);
 }
 
 Owner<SeparatorView> ui::vseparator() {
-    return allocate<SeparatorView>(Orientation::vertical);
+    return allocate<SeparatorView>(Axis::vertical);
 }
 
 SpacerView::SpacerView(float weight)

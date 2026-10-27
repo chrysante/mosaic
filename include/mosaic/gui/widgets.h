@@ -173,13 +173,24 @@ Owner<ColorEditView<4>> color_edit(Property<vml::float4> state,
 
 class SeparatorView : public View {
 public:
-    explicit SeparatorView(Orientation orientation);
+    explicit SeparatorView(Axis main_axis);
+
+    /// The axis along which the line is drawn, that is `vertical` for a
+    /// vertical line (between horizontally adjacent elements) and `horizontal`
+    /// for a horizontal line (between vertically adjacent elements).
+    ///
+    ///     `vertical`   -> `vseparator()`
+    ///     `horizontal` -> `hseparator()`
+    ///
+    /// Note that in a `vstack` you would normally use `hseparator()` to
+    /// separate the elements and vice-versa.
+    Axis main_axis() const { return m_main_axis; }
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    Orientation m_orientation;
+    Axis m_main_axis;
 };
 
 Owner<SeparatorView> hseparator();
