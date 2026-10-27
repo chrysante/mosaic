@@ -189,7 +189,7 @@ static int translate_slider_flags(SliderOptions const& options) {
     if (options.wrap_around) result |= ImGuiSliderFlags_WrapAround;
     if (options.clamp_on_input) result |= ImGuiSliderFlags_ClampOnInput;
     if (options.clamp_zero_range) result |= ImGuiSliderFlags_ClampZeroRange;
-    if (options.speed_tweaks) result |= ImGuiSliderFlags_NoSpeedTweaks;
+    if (!options.speed_tweaks) result |= ImGuiSliderFlags_NoSpeedTweaks;
     if (options.color_markers) result |= ImGuiSliderFlags_ColorMarkers;
     return result;
 }

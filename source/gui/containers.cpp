@@ -101,6 +101,7 @@ void StackView::do_display(Rect frame) {
         auto& child = m_children[i];
         auto intrinsic = intrinsic_sizes[i];
         auto size_req = child.size_requirement();
+        // FIXME: Fixed-size children don't get capped on overflow
         vml::float2 child_size =
             vml::map(size_req, intrinsic, size_avail, resolve_child_size);
         // Filling children share the remaining main-axis space.
@@ -148,7 +149,8 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
         result[cross_axis] =
             std::max(result[cross_axis], resolved_size[cross_axis]);
     }
-    result[main_axis] += size_one_less(m_children.size());
+    result[main_axis] +=
+        size_one_less(m_children.size()) * item_spacing[main_axis];
     return result;
 }
 
