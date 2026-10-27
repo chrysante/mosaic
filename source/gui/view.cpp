@@ -15,9 +15,10 @@ void View::display(Rect frame) {
 #ifndef NDEBUG
     debug_begin_node(*this);
 #endif
-    ImGui::BeginDisabled(!enabled());
+    bool const disabled = !enabled();
+    if (disabled) ImGui::BeginDisabled();
     do_display(frame);
-    ImGui::EndDisabled();
+    if (disabled) ImGui::EndDisabled();
 #ifndef NDEBUG
     if (want_debug_overlays()) {
         auto* DL = ImGui::GetWindowDrawList();
