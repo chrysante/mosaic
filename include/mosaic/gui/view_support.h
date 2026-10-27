@@ -138,7 +138,7 @@ using Alignment2 = vml::vector<Alignment, 2>;
 enum class Orientation { horizontal = 0, vertical = 1 };
 
 // =============================================================================
-// Property<T>
+// ValueOrRef<T>
 // =============================================================================
 
 template <typename T> class ValueOrRef {
@@ -151,10 +151,47 @@ public:
         : m_value(std::move(value)) {}
     ValueOrRef(std::reference_wrapper<T> ref)
         : m_value(&ref.get()) {}
+
+    T const& value() const {
+        if (m_value.index() == 0) return std::get<0>(m_value);
+        else return *std::get<1>(m_value);
+    }
+
+    T& value() { return const_cast<T&>(std::as_const(*this).get()); }
+
+private:
+    friend class ValueOrRef<T const>;
+
+    std::variant<T, T*> m_value;
+};
+
+template <typename T> class ValueOrRef<T const> {
+public:
+    static_assert(!std::is_reference_v<T>);
+
+    ValueOrRef(ValueOrRef<T> const& other)
+        : m_value((T const*)nullptr) {
+        if (m_value.index() == 0) m_value.emplace(std::get<0>(other.m_value));
+        else m_value.emplace(std::get<1>(m_value));
+    }
+
+    ValueOrRef(ValueOrRef<T>&& other)
+        : m_value((T const*)nullptr) {
+        if (m_value.index() == 0)
+            m_value.emplace(std::get<0>(std::move(other).m_value));
+        else m_value.emplace(std::get<1>(m_value));
+    }
+
+    ValueOrRef(T const& value)
+        : m_value(value) {}
+    ValueOrRef(T&& value)
+        : m_value(std::move(value)) {}
+    ValueOrRef(std::reference_wrapper<T> ref)
+        : m_value(&ref.get()) {}
     ValueOrRef(std::reference_wrapper<T const> ref)
         : m_value(&ref.get()) {}
 
-    T const& get() const {
+    T const& value() const {
         if (m_value.index() == 0) return std::get<0>(m_value);
         else return *std::get<1>(m_value);
     }
@@ -163,11 +200,15 @@ private:
     std::variant<T, T const*> m_value;
 };
 
+// =============================================================================
+// Property<T>
+// =============================================================================
+
 namespace internal {
 
 template <typename T> struct PropertyInterface {
     virtual ~PropertyInterface() = default;
-    virtual ValueOrRef<T> get() const = 0;
+    virtual ValueOrRef<T const> get() const = 0;
     virtual void set(T&&) = 0;
     virtual std::unique_ptr<PropertyInterface> clone() const = 0;
 };
@@ -180,7 +221,7 @@ std::unique_ptr<PropertyInterface<T>> make_value_property(U&& value) {
         explicit ValueProperty(T const& value)
             : value(value) {}
 
-        ValueOrRef<T> get() const override { return std::ref(value); }
+        ValueOrRef<T const> get() const override { return std::cref(value); }
 
         void set(T&& new_value) override { value = std::move(new_value); }
 
@@ -215,9 +256,9 @@ public:
     explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
         : m_impl(std::move(impl)) {}
 
-    ValueOrRef<T> get() const { return m_impl->get(); }
+    ValueOrRef<T const> get() const { return m_impl->get(); }
 
-    T materialize() const { return get().get(); }
+    T materialize() const { return get().value(); }
 
     void set(T new_value) { m_impl->set(std::move(new_value)); }
 
@@ -254,9 +295,9 @@ public:
     explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
         : m_impl(std::move(impl)) {}
 
-    ValueOrRef<T> get() const { return m_impl->get(); }
+    ValueOrRef<T const> get() const { return m_impl->get(); }
 
-    T materialize() const { return get().get(); }
+    T materialize() const { return get().value(); }
 
 private:
     std::unique_ptr<internal::PropertyInterface<T>> m_impl;
@@ -272,7 +313,7 @@ template <typename T> Property<T> bind(T* pointer) {
         explicit BindingProperty(T* ptr)
             : ptr(ptr) {}
 
-        ValueOrRef<U> get() const override { return std::ref(*ptr); }
+        ValueOrRef<U const> get() const override { return std::ref(*ptr); }
 
         void set(U&& new_value) override {
             if constexpr (!std::is_const_v<T>) *ptr = std::move(new_value);
@@ -310,7 +351,7 @@ Property<T const> computed(Getter&& get) {
         explicit ComputedProperty(Getter const& getter)
             : getter(getter) {}
 
-        ValueOrRef<T> get() const override { return std::invoke(getter); }
+        ValueOrRef<T const> get() const override { return std::invoke(getter); }
 
         void set(T&&) override { assert(false); }
 
@@ -336,7 +377,7 @@ requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
             : getter(getter)
             , setter(setter) {}
 
-        ValueOrRef<T> get() const override { return std::invoke(getter); }
+        ValueOrRef<T const> get() const override { return std::invoke(getter); }
 
         void set(T&& new_value) override {
             std::invoke(setter, std::move(new_value));

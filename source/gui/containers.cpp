@@ -365,7 +365,8 @@ void TabView::do_display(Rect frame) {
     vml::float2 size_avail = ImGui::GetContentRegionAvail();
     for (auto& [title, child] : m_tabs) {
         auto title_string = title.get();
-        if (!ImGui::BeginTabItem(title_string.get().c_str(), nullptr)) continue;
+        if (!ImGui::BeginTabItem(title_string.value().c_str(), nullptr))
+            continue;
         vml::float2 intrinsic_size = child->calc_intrinsic_size(size_avail);
         SizeReq2 size_req = child->size_requirement();
         vml::float2 child_size =

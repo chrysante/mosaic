@@ -34,7 +34,7 @@ void TextView::do_display(Rect frame) {
     auto text = m_text.get();
     float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
     wrap_width = std::min(wrap_width, m_options.max_wrap_width);
-    auto const& text_ref = text.get();
+    auto const& text_ref = text.value();
 
     bool const use_child_window =
         m_options.wrap && m_options.scrollable_on_clip;
@@ -73,7 +73,7 @@ void TextView::do_display(Rect frame) {
 
 vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
     auto text = m_text.get();
-    auto const& text_ref = text.get();
+    auto const& text_ref = text.value();
     float wrap_width = !m_options.wrap     ? -1.0f
                        : max_size.x < 0.0f ? m_options.default_wrap_width
                                            : max_size.x;
@@ -101,7 +101,7 @@ void ButtonView::do_display(Rect frame) {
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     auto label = m_label.get();
-    bool clicked = ImGui::ButtonEx(label.get().c_str(), frame.size);
+    bool clicked = ImGui::ButtonEx(label.value().c_str(), frame.size);
     ImGui::PopID();
     if (clicked && m_on_click) m_on_click();
 }
@@ -109,7 +109,7 @@ void ButtonView::do_display(Rect frame) {
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     auto label = m_label.get();
-    auto& label_ref = label.get();
+    auto& label_ref = label.value();
     vml::float2 text_size = ImGui::CalcTextSize(
         label_ref.data(), label_ref.data() + label_ref.size(), true);
     return text_size + 2.0f * (vml::float2)style.FramePadding;
