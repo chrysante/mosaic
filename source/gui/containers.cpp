@@ -81,7 +81,7 @@ void StackView::do_display(Rect frame) {
         vml::float2 child_max_size = frame.size;
         child_max_size[main_axis] = -1.0f;
         auto intrinsic_size = intrinsic_sizes[i] =
-            child.intrinsic_size(child_max_size);
+            child.calc_intrinsic_size(child_max_size);
         auto requirement = child.size_requirement();
         if (requirement[main_axis].is_fill())
             fill_weight_sum += requirement[main_axis].fill_weight();
@@ -127,7 +127,7 @@ void StackView::do_display(Rect frame) {
     }
 }
 
-vml::float2 StackView::calc_intrinsic_size(vml::float2 max_size) const {
+vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
     vml::float2 const item_spacing = ImGui::GetStyle().ItemSpacing;
     unsigned main_axis = (unsigned)m_orientation;
     unsigned cross_axis = 1 - main_axis;
@@ -136,7 +136,7 @@ vml::float2 StackView::calc_intrinsic_size(vml::float2 max_size) const {
         SizeReq2 size_req = child.size_requirement();
         vml::float2 child_max_size = max_size;
         child_max_size[main_axis] = -1.0f;
-        vml::float2 child_size = child.intrinsic_size(child_max_size);
+        vml::float2 child_size = child.calc_intrinsic_size(child_max_size);
         vml::float2 resolved_size =
             vml::map(size_req, child_size, vml::float2(-1.0f, -1.0f),
                      resolve_child_size);
@@ -194,7 +194,7 @@ void ScrollView::do_display(Rect frame) {
     float spacing = style.ItemSpacing[main_axis];
     vml::float2 cursor = ImGui::GetCursorScreenPos();
     for (auto& child : m_children) {
-        vml::float2 intrinsic_size = child.intrinsic_size(size_avail);
+        vml::float2 intrinsic_size = child.calc_intrinsic_size(size_avail);
         SizeReq2 size_req = child.size_requirement();
         vml::float2 child_size =
             vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
@@ -203,7 +203,7 @@ void ScrollView::do_display(Rect frame) {
     }
 }
 
-vml::float2 ScrollView::calc_intrinsic_size(vml::float2 max_size) const {
+vml::float2 ScrollView::do_calc_intrinsic_size(vml::float2 max_size) const {
     unsigned main_axis = (unsigned)m_orientation;
     unsigned cross_axis = 1 - main_axis;
     auto& style = ImGui::GetStyle();
@@ -214,7 +214,7 @@ vml::float2 ScrollView::calc_intrinsic_size(vml::float2 max_size) const {
     child_max_size[main_axis] = -1.0f;
     child_max_size[cross_axis] -= cross_axis_padding;
     for (auto& child : m_children) {
-        vml::float2 intrinsic = child.intrinsic_size(child_max_size);
+        vml::float2 intrinsic = child.calc_intrinsic_size(child_max_size);
         extend = std::max(extend, intrinsic[cross_axis]);
     }
     vml::float2 size = {0.0f, 0.0f};
@@ -251,7 +251,7 @@ void TabView::do_display(Rect frame) {
     for (auto& [title, child] : m_tabs) {
         auto title_string = title.get();
         if (!ImGui::BeginTabItem(title_string.get().c_str(), nullptr)) continue;
-        vml::float2 intrinsic_size = child->intrinsic_size(size_avail);
+        vml::float2 intrinsic_size = child->calc_intrinsic_size(size_avail);
         SizeReq2 size_req = child->size_requirement();
         vml::float2 child_size =
             vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
@@ -261,7 +261,7 @@ void TabView::do_display(Rect frame) {
     }
 }
 
-vml::float2 TabView::calc_intrinsic_size(vml::float2) const {
+vml::float2 TabView::do_calc_intrinsic_size(vml::float2) const {
     return {0.0f, 0.0f};
 }
 
@@ -500,12 +500,12 @@ void ColumnView::do_display(Rect frame) {
     }
 }
 
-vml::float2 ColumnView::calc_intrinsic_size(vml::float2 max_size) const {
+vml::float2 ColumnView::do_calc_intrinsic_size(vml::float2 max_size) const {
     vml::float2 size = {0.0f, 0.0f};
     vml::float2 child_max_size = {-1.0f, max_size.y};
     for (auto& column : m_columns) {
         vml::float2 column_size =
-            column.content->intrinsic_size(child_max_size);
+            column.content->calc_intrinsic_size(child_max_size);
         size.x += std::max(column.min_width, column_size.x);
         size.y = std::max(size.y, column_size.y);
     }
@@ -533,10 +533,11 @@ template <typename Index> void SwitchView<Index>::do_display(Rect frame) {
 }
 
 template <typename Index>
-vml::float2 SwitchView<Index>::calc_intrinsic_size(vml::float2 max_size) const {
+vml::float2
+SwitchView<Index>::do_calc_intrinsic_size(vml::float2 max_size) const {
     vml::float2 size = {0.0f, 0.0f};
     for (auto& child : m_children)
-        size = vml::max(size, child.intrinsic_size(max_size));
+        size = vml::max(size, child.calc_intrinsic_size(max_size));
     return size;
 }
 
@@ -549,7 +550,7 @@ struct NullView : View {
     NullView()
         : View({SizeReq::fit(), SizeReq::fit()}) {}
     void do_display(Rect) override {}
-    vml::float2 calc_intrinsic_size(vml::float2) const override {
+    vml::float2 do_calc_intrinsic_size(vml::float2) const override {
         return {0.0f, 0.0f};
     }
 };

@@ -27,7 +27,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     TextOptions m_options;
     Property<std::string const> m_text;
@@ -46,7 +46,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     std::string m_label;
     std::function<void()> m_on_click;
@@ -64,7 +64,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Property<bool> m_state;
 };
@@ -103,7 +103,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Property<T> m_state;
     Property<ScalarType const> m_min;
@@ -131,7 +131,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Orientation m_orientation;
 };
@@ -150,7 +150,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 };
 
 Ref<SpacerView> spacer(float weight = 1.0f);

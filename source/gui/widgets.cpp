@@ -61,7 +61,7 @@ void TextView::do_display(Rect frame) {
     }
 }
 
-vml::float2 TextView::calc_intrinsic_size(vml::float2 max_size) const {
+vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
     auto text = m_text.get();
     auto const& text_ref = text.get();
     float wrap_width = !m_options.wrap     ? -1.0f
@@ -92,7 +92,7 @@ void ButtonView::do_display(Rect frame) {
         m_on_click();
 }
 
-vml::float2 ButtonView::calc_intrinsic_size(vml::float2) const {
+vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     vml::float2 text_size = ImGui::CalcTextSize(
         m_label.data(), m_label.data() + m_label.size(), true);
@@ -117,7 +117,7 @@ void CheckboxView::do_display(Rect frame) {
     if (active) m_state.set(current_value);
 }
 
-vml::float2 CheckboxView::calc_intrinsic_size(vml::float2) const {
+vml::float2 CheckboxView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     return vml::float2(ImGui::GetFontSize()) +
            2.0f * (vml::float2)style.FramePadding;
@@ -238,7 +238,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
 }
 
 template <typename T>
-vml::float2 SliderView<T>::calc_intrinsic_size(vml::float2) const {
+vml::float2 SliderView<T>::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
@@ -319,7 +319,7 @@ void SeparatorView::do_display(Rect frame) {
     }
 }
 
-vml::float2 SeparatorView::calc_intrinsic_size(vml::float2) const {
+vml::float2 SeparatorView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     switch (m_orientation) {
     case Orientation::horizontal:
@@ -342,7 +342,7 @@ SpacerView::SpacerView(float weight)
 
 void SpacerView::do_display(Rect) {}
 
-vml::float2 SpacerView::calc_intrinsic_size(vml::float2) const {
+vml::float2 SpacerView::do_calc_intrinsic_size(vml::float2) const {
     return {0.0f, 0.0f};
 }
 
