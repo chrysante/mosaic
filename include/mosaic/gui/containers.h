@@ -1,9 +1,7 @@
 #pragma once
 
 #include <cfloat>
-#include <iterator>
 #include <optional>
-#include <vector>
 
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
