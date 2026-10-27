@@ -1,5 +1,4 @@
 #include "application/debug_tools.h"
-#include "gui/command_palette.h"
 
 #ifndef NDEBUG
 
@@ -14,8 +13,10 @@
 #include "application/input_event.h"
 #include "application/window.h"
 #include "application/window_impl.h"
+#include "gui/command_palette.h"
 #include "gui/font.h"
 #include "gui/layout.h"
+#include "gui/view_debugger.h"
 #include "support/enum.h"
 
 using namespace mosaic;
@@ -82,6 +83,7 @@ void ApplicationDebugger::display_debuggers() {
             GET_APP_IMPL(app).panel_manager.draw_debugger();
         if (ImGui::CollapsingHeader("Frame Scheduler"))
             GET_APP_IMPL(app).frame_scheduler->draw_debugger();
+        if (ImGui::CollapsingHeader("View Debugger")) ui::draw_view_debugger();
         if (ImGui::CollapsingHeader("Properties Layout"))
             ui::draw_properties_debugger();
     }

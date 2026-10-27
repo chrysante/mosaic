@@ -98,8 +98,10 @@ ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
 void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
-    if (ImGui::ButtonEx(m_label.c_str(), frame.size) && m_on_click)
-        m_on_click();
+    ImGui::PushID(this);
+    bool clicked = ImGui::ButtonEx(m_label.c_str(), frame.size);
+    ImGui::PopID();
+    if (clicked && m_on_click) m_on_click();
 }
 
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {

@@ -69,6 +69,7 @@ public:
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+    bool do_is_leaf() const override { return false; }
 
     Orientation m_orientation;
     ViewContainer<> m_children;
@@ -112,6 +113,7 @@ public:
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+    bool do_is_leaf() const override { return false; }
 
     Array<Tab> m_tabs;
 };
@@ -150,6 +152,7 @@ public:
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+    bool do_is_leaf() const override { return false; }
 
     Array<Column> m_columns;
 };
@@ -177,6 +180,7 @@ public:
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+    bool do_is_leaf() const override { return false; }
 
     Property<Index> m_index;
     ViewContainer<> m_children;

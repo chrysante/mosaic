@@ -371,6 +371,74 @@ static Owner<View> make_wrapping_text_demo(TestState const& state) {
 }
 
 // =============================================================================
+// Stress Test
+// =============================================================================
+
+static Owner<View> make_layout_stress_tests() {
+    // Case 1: fixed-height children whose combined requested height
+    // exceeds the height available to the stack.
+    auto fixed_overflow = vstack({
+                              button("Fixed 120 px") | fixed_height(120.0f),
+                              button("Fixed 100 px") | fixed_height(100.0f),
+                              button("Fixed 80 px") | fixed_height(80.0f),
+                          }) |
+                          hfill | fixed_height(180.0f);
+
+    // Case 2: fixed, fit, and fill children competing for limited space.
+    auto mixed_overflow =
+        vstack({
+            button("Fixed 100 px") | fixed_height(100.0f),
+            button("Fit to content") | vfit,
+            button("Fill remaining space") | vfill,
+            button("Another fixed child") | fixed_height(100.0f),
+        }) |
+        hfill | fixed_height(180.0f);
+
+    // Case 3: overflow in an inner stack, itself constrained by
+    // a parent stack.
+    auto nested_overflow =
+        vstack({
+            vstack({
+                button("Inner fixed 100 px") | fixed_height(100.0f),
+                button("Inner fixed 100 px") | fixed_height(100.0f),
+                button("Inner fixed 100 px") | fixed_height(100.0f),
+            }) | hfill |
+                fixed_height(140.0f),
+            button("Following sibling"),
+        }) |
+        hfill | fixed_height(200.0f);
+
+#if 0
+    // Case 4: spacing alone consumes more than the available height.
+    auto spacing_overflow = vstack({
+        button("First"),
+        button("Second"),
+        button("Third"),
+        button("Fourth"),
+    }) | hfill | fixed_height(50.0f);
+#endif
+
+    return vscroll({
+        text("Layout stress tests"),
+        text("Inspect the child frames while these stacks are constrained."),
+        hseparator(),
+        text("Fixed children: overflow"),
+        std::move(fixed_overflow),
+        hseparator(),
+        text("Mixed sizing: fixed / fit / fill"),
+        std::move(mixed_overflow),
+        hseparator(),
+        text("Nested overflow"),
+        std::move(nested_overflow),
+#if 0
+        hseparator(),
+        text("Spacing overflow"),
+        std::move(spacing_overflow),
+#endif
+    });
+}
+
+// =============================================================================
 // Root
 // =============================================================================
 
@@ -396,7 +464,8 @@ Owner<View> make_demo_content(TestState& state) {
                               make_image_example()});
     auto wrapping_text = make_wrapping_text_demo(state);
     return tab_view({tab("Main", std::move(main_page)),
-                     tab("Wrapping Text", std::move(wrapping_text))});
+                     tab("Wrapping Text", std::move(wrapping_text)),
+                     tab("Layout stress tests", make_layout_stress_tests())});
 }
 
 } // namespace

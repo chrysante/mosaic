@@ -1,6 +1,7 @@
 #include "gui/containers.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <mach/memory_object_types.h>
 #include <span>
 
@@ -9,6 +10,8 @@
 #include <utl/common.hpp>
 #include <utl/scope_guard.hpp>
 
+#include "application/debug_settings.h"
+#include "gui/view_debugger.h"
 #include "gui/view_support.h"
 #include "support/logger.h"
 
@@ -38,32 +41,97 @@ StackView::StackView(Orientation orientation, ViewContainer<>&& children,
     , m_align_override(align_override)
     , m_children(std::move(children)) {}
 
-void handle_overflow(std::span<vml::float2> intrinsic_sizes,
-                     std::size_t main_axis, float overflow) {
-    utl::small_vector<unsigned, 32> indices(intrinsic_sizes.size(),
-                                            utl::no_init);
-    for (unsigned i = 0; i < intrinsic_sizes.size(); ++i)
+using OverflowStrategy = void (*)(std::span<vml::float2> sizes,
+                                  std::size_t main_axis, float overflow);
+
+[[maybe_unused]]
+static void shrink_to_fit_equally(std::span<vml::float2> sizes,
+                                  std::size_t main_axis, float overflow) {
+    if (sizes.empty() || overflow <= 0.0f) return;
+    utl::small_vector<unsigned, 32> indices(sizes.size(), utl::no_init);
+    for (unsigned i = 0; i < sizes.size(); ++i) {
+        assert(sizes[i][main_axis] >= 0.0f);
         indices[i] = i;
-    std::sort(indices.begin(), indices.end(),
-              [intrinsic_sizes, main_axis](unsigned i, unsigned j) {
-                  return intrinsic_sizes[i][main_axis] <
-                         intrinsic_sizes[j][main_axis];
-              });
-    std::size_t num_remaining = intrinsic_sizes.size();
+    }
+    auto main_axis_less = [sizes, main_axis](unsigned i, unsigned j) {
+        return sizes[i][main_axis] < sizes[j][main_axis];
+    };
+    std::sort(indices.begin(), indices.end(), main_axis_less);
+    std::size_t num_remaining = sizes.size();
     for (unsigned i : indices) {
-        float share = overflow / (float)num_remaining;
+        if (overflow <= 0.0f) break;
+        float share = overflow / static_cast<float>(num_remaining);
         --num_remaining;
-        float& value = intrinsic_sizes[i][main_axis];
-        assert(value >= 0);
-        if (value >= share) {
-            value -= share;
-            overflow -= share;
-            continue;
-        }
-        overflow -= value;
-        value = 0.0f;
+        float& size = sizes[i][main_axis];
+        float reduction = std::min(size, share);
+        size -= reduction;
+        overflow -= reduction;
     }
 }
+
+static void shrink_to_fit_proportionally(std::span<vml::float2> sizes,
+                                         std::size_t main_axis,
+                                         float overflow) {
+    if (sizes.empty() || overflow <= 0.0f) return;
+    float total_size = 0.0f;
+    for (auto const& size : sizes) {
+        assert(size[main_axis] >= 0.0f);
+        total_size += size[main_axis];
+    }
+    if (total_size <= 0.0f) return;
+    float const remaining_size = std::max(0.0f, total_size - overflow);
+    float const scale = remaining_size / total_size;
+    for (auto& size : sizes)
+        size[main_axis] *= scale;
+}
+
+#ifndef NDEBUG
+ImU32 const color_warning = IM_COL32(255, 128, 0, 255);
+ImU32 const color_error = IM_COL32(255, 0, 0, 255);
+
+static void draw_overflow_debug_overlay(Rect child_frame, unsigned main_axis) {
+    auto* DL = ImGui::GetWindowDrawList();
+    DL->AddRectFilled(child_frame.min(), child_frame.max(),
+                      IM_COL32(0, 0, 0, 255));
+    ImGui::PushClipRect(child_frame.min(), child_frame.max(), true);
+    char buf[256];
+    std::snprintf(buf, sizeof buf, "OVERFLOW:\nResolved Size:\n(%.0f, %.0f)",
+                  child_frame.size.x, child_frame.size.y);
+    DL->AddText(child_frame.min(), color_warning, buf);
+    ImGui::PopClipRect();
+    if (child_frame.size[main_axis] > 1.0f)
+        DL->AddRect(child_frame.min(), child_frame.max(), color_warning);
+    else
+        DL->AddRect(child_frame.min(), child_frame.max(), color_error, 0.0f,
+                    4.0f);
+}
+
+static void overflow_debug_info() {
+    debug_node_info([] {
+        ImGui::PushStyleColor(ImGuiCol_Text, color_warning);
+        ImGui::Text("Have overflow.");
+        ImGui::Text("Strategy: shrink_to_fit_proportionally");
+        ImGui::PopStyleColor();
+    });
+}
+
+static void overflow_debug_info_child(View const* child, Rect child_frame,
+                                      unsigned main_axis) {
+    (void)child;
+    bool const hovered = ImGui::IsItemHovered();
+    if (want_debug_overlays())
+        draw_overflow_debug_overlay(child_frame, main_axis);
+    debug_node_info([=] {
+        ImGui::Indent();
+        ImU32 const col = hovered ? IM_COL32(31, 128, 200, 255) : color_warning;
+        ImGui::PushStyleColor(ImGuiCol_Text, col);
+        ImGui::Text("Resolved Size: (%.0f, %.0f)", child_frame.size.x,
+                    child_frame.size.y);
+        ImGui::PopStyleColor();
+        ImGui::Unindent();
+    });
+}
+#endif
 
 static float size_one_less(std::size_t size) {
     return size == 0 ? 0.0f : (float)(size - 1);
@@ -71,64 +139,106 @@ static float size_one_less(std::size_t size) {
 
 void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
-    unsigned main_axis = (unsigned)m_orientation;
-    unsigned cross_axis = 1 - main_axis;
+
+    const unsigned main_axis = static_cast<unsigned>(m_orientation);
+    const unsigned cross_axis = 1 - main_axis;
+    const vml::float2 size_avail = frame.size;
+
+    // Spacing must not consume more space than the entire main-axis frame.
+    // Normally this leaves ImGui's spacing unchanged.
     float spacing = ImGui::GetStyle().ItemSpacing[main_axis];
-    vml::float2 size_avail = frame.size;
-    // Measure children and account for spacing.
-    utl::small_vector<vml::float2, 32> intrinsic_sizes(m_children.size(),
-                                                       utl::no_init);
-    float fixed_main = 0.0f;
-    float fill_weight_sum = 0;
-    for (size_t i = 0, end = m_children.size(); i < end; ++i) {
-        auto& child = m_children[i];
+    const float available_main = std::max(0.0f, size_avail[main_axis]);
+    const float num_gaps = size_one_less(m_children.size());
+
+    if (num_gaps > 0.0f) spacing = std::min(spacing, available_main / num_gaps);
+
+    const float total_spacing = spacing * num_gaps;
+
+    // Measure intrinsic sizes and calculate each child's initial allocation.
+    utl::small_vector<vml::float2, 32> child_sizes(m_children.size(),
+                                                   utl::no_init);
+    float desired_main_sum = 0.0f;
+    float fill_weight_sum = 0.0f;
+    for (std::size_t i = 0; i < m_children.size(); ++i) {
+        View& child = m_children[i];
         vml::float2 child_max_size = frame.size;
         child_max_size[main_axis] = -1.0f;
-        auto intrinsic_size = intrinsic_sizes[i] =
+        vml::float2 const intrinsic_size = child_sizes[i] =
             child.calc_intrinsic_size(child_max_size);
-        auto requirement = child.size_requirement();
-        if (requirement[main_axis].is_fill())
-            fill_weight_sum += requirement[main_axis].fill_weight();
-        fixed_main += resolve_child_size(requirement[main_axis],
-                                         intrinsic_size[main_axis], -1.0f);
+        SizeReq2 const requirement = child.size_requirement();
+        SizeReq const main_requirement = requirement[main_axis];
+
+        // Resolve the desired size without allocating any extra fill space.
+        // For fill requirements this gives the child's intrinsic base size.
+        float const desired_main = resolve_child_size(
+            main_requirement, intrinsic_size[main_axis], -1.0f);
+        assert(desired_main >= 0.0f);
+        child_sizes[i][main_axis] = desired_main;
+        desired_main_sum += desired_main;
+        if (main_requirement.is_fill())
+            fill_weight_sum += main_requirement.fill_weight();
     }
-    float total_spacing = spacing * size_one_less(m_children.size());
-    float remaining = size_avail[main_axis] - fixed_main - total_spacing;
-    bool have_overflow = remaining < 0;
-    if (have_overflow) handle_overflow(intrinsic_sizes, main_axis, -remaining);
-    vml::float2 cursor = frame.origin;
-    for (size_t i = 0, end = m_children.size(); i < end; ++i) {
-        auto& child = m_children[i];
-        auto intrinsic = intrinsic_sizes[i];
-        auto size_req = child.size_requirement();
-        // FIXME: Fixed-size children don't get capped on overflow
-        vml::float2 child_size =
-            vml::map(size_req, intrinsic, size_avail, resolve_child_size);
-        // Filling children share the remaining main-axis space.
-        if (size_req[main_axis].is_fill()) {
-            child_size[main_axis] = intrinsic[main_axis];
-            if (!have_overflow) {
-                float fill_share =
-                    size_req[main_axis].fill_weight() / fill_weight_sum;
-                child_size[main_axis] += std::max(0.0f, remaining * fill_share);
-            }
+
+    // Determine whether the initial allocations fit.
+    float const remaining = available_main - desired_main_sum - total_spacing;
+    bool const have_overflow = remaining < 0.0f;
+
+    if (have_overflow) {
+        // Keep the strategy swappable: a future stack option can select
+        // another strategy here, e.g. priority-based child eviction.
+        constexpr OverflowStrategy overflow_strategy =
+            shrink_to_fit_proportionally;
+        overflow_strategy(child_sizes, main_axis, -remaining);
+#ifndef NDEBUG
+        overflow_debug_info();
+#endif
+    } else if (remaining > 0.0f && fill_weight_sum > 0.0f) {
+        // Only distribute surplus space when the initial allocations fit.
+        for (std::size_t i = 0; i < m_children.size(); ++i) {
+            SizeReq2 const requirement = m_children[i].size_requirement();
+            SizeReq const main_requirement = requirement[main_axis];
+            if (!main_requirement.is_fill()) continue;
+            float const fill_share =
+                main_requirement.fill_weight() / fill_weight_sum;
+            child_sizes[i][main_axis] += remaining * fill_share;
         }
-        float offset = [&] {
-            auto alignment = m_align_override.value_or(
-                child.alignment_requirement()[cross_axis]);
-            switch (alignment) {
-            case Alignment::low:
-                return 0.0f;
-            case Alignment::mid:
-                return 0.5f * (frame.size[cross_axis] - child_size[cross_axis]);
-            case Alignment::high:
-                return frame.size[cross_axis] - child_size[cross_axis];
-            }
-        }();
+    }
+
+    // Place children using their final main-axis allocations. Cross-axis sizing
+    // and alignment continue to follow the existing size requirements.
+    vml::float2 cursor = frame.origin;
+
+    for (std::size_t i = 0; i < m_children.size(); ++i) {
+        auto& child = m_children[i];
+        vml::float2 child_size = child_sizes[i];
+        SizeReq2 const size_req = child.size_requirement();
+        child_size[cross_axis] =
+            resolve_child_size(size_req[cross_axis], child_size[cross_axis],
+                               size_avail[cross_axis]);
+        Alignment const alignment = m_align_override.value_or(
+            child.alignment_requirement()[cross_axis]);
+        float cross_offset = 0.0f;
+        switch (alignment) {
+        case Alignment::low:
+            cross_offset = 0.0f;
+            break;
+        case Alignment::mid:
+            cross_offset =
+                0.5f * (frame.size[cross_axis] - child_size[cross_axis]);
+            break;
+        case Alignment::high:
+            cross_offset = frame.size[cross_axis] - child_size[cross_axis];
+            break;
+        }
         vml::float2 pos = cursor;
-        pos[cross_axis] += offset;
-        child.display({pos, child_size});
+        pos[cross_axis] += cross_offset;
         cursor[main_axis] += child_size[main_axis] + spacing;
+        Rect child_frame = {pos, child_size};
+        child.display(child_frame);
+#ifndef NDEBUG
+        if (have_overflow)
+            overflow_debug_info_child(&child, child_frame, main_axis);
+#endif
     }
 }
 

@@ -229,6 +229,7 @@ target_sources(mosaic PRIVATE
     source/gui/toolbar.cpp
     source/gui/toolbar_renderer.cpp
     source/gui/view.cpp
+    source/gui/view_debugger.cpp
     source/gui/widgets.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
