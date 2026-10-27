@@ -30,9 +30,11 @@ void TextView::do_display(Rect frame) {
     wrap_width = std::min(wrap_width, m_options.max_wrap_width);
     auto const& text_ref = text.get();
 
-    vml::float2 pos = frame.origin;
+    bool const use_child_window =
+        m_options.wrap && m_options.scrollable_on_clip;
 
-    if (m_options.wrap) {
+    vml::float2 pos = frame.origin;
+    if (use_child_window) {
         ImGui::PushID(this);
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::BeginChild("##wrapping-text-view", frame.size, 0,
@@ -53,7 +55,7 @@ void TextView::do_display(Rect frame) {
     auto* DL = ImGui::GetWindowDrawList();
     DL->AddText(nullptr, 0.0f, pos, ImGui::GetColorU32(ImGuiCol_Text),
                 text_ref.data(), text_ref.data() + text_ref.size(), wrap_width);
-    if (m_options.wrap) {
+    if (use_child_window) {
         ImGui::EndChild();
         ImGui::PopID();
     } else {
