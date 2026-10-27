@@ -37,15 +37,17 @@ void TextView::do_display(Rect frame) {
     if (use_child_window) {
         ImGui::PushID(this);
         ImGui::SetCursorScreenPos(frame.origin);
-        ImGui::BeginChild("##wrapping-text-view", frame.size, 0,
-                          ImGuiWindowFlags_NoScrollbar);
-        wrap_width = std::min(wrap_width, ImGui::GetContentRegionAvail().x);
+        ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 2.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarPadding, 0.0f);
+        ImGui::BeginChild("##wrapping-text-view", frame.size);
+        ImGui::PopStyleVar(2);
         vml::float2 text_size = ImGui::CalcTextSize(
             text_ref.data(), text_ref.data() + text_ref.size(), false,
             wrap_width);
         ImGui::ItemSize(text_size);
         ImGui::ItemAdd({frame.origin, frame.origin + text_size}, 0);
         pos.y -= ImGui::GetScrollY();
+        ImGui::PushClipRect(frame.min(), frame.max(), true);
     } else {
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::ItemSize(frame.size);
