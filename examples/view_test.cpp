@@ -51,13 +51,13 @@ Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis
 // =============================================================================
 
 Ref<View> make_counter_text(TestState& state) {
-    return text(computed([state] {
+    return text(computed([&state] {
         return std::string("Counter: ") + std::to_string(state.counter);
     }));
 }
 
 Ref<View> make_message_text(TestState const& state) {
-    return text(computed([state] { return state.message; }));
+    return text(computed([&state] { return state.message; }));
 }
 
 Ref<View> make_float_slider(TestState& state) {
