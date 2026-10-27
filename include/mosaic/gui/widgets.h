@@ -47,17 +47,19 @@ Owner<TextView> text(Property<std::string const> text_arg,
 
 class ButtonView : public View {
 public:
-    explicit ButtonView(std::string&& label, std::function<void()>&& on_click);
+    explicit ButtonView(Property<std::string const>&& label,
+                        std::function<void()>&& on_click);
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    std::string m_label;
+    Property<std::string const> m_label;
     std::function<void()> m_on_click;
 };
 
-Owner<ButtonView> button(std::string label, std::function<void()> action = {});
+Owner<ButtonView> button(Property<std::string const> label,
+                         std::function<void()> action = {});
 
 // =============================================================================
 // Checkbox

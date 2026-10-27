@@ -90,7 +90,8 @@ Owner<TextView> ui::text(Property<std::string const> text_arg,
     return allocate<TextView>(std::move(text_arg), std::move(options));
 }
 
-ButtonView::ButtonView(std::string&& label, std::function<void()>&& on_click)
+ButtonView::ButtonView(Property<std::string const>&& label,
+                       std::function<void()>&& on_click)
     : View({SizeReq::fit(), SizeReq::fit()})
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
@@ -99,19 +100,22 @@ void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
-    bool clicked = ImGui::ButtonEx(m_label.c_str(), frame.size);
+    auto label = m_label.get();
+    bool clicked = ImGui::ButtonEx(label.get().c_str(), frame.size);
     ImGui::PopID();
     if (clicked && m_on_click) m_on_click();
 }
 
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
+    auto label = m_label.get();
+    auto& label_ref = label.get();
     vml::float2 text_size = ImGui::CalcTextSize(
-        m_label.data(), m_label.data() + m_label.size(), true);
+        label_ref.data(), label_ref.data() + label_ref.size(), true);
     return text_size + 2.0f * (vml::float2)style.FramePadding;
 }
 
-Owner<ButtonView> ui::button(std::string label,
+Owner<ButtonView> ui::button(Property<std::string const> label,
                              std::function<void()> on_click) {
     return allocate<ButtonView>(std::move(label), std::move(on_click));
 }
