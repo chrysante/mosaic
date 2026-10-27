@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "gui/view_support.h"
+#include "utl/scope_guard.hpp"
 #include "vml/common.hpp"
 
 using namespace mosaic;
@@ -15,6 +16,10 @@ using namespace ui;
 
 static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
+}
+
+static bool non_negative(vml::float2 size) {
+    return size.map([](auto v) { return v >= 0.0f; }).all();
 }
 
 TextView::TextView(Property<std::string const>&& text, TextOptions options)
@@ -189,22 +194,14 @@ static int translate_slider_flags(SliderOptions const& options) {
     return result;
 }
 
-template <typename T> void SliderView<T>::do_display(Rect frame) {
-    if (!positive(frame.size)) return;
-
-    static constexpr unsigned num_components = get_data_dimension<T>();
-    static_assert(num_components >= 1);
-    static_assert(num_components <= 4);
-
-    T value = m_state.materialize();
-    ScalarType const min = m_min.materialize();
-    ScalarType const max = m_max.materialize();
-
+template <typename Callback>
+static decltype(auto) with_widget_size(vml::float2 size, Callback&& callback) {
+    auto& g = *GImGui;
     // Hacky way to adjust the height of the widget
     ImGuiStyle const& style = ImGui::GetStyle();
     float const font_size = ImGui::GetFontSize();
     float const original_padding_y = style.FramePadding.y;
-    float const target_height = frame.size.y;
+    float const target_height = size.y;
     float adjusted_font_size = font_size;
     float adjusted_padding_y = original_padding_y;
     if (target_height >= font_size + 2.0f * original_padding_y) {
@@ -220,12 +217,28 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     }
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
                         ImVec2(style.FramePadding.x, adjusted_padding_y));
-    GImGui->FontSize = adjusted_font_size;
-    ImGui::SetNextItemWidth(frame.size.x);
-    ImGui::SetCursorScreenPos(frame.origin);
-    ImGui::PushID(this);
-    int flags = translate_slider_flags(m_options);
-    bool changed = [&] {
+    g.FontSize = adjusted_font_size;
+    ImGui::SetNextItemWidth(size.x);
+    utl::scope_guard end = [&] {
+        ImGui::PopStyleVar();
+        g.FontSize = font_size;
+    };
+    return std::invoke(std::forward<Callback>(callback));
+}
+
+template <typename T> void SliderView<T>::do_display(Rect frame) {
+    if (!non_negative(frame.size)) return;
+    static constexpr unsigned num_components = get_data_dimension<T>();
+    static_assert(num_components >= 1);
+    static_assert(num_components <= 4);
+    T value = m_state.materialize();
+    ScalarType const min = m_min.materialize();
+    ScalarType const max = m_max.materialize();
+    bool changed = with_widget_size(frame.size, [&] {
+        ImGui::SetCursorScreenPos(frame.origin);
+        ImGui::PushID(this);
+        int flags = translate_slider_flags(m_options);
+        utl::scope_guard end = [&] { ImGui::PopID(); };
         if constexpr (num_components == 1)
             return ImGui::SliderScalar("##slider", get_data_type<T>(), &value,
                                        &min, &max, m_options.format.c_str(),
@@ -234,11 +247,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
             return ImGui::SliderScalarN("##slider", get_data_type<T>(),
                                         value.data(), num_components, &min,
                                         &max, m_options.format.c_str(), flags);
-    }();
-    ImGui::PopID();
-    ImGui::PopStyleVar();
-    GImGui->FontSize = font_size;
-
+    });
     if (changed) m_state.set(value);
 }
 
@@ -291,6 +300,59 @@ template class ui::SliderView<vml::vector<std::uint32_t, 4>>;
 template class ui::SliderView<vml::vector<std::uint64_t, 4>>;
 template class ui::SliderView<vml::vector<float, 4>>;
 template class ui::SliderView<vml::vector<double, 4>>;
+
+template <std::size_t N>
+ColorEditView<N>::ColorEditView(Property<ColorType>&& state,
+                                ColorEditOptions options)
+    : View({SizeReq::fill(), SizeReq::fit()})
+    , m_state(std::move(state))
+    , m_options(std::move(options)) {}
+
+static int translate_color_edit_flags(ColorEditOptions const& options) {
+    int flags = 0;
+    if (!options.alpha) flags |= ImGuiColorEditFlags_NoAlpha;
+    if (!options.picker) flags |= ImGuiColorEditFlags_NoPicker;
+    if (!options.options) flags |= ImGuiColorEditFlags_NoOptions;
+    if (!options.small_preview) flags |= ImGuiColorEditFlags_NoSmallPreview;
+    if (!options.inputs) flags |= ImGuiColorEditFlags_NoInputs;
+    if (!options.tooltip) flags |= ImGuiColorEditFlags_NoTooltip;
+    if (!options.enable_drag_drop) flags |= ImGuiColorEditFlags_NoDragDrop;
+    return flags;
+}
+
+template <std::size_t N> void ColorEditView<N>::do_display(Rect frame) {
+    if (!non_negative(frame.size)) return;
+    ColorType value = m_state.materialize();
+    bool changed = with_widget_size(frame.size, [&] {
+        ImGui::SetCursorScreenPos(frame.origin);
+        ImGui::PushID(this);
+        int flags = translate_color_edit_flags(m_options);
+        utl::scope_guard end = [&] { ImGui::PopID(); };
+        if constexpr (N == 3)
+            return ImGui::ColorEdit3("##color-edit", value.data(), flags);
+        else return ImGui::ColorEdit4("##color-edit", value.data(), flags);
+    });
+    if (changed) m_state.set(value);
+}
+
+template <std::size_t N>
+vml::float2 ColorEditView<N>::do_calc_intrinsic_size(vml::float2) const {
+    auto& style = ImGui::GetStyle();
+    return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
+}
+
+template class ui::ColorEditView<3>;
+template class ui::ColorEditView<4>;
+
+Ref<ColorEditView<3>> ui::color_edit(Property<vml::float3> state,
+                                     ColorEditOptions options) {
+    return create<ColorEditView<3>>(std::move(state), std::move(options));
+}
+
+Ref<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
+                                     ColorEditOptions options) {
+    return create<ColorEditView<4>>(std::move(state), std::move(options));
+}
 
 static SizeReq2 separator_size_req(Orientation orientation) {
     switch (orientation) {

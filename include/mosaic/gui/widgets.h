@@ -127,6 +127,45 @@ slider(Property<T> state,
 }
 
 // =============================================================================
+// ColorEdit
+// =============================================================================
+
+struct ColorEditOptions {
+    bool alpha = true;
+    bool picker = true;
+    bool options = true;
+    bool small_preview = true;
+    bool inputs = true;
+    bool tooltip = true;
+    bool enable_drag_drop = true;
+};
+
+template <std::size_t NumComponents> class ColorEditView : public View {
+public:
+    using ColorType = vml::vector<float, NumComponents>;
+
+    explicit ColorEditView(Property<ColorType>&& state,
+                           ColorEditOptions options = {});
+
+    Property<ColorType> const& get_state() const { return m_state; }
+
+    void set_state(Property<ColorType> state) { m_state = std::move(state); }
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Property<ColorType> m_state;
+    ColorEditOptions m_options;
+};
+
+Ref<ColorEditView<3>> color_edit(Property<vml::float3> state,
+                                 ColorEditOptions options = {});
+
+Ref<ColorEditView<4>> color_edit(Property<vml::float4> state,
+                                 ColorEditOptions options = {});
+
+// =============================================================================
 // Separator
 // =============================================================================
 

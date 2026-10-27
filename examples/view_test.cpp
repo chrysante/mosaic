@@ -29,6 +29,10 @@ struct TestState {
     vml::float3 float3_value = {0.2f, 0.5f, 0.8f};
     vml::float4 float4_value = {0.1f, 0.3f, 0.6f, 1.0f};
 
+    // Color
+    vml::float3 color3 = {0.5f, 1.0f, 0.0f};
+    vml::float4 color4 = {0.5f, 0.0f, 1.0f, 0.5f};
+
     // Conditional views
     bool one_arm_visible = false;
     bool two_arm_visible = false;
@@ -115,6 +119,15 @@ Ref<View> make_slider_examples(TestState& state) {
                make_float2_slider(state),
                make_float3_slider(state),
                make_float4_slider(state),
+           }) |
+           hfill;
+}
+
+Ref<View> make_color_examples(TestState& state) {
+    return vstack({
+               text("Color editor"),
+               color_edit(bind(&state.color3)),
+               color_edit(bind(&state.color4)),
            }) |
            hfill;
 }
@@ -208,7 +221,6 @@ Ref<View> make_weighted_columns() {
 }
 
 Ref<View> make_scroll_examples() {
-
     ViewContainer<> horizontal_items;
     for (int i = 0; i < 20; ++i)
         horizontal_items.push_back(button("Item " + std::to_string(i)) | vfill);
@@ -370,6 +382,8 @@ Ref<View> make_demo_content(TestState& state) {
                               make_alignment_examples(), hseparator(),
 
                               make_slider_examples(state), hseparator(),
+
+                              make_color_examples(state), hseparator(),
 
                               make_weighted_columns(), hseparator(),
 
