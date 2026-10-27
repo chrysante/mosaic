@@ -24,25 +24,55 @@ TextView::TextView(Property<std::string const>&& text, TextOptions options)
 void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
+
     auto text = m_text.get();
-    ImGui::PushClipRect(frame.min(), frame.max(), true);
-    ImGui::SetCursorScreenPos(frame.origin);
-    ImGui::ItemSize(frame.size);
-    ImGui::ItemAdd({frame.min(), frame.max()}, 0);
     float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
-    auto* DL = ImGui::GetWindowDrawList();
+    wrap_width = std::min(wrap_width, m_options.max_wrap_width);
     auto const& text_ref = text.get();
-    DL->AddText(nullptr, 0.0f, frame.origin, ImGui::GetColorU32(ImGuiCol_Text),
+
+    vml::float2 pos = frame.origin;
+
+    if (m_options.wrap) {
+        ImGui::PushID(this);
+        ImGui::SetCursorScreenPos(frame.origin);
+        ImGui::BeginChild("##wrapping-text-view", frame.size, 0,
+                          ImGuiWindowFlags_NoScrollbar);
+        wrap_width = std::min(wrap_width, ImGui::GetContentRegionAvail().x);
+        vml::float2 text_size = ImGui::CalcTextSize(
+            text_ref.data(), text_ref.data() + text_ref.size(), false,
+            wrap_width);
+        ImGui::ItemSize(text_size);
+        ImGui::ItemAdd({frame.origin, frame.origin + text_size}, 0);
+        pos.y -= ImGui::GetScrollY();
+    } else {
+        ImGui::SetCursorScreenPos(frame.origin);
+        ImGui::ItemSize(frame.size);
+        ImGui::ItemAdd({frame.min(), frame.max()}, 0);
+        ImGui::PushClipRect(frame.min(), frame.max(), true);
+    }
+    auto* DL = ImGui::GetWindowDrawList();
+    DL->AddText(nullptr, 0.0f, pos, ImGui::GetColorU32(ImGuiCol_Text),
                 text_ref.data(), text_ref.data() + text_ref.size(), wrap_width);
-    ImGui::PopClipRect();
+    if (m_options.wrap) {
+        ImGui::EndChild();
+        ImGui::PopID();
+    } else {
+        ImGui::PopClipRect();
+    }
 }
 
-vml::float2 TextView::calc_intrinsic_size() const {
-    if (m_options.wrap) return {0.0f, ImGui::GetFontSize()};
+vml::float2 TextView::calc_intrinsic_size(vml::float2 max_size) const {
     auto text = m_text.get();
     auto const& text_ref = text.get();
-    return ImGui::CalcTextSize(text_ref.data(),
-                               text_ref.data() + text_ref.size(), false);
+    float wrap_width = !m_options.wrap     ? -1.0f
+                       : max_size.x < 0.0f ? m_options.default_wrap_width
+                                           : max_size.x;
+    wrap_width = std::min(wrap_width, m_options.max_wrap_width);
+    SizeReq width_req = size_requirement().x;
+    if (width_req.is_fixed())
+        wrap_width = std::min(wrap_width, width_req.fixed_size());
+    return ImGui::CalcTextSize(
+        text_ref.data(), text_ref.data() + text_ref.size(), false, wrap_width);
 }
 
 Ref<TextView> ui::text(Property<std::string const> text_arg,
@@ -62,7 +92,7 @@ void ButtonView::do_display(Rect frame) {
         m_on_click();
 }
 
-vml::float2 ButtonView::calc_intrinsic_size() const {
+vml::float2 ButtonView::calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     vml::float2 text_size = ImGui::CalcTextSize(
         m_label.data(), m_label.data() + m_label.size(), true);
@@ -87,7 +117,7 @@ void CheckboxView::do_display(Rect frame) {
     if (active) m_state.set(current_value);
 }
 
-vml::float2 CheckboxView::calc_intrinsic_size() const {
+vml::float2 CheckboxView::calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     return vml::float2(ImGui::GetFontSize()) +
            2.0f * (vml::float2)style.FramePadding;
@@ -207,7 +237,8 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     if (changed) m_state.set(value);
 }
 
-template <typename T> vml::float2 SliderView<T>::calc_intrinsic_size() const {
+template <typename T>
+vml::float2 SliderView<T>::calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
@@ -288,7 +319,7 @@ void SeparatorView::do_display(Rect frame) {
     }
 }
 
-vml::float2 SeparatorView::calc_intrinsic_size() const {
+vml::float2 SeparatorView::calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     switch (m_orientation) {
     case Orientation::horizontal:
@@ -311,6 +342,8 @@ SpacerView::SpacerView(float weight)
 
 void SpacerView::do_display(Rect) {}
 
-vml::float2 SpacerView::calc_intrinsic_size() const { return {0.0f, 0.0f}; }
+vml::float2 SpacerView::calc_intrinsic_size(vml::float2) const {
+    return {0.0f, 0.0f};
+}
 
 Ref<SpacerView> ui::spacer(float weight) { return create<SpacerView>(weight); }

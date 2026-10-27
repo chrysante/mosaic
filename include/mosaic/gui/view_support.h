@@ -178,7 +178,7 @@ std::unique_ptr<PropertyInterface<T>> make_value_property(U&& value) {
 
         void set(T&& new_value) override { value = std::move(new_value); }
 
-        std::unique_ptr<PropertyInterface<T>> clone() {
+        std::unique_ptr<PropertyInterface<T>> clone() override {
             return std::make_unique<ValueProperty>(value);
         }
 
@@ -261,18 +261,19 @@ template <typename T> Property<T> own(T value) {
 }
 
 template <typename T> Property<T> bind(T* pointer) {
-    struct BindingProperty final : internal::PropertyInterface<T> {
+    using U = std::remove_cv_t<T>;
+    struct BindingProperty final : internal::PropertyInterface<U> {
         explicit BindingProperty(T* ptr)
             : ptr(ptr) {}
 
-        ValueOrRef<T> get() const override { return std::ref(*ptr); }
+        ValueOrRef<U> get() const override { return std::ref(*ptr); }
 
-        void set(T&& new_value) override {
+        void set(U&& new_value) override {
             if constexpr (!std::is_const_v<T>) *ptr = std::move(new_value);
             else assert(false);
         }
 
-        std::unique_ptr<internal::PropertyInterface<T>> clone() override {
+        std::unique_ptr<internal::PropertyInterface<U>> clone() override {
             return std::make_unique<BindingProperty>(ptr);
         }
 

@@ -1,4 +1,5 @@
 #include "view_test.h"
+#include "mosaic/gui/view.h"
 #include "mosaic/gui/view_support.h"
 
 #include <imgui.h>
@@ -32,6 +33,13 @@ struct TestState {
     bool one_arm_visible = false;
     bool two_arm_visible = false;
     int switch_index = 0;
+
+    std::string long_text =
+        R"(Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur neque leo, ultricies in quam vel, bibendum tristique nisi. Pellentesque viverra ullamcorper dui sit amet lobortis. Nulla quis arcu lacus. Duis placerat id felis eu gravida. In et elit egestas, efficitur elit ac, dictum enim. Quisque hendrerit ac dui eu ullamcorper. Ut velit lectus, vulputate sit amet vestibulum quis, scelerisque at nisi. Integer vitae mi sapien. Duis tincidunt, purus vitae fringilla consectetur, lorem ligula mattis augue, vel accumsan tortor eros ut eros. Integer libero erat, bibendum ut efficitur quis, scelerisque vitae odio. Mauris tristique lacus a maximus congue. Integer posuere, urna efficitur tempus facilisis, elit ligula aliquet nulla, ut ornare lorem turpis at ante.
+In congue felis in nisl mattis ornare. Suspendisse convallis sem quis sem consectetur elementum. Morbi lacinia ligula lectus, eget pulvinar odio maximus eu. Interdum et malesuada fames ac ante ipsum primis in faucibus. Fusce auctor velit ex, in volutpat nulla mattis et. Donec cursus nibh eu magna euismod accumsan. Nam sem nunc, posuere nec lacus nec, egestas gravida dui.
+Aliquam scelerisque lacus ac nisl volutpat semper. Sed a nibh ac lorem placerat porta eu in tellus. Pellentesque aliquet diam at libero sodales, at bibendum leo tincidunt. Donec eu lobortis erat. Morbi facilisis orci erat, ultricies pharetra lorem consectetur eget. Phasellus tincidunt egestas condimentum. Mauris vel ligula eu odio mattis bibendum. Aenean tincidunt sem massa, a tincidunt magna mattis vitae. Phasellus sapien leo, gravida eu placerat pretium, volutpat vel tortor. Curabitur metus libero, ornare ac sagittis sed, imperdiet id justo. Duis et mattis orci. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
+Duis mauris mi, dignissim in tincidunt vitae, egestas eget lorem. Praesent congue erat vel nulla dapibus fringilla. Cras vitae lobortis sem. Aenean semper nec nunc id ornare. Phasellus a sapien vitae justo egestas scelerisque eu non purus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam hendrerit ultrices diam vel volutpat. Maecenas sit amet lacinia dui.
+Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis, scelerisque in nisi non, porta sodales odio. Nunc scelerisque laoreet eros ac rutrum. Donec interdum, elit eget fermentum sollicitudin, purus eros mollis neque, a pellentesque turpis massa non odio. Nullam varius dui tortor, eget varius augue malesuada vitae. Phasellus rutrum ligula purus, eu sodales augue molestie faucibus. Morbi mattis, ipsum vitae ultricies blandit, leo urna ultrices nibh, id sagittis felis orci ac velit. Vivamus mattis consequat nisl nec laoreet. Suspendisse a mollis dui. Fusce vitae sollicitudin odio, sed aliquam quam. Ut suscipit enim et mauris hendrerit, id lobortis nulla consequat. Praesent ac turpis eget ex tincidunt dapibus. Aliquam nec urna id leo tristique pellentesque non quis velit. Vestibulum finibus risus mattis efficitur pharetra. Quisque vel ullamcorper urna, id faucibus urna. )";
 };
 
 // =============================================================================
@@ -44,7 +52,7 @@ Ref<View> make_counter_text(TestState& state) {
     }));
 }
 
-Ref<View> make_message_text(TestState& state) {
+Ref<View> make_message_text(TestState const& state) {
     return text(computed([state] { return state.message; }));
 }
 
@@ -115,7 +123,7 @@ Ref<View> make_slider_examples(TestState& state) {
 // Sections
 // =============================================================================
 
-Ref<View> make_header(TestState& state) {
+Ref<View> make_header(TestState const& state) {
     return hstack({
                text("Mosaic UI — View Test"),
                spacer(),
@@ -312,12 +320,48 @@ static Ref<View> make_conditional_examples(TestState& state) {
     return vstack(std::move(views));
 }
 
+static Ref<View> make_wrapping_text_demo(TestState const& state) {
+    return vscroll(
+        {text("Wrapping text hfit"), hseparator(),
+         text(bind(&state.long_text), {.wrap = true}) | hfit,
+
+         hseparator(),
+
+         text("Wrapping text hfill"), hseparator(),
+         text(bind(&state.long_text), {.wrap = true}) | hfill,
+
+         hseparator(),
+
+         text("Wrapping text hfixed(300)"), hseparator(),
+         text(bind(&state.long_text), {.wrap = true}) | fixed_width(300),
+
+         hseparator(),
+
+         text("Wrapping text in vstack"), hseparator(),
+         vstack({
+             text(bind(&state.long_text), {.wrap = true}),
+         }) | hfit,
+
+         hseparator(),
+
+         text("Wrapping text in hstack"), hseparator(),
+         hstack({
+             text(bind(&state.long_text),
+                  {.wrap = true, .default_wrap_width = 500}),
+             vseparator(),
+             text(bind(&state.long_text),
+                  {.wrap = true, .default_wrap_width = 200}),
+             vseparator(),
+             text(bind(&state.long_text), {.wrap = true}),
+         })});
+}
+
 // =============================================================================
 // Root
 // =============================================================================
 
 Ref<View> make_demo_content(TestState& state) {
-    return vscroll({
+    auto main_page = vscroll({
         make_header(state),
         hseparator(),
 
@@ -340,7 +384,12 @@ Ref<View> make_demo_content(TestState& state) {
         hseparator(),
 
         make_conditional_examples(state),
+        hseparator(),
+
     });
+    auto wrapping_text = make_wrapping_text_demo(state);
+    return tab_view(
+        {tab("Main", main_page), tab("Wrapping Text", wrapping_text)});
 }
 
 } // namespace

@@ -17,7 +17,9 @@ public:
 #endif // NDEBUG
 
     // The size the view naturally wants to display its content
-    vml::float2 intrinsic_size() const { return calc_intrinsic_size(); }
+    vml::float2 intrinsic_size(vml::float2 max_size) const {
+        return calc_intrinsic_size(max_size);
+    }
 
     SizeReq2 size_requirement() const { return m_size_requirement; }
 
@@ -38,7 +40,9 @@ protected:
 private:
     virtual void do_display(Rect frame) = 0;
 
-    virtual vml::float2 calc_intrinsic_size() const = 0;
+    /// \param max_size can be -1 on either axis, in that case the max size is
+    /// unknown
+    virtual vml::float2 calc_intrinsic_size(vml::float2 max_size) const = 0;
 
     SizeReq2 m_size_requirement;
     Alignment2 m_alignment_requirement{Alignment::low, Alignment::low};

@@ -26,7 +26,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size() const override;
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
 
     Orientation m_orientation;
     std::optional<Alignment> m_align_override;
@@ -55,7 +55,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size() const override;
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
 
     Orientation m_orientation;
     ViewContainer<> m_children;
@@ -90,7 +90,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size() const override;
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
 
     std::vector<Tab> m_tabs;
 };
@@ -124,7 +124,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size() const override;
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
 
     std::vector<Column> m_columns;
 };
@@ -147,7 +147,7 @@ public:
 
 private:
     void do_display(Rect frame) override;
-    vml::float2 calc_intrinsic_size() const override;
+    vml::float2 calc_intrinsic_size(vml::float2 max_size) const override;
 
     Property<Index> m_index;
     ViewContainer<> m_children;
