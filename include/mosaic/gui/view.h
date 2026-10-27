@@ -29,6 +29,12 @@ public:
         m_alignment_requirement[axis] = align;
     }
 
+    bool enabled() const { return m_enabled.materialize(); }
+
+    void set_enabled(Property<bool const> enabled) {
+        m_enabled = std::move(enabled);
+    }
+
 protected:
     View(SizeReq2 size_requirement)
         : m_size_requirement(size_requirement) {}
@@ -44,6 +50,7 @@ private:
 
     SizeReq2 m_size_requirement;
     Alignment2 m_alignment_requirement{Alignment::low, Alignment::low};
+    Property<bool const> m_enabled = true;
 };
 
 // =============================================================================
@@ -72,19 +79,23 @@ inline constexpr auto hfill = fill(0);
 
 inline constexpr auto vfill = fill(1);
 
-inline auto hfill_weight(float weight) { return fill_weight(0, weight); }
+constexpr inline auto hfill_weight(float weight) {
+    return fill_weight(0, weight);
+}
 
-inline auto vfill_weight(float weight) { return fill_weight(1, weight); }
+constexpr inline auto vfill_weight(float weight) {
+    return fill_weight(1, weight);
+}
 
-inline auto fixed_size(unsigned axis, float size) {
+constexpr inline auto fixed_size(unsigned axis, float size) {
     return ViewPipeAdapter{[axis, size](View& view) {
         view.set_size_requirement(axis, SizeReq::fixed(size));
     }};
 }
 
-inline auto fixed_width(float size) { return fixed_size(0, size); }
+constexpr inline auto fixed_width(float size) { return fixed_size(0, size); }
 
-inline auto fixed_height(float size) { return fixed_size(1, size); }
+constexpr inline auto fixed_height(float size) { return fixed_size(1, size); }
 
 constexpr auto align(unsigned axis, Alignment alignment) {
     return ViewPipeAdapter{[axis, alignment](View& view) {
@@ -105,5 +116,11 @@ constexpr auto hcenter = align(0, Alignment::mid);
 constexpr auto vcenter = align(1, Alignment::mid);
 
 constexpr auto center = hcenter | vcenter;
+
+inline auto enabled(Property<bool const> is_enabled) {
+    return ViewPipeAdapter{[is_enabled = std::move(is_enabled)](View& view) {
+        view.set_enabled(is_enabled);
+    }};
+}
 
 } // namespace mosaic::ui

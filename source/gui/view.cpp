@@ -9,21 +9,23 @@
 using namespace mosaic;
 using namespace ui;
 
-#ifndef NDEBUG
 void View::display(Rect frame) {
     assert(vml::isfinite(frame.origin).all());
     assert(vml::isfinite(frame.size).all());
+#ifndef NDEBUG
     debug_begin_node(*this);
+#endif
+    ImGui::BeginDisabled(!enabled());
     do_display(frame);
+    ImGui::EndDisabled();
+#ifndef NDEBUG
     if (want_debug_overlays()) {
         auto* DL = ImGui::GetWindowDrawList();
         DL->AddRect(frame.min(), frame.max(), IM_COL32(64, 255, 32, 200));
     }
     debug_end_node();
-}
-#else
-void View::display(Rect frame) { do_display(frame); }
 #endif
+}
 
 vml::float2 View::calc_intrinsic_size(vml::float2 max_size) const {
     assert((vml::isfinite(max_size) | vml::isinf(max_size)).all());

@@ -151,16 +151,14 @@ Owner<View> make_basic_widgets(TestState& state) {
                               [&state] {
                                   ++state.counter;
                                   state.message = "Counter incremented";
-                              }),
-
-                       button("Reset", [&state] { state = TestState{}; }),
-
+                              }) |
+                           enabled(bind(&state.buttons_enabled)),
+                       button("Reset", [&state] { state = TestState{}; }) |
+                           enabled(bind(&state.buttons_enabled)),
                        make_counter_text(state),
                    }) |
                    hfill;
-
     auto checkbox_row = checkbox(bind(&state.buttons_enabled)) | align_left;
-
     return vstack({
         text("Basic widgets"),
         std::move(actions),
