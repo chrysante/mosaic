@@ -33,6 +33,7 @@ concept PointerClass =
     std::is_class_v<std::remove_cvref_t<P>> && requires(P const& p) {
     {p.operator->()}->std::convertible_to<V*>;
     {*p}->std::convertible_to<V&>;
+    std::constructible_from<bool, P>;
 };
 
 template <typename P, typename V>
@@ -49,48 +50,25 @@ concept PointerLike =
 template <PointerLike<View> ViewPtr, typename Action>
 constexpr auto operator|(ViewPtr&& view,
                          ViewPipeAdapter<Action> const& adapter) {
-    std::invoke(adapter.action, *view);
-    return std::forward<ViewPtr>(view);
+    return std::invoke(adapter.action, std::forward<ViewPtr>(view));
 }
 
 template <PointerLike<View> ViewPtr, typename Action>
-constexpr ViewPtr const& operator|=(ViewPtr const& view,
-                                    ViewPipeAdapter<Action> const& adapter) {
-    std::invoke(adapter.action, *view);
-    return view;
+constexpr ViewPtr& operator|=(ViewPtr& view,
+                              ViewPipeAdapter<Action> const& adapter) {
+    return view = std::invoke(adapter.action, std::move(view));
 }
 
 template <typename Action1, typename Action2>
 constexpr auto operator|(ViewPipeAdapter<Action1> adapter1,
                          ViewPipeAdapter<Action2> adapter2) {
-    return ViewPipeAdapter{[adapter1 = std::move(adapter1),
-                            adapter2 = std::move(adapter2)](View& view) {
-        std::invoke(adapter1.action, view);
-        std::invoke(adapter2.action, view);
-    }};
-}
-
-template <typename Action> struct ViewWrapperPipe { Action action; };
-
-template <std::derived_from<View> V, typename Action>
-auto operator|(Owner<V>&& view, ViewWrapperPipe<Action> const& pipe) {
-    return std::invoke(pipe.action, std::move(view));
-}
-
-template <typename Action>
-Owner<View>& operator|=(Owner<View>& view,
-                        ViewWrapperPipe<Action> const& pipe) {
-    return view = std::invoke(pipe.action, *view);
-}
-
-template <typename Action1, typename Action2>
-constexpr auto operator|(ViewWrapperPipe<Action1> pipe1,
-                         ViewWrapperPipe<Action2> pipe2) {
-    return ViewWrapperPipe{
-        [pipe1 = std::move(pipe1),
-         pipe2 = std::move(pipe2)]<std::derived_from<View> V>(Owner<V>&& view) {
-            return std::invoke(pipe2.action,
-                               std::invoke(pipe1.action, std::move(view)));
+    return ViewPipeAdapter{
+        [adapter1 = std::move(adapter1),
+         adapter2 =
+             std::move(adapter2)]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            return std::invoke(
+                adapter2.action,
+                std::invoke(adapter1.action, std::forward<ViewPtr>(view)));
         }};
 }
 

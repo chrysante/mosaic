@@ -662,7 +662,7 @@ static Owner<ui::SliderView<float>> make_float_slider() {
     auto slider = ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
     slider->set_state(
         ui::computed([value] { return *value; },
-                     [value, slider = slider.get()](float new_value) {
+                     [value, slider = slider.get()](float new_value) mutable {
                          *value = new_value;
                          slider |= ui::fixed_height(*value);
                      }));

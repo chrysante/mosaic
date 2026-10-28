@@ -42,6 +42,7 @@ struct ArrowWrapper {
 
     View* operator->() const { return ptr; }
     View& operator*() const { return *ptr; }
+    explicit operator bool() const { return ptr != nullptr; }
 };
 
 static_assert(PointerLike<View*, View>);

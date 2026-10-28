@@ -65,8 +65,10 @@ private:
 // =============================================================================
 
 constexpr auto fit(unsigned axis) {
-    return ViewPipeAdapter{
-        [axis](View& view) { view.set_size_spec(axis, SizeSpec::fit()); }};
+    return ViewPipeAdapter{[axis]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+        if (view) view->set_size_spec(axis, SizeSpec::fit());
+        return std::forward<ViewPtr>(view);
+    }};
 }
 
 inline constexpr auto hfit = fit(0);
@@ -74,9 +76,11 @@ inline constexpr auto hfit = fit(0);
 inline constexpr auto vfit = fit(1);
 
 constexpr auto fill_weight(unsigned axis, float weight) {
-    return ViewPipeAdapter{[axis, weight](View& view) {
-        view.set_size_spec(axis, SizeSpec::fill(weight));
-    }};
+    return ViewPipeAdapter{
+        [axis, weight]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_size_spec(axis, SizeSpec::fill(weight));
+            return std::forward<ViewPtr>(view);
+        }};
 }
 
 constexpr auto fill(unsigned axis) { return fill_weight(axis, 1.0f); }
@@ -94,9 +98,11 @@ constexpr inline auto vfill_weight(float weight) {
 }
 
 constexpr inline auto fixed_size(unsigned axis, float size) {
-    return ViewPipeAdapter{[axis, size](View& view) {
-        view.set_size_spec(axis, SizeSpec::fixed(size));
-    }};
+    return ViewPipeAdapter{
+        [axis, size]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_size_spec(axis, SizeSpec::fixed(size));
+            return std::forward<ViewPtr>(view);
+        }};
 }
 
 constexpr inline auto fixed_width(float size) { return fixed_size(0, size); }
@@ -105,7 +111,10 @@ constexpr inline auto fixed_height(float size) { return fixed_size(1, size); }
 
 constexpr auto align(unsigned axis, Alignment alignment) {
     return ViewPipeAdapter{
-        [axis, alignment](View& view) { view.set_align(axis, alignment); }};
+        [axis, alignment]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_align(axis, alignment);
+            return std::forward<ViewPtr>(view);
+        }};
 }
 
 constexpr auto align_left = align(0, Alignment::low);
@@ -123,17 +132,20 @@ constexpr auto vcenter = align(1, Alignment::mid);
 constexpr auto center = hcenter | vcenter;
 
 inline auto enabled(Property<bool const> is_enabled) {
-    return ViewPipeAdapter{[is_enabled = std::move(is_enabled)](View& view) {
-        view.set_enabled(is_enabled);
-    }};
+    return ViewPipeAdapter{
+        [is_enabled =
+             std::move(is_enabled)]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_enabled(is_enabled);
+            return std::forward<ViewPtr>(view);
+        }};
 }
 
 namespace internal {
 struct FrameAction { Owner<View> operator()(Owner<View>) const; };
 } // namespace internal
 
-inline ViewWrapperPipe<internal::FrameAction> framed() {
-    return ViewWrapperPipe{ui::internal::FrameAction{}};
+inline ViewPipeAdapter<internal::FrameAction> framed() {
+    return ViewPipeAdapter{ui::internal::FrameAction{}};
 }
 
 } // namespace mosaic::ui
