@@ -17,10 +17,15 @@ namespace mosaic::ui {
 struct TextOptions {
     /// Wrapping
     bool wrap = false;
+
     /// In many edge cases the layout algorithm computes a suboptimal frame for
     /// the text. Enable this option to make the text scrollable in this case.
     /// This only applies when `wrap` is enabled.
     bool scrollable_on_clip = true;
+
+    /// Add frame padding around the text
+    bool is_label = false;
+
     float default_wrap_width = 300.0f;
     float max_wrap_width = FLT_MAX;
 };
@@ -40,6 +45,8 @@ private:
 
 MOSAIC_EXPORT Owner<TextView> text(Property<std::string const> text_arg,
                                    TextOptions options = {});
+
+MOSAIC_EXPORT Owner<TextView> label(Property<std::string const> text_arg);
 
 // =============================================================================
 // Button

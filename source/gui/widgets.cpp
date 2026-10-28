@@ -60,8 +60,12 @@ void TextView::do_display(Rect frame) {
         ImGui::ItemAdd({frame.min(), frame.max()}, 0);
         ImGui::PushClipRect(frame.min(), frame.max(), true);
     }
+    vml::float2 padding = [&] -> vml::float2 {
+        if (m_options.is_label) return ImGui::GetStyle().FramePadding;
+        return {0.0f, 0.0f};
+    }();
     auto* DL = ImGui::GetWindowDrawList();
-    DL->AddText(nullptr, 0.0f, pos, ImGui::GetColorU32(ImGuiCol_Text),
+    DL->AddText(nullptr, 0.0f, pos + padding, ImGui::GetColorU32(ImGuiCol_Text),
                 text_ref.data(), text_ref.data() + text_ref.size(), wrap_width);
     if (use_child_window) {
         ImGui::EndChild();
@@ -81,13 +85,22 @@ vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
     SizeSpec width_spec = size_spec().x;
     if (width_spec.is_fixed())
         wrap_width = std::min(wrap_width, width_spec.fixed_size());
-    return ImGui::CalcTextSize(
+    vml::float2 text_size = ImGui::CalcTextSize(
         text_ref.data(), text_ref.data() + text_ref.size(), false, wrap_width);
+    if (m_options.is_label) {
+        vml::float2 padding = ImGui::GetStyle().FramePadding;
+        return text_size + 2.0f * padding;
+    }
+    return text_size;
 }
 
 Owner<TextView> ui::text(Property<std::string const> text_arg,
                          TextOptions options) {
     return allocate<TextView>(std::move(text_arg), std::move(options));
+}
+
+MOSAIC_EXPORT Owner<TextView> ui::label(Property<std::string const> text_arg) {
+    return text(std::move(text_arg), {.wrap = false, .is_label = true});
 }
 
 ButtonView::ButtonView(Property<std::string const>&& label,

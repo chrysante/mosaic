@@ -223,6 +223,7 @@ target_sources(mosaic PRIVATE
     source/gui/panel_manager.cpp
     source/gui/panel_registry.cpp
     source/gui/panel_renderer.cpp
+    source/gui/property_editor.cpp
     source/gui/ui_context.cpp
     source/gui/run_mode_controller.cpp
     source/gui/style_editor.cpp

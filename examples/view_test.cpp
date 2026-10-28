@@ -1,4 +1,5 @@
 #include "view_test.h"
+#include "mosaic/gui/property_editor.h"
 #include "mosaic/gui/view.h"
 #include "mosaic/gui/view_support.h"
 
@@ -11,6 +12,18 @@ using namespace mosaic;
 using namespace ui;
 
 namespace {
+
+struct PropertiesTestState {
+    std::array<std::string, 4> section_titles = {"General", "Appearance"};
+    int value = 0;
+    float opacity = 0.5;
+
+    vml::float4 color = {0.25f, 0.6f, 0.9f, 0.6f};
+    vml::float2 size = {128.0f, 64.0f};
+    float rotation = 0.0f;
+    bool wireframe = false;
+    bool shadows = true;
+};
 
 struct TestState {
     int counter = 0;
@@ -45,6 +58,8 @@ In congue felis in nisl mattis ornare. Suspendisse convallis sem quis sem consec
 Aliquam scelerisque lacus ac nisl volutpat semper. Sed a nibh ac lorem placerat porta eu in tellus. Pellentesque aliquet diam at libero sodales, at bibendum leo tincidunt. Donec eu lobortis erat. Morbi facilisis orci erat, ultricies pharetra lorem consectetur eget. Phasellus tincidunt egestas condimentum. Mauris vel ligula eu odio mattis bibendum. Aenean tincidunt sem massa, a tincidunt magna mattis vitae. Phasellus sapien leo, gravida eu placerat pretium, volutpat vel tortor. Curabitur metus libero, ornare ac sagittis sed, imperdiet id justo. Duis et mattis orci. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
 Duis mauris mi, dignissim in tincidunt vitae, egestas eget lorem. Praesent congue erat vel nulla dapibus fringilla. Cras vitae lobortis sem. Aenean semper nec nunc id ornare. Phasellus a sapien vitae justo egestas scelerisque eu non purus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam hendrerit ultrices diam vel volutpat. Maecenas sit amet lacinia dui.
 Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis, scelerisque in nisi non, porta sodales odio. Nunc scelerisque laoreet eros ac rutrum. Donec interdum, elit eget fermentum sollicitudin, purus eros mollis neque, a pellentesque turpis massa non odio. Nullam varius dui tortor, eget varius augue malesuada vitae. Phasellus rutrum ligula purus, eu sodales augue molestie faucibus. Morbi mattis, ipsum vitae ultricies blandit, leo urna ultrices nibh, id sagittis felis orci ac velit. Vivamus mattis consequat nisl nec laoreet. Suspendisse a mollis dui. Fusce vitae sollicitudin odio, sed aliquam quam. Ut suscipit enim et mauris hendrerit, id lobortis nulla consequat. Praesent ac turpis eget ex tincidunt dapibus. Aliquam nec urna id leo tristique pellentesque non quis velit. Vestibulum finibus risus mattis efficitur pharetra. Quisque vel ullamcorper urna, id faucibus urna. )";
+
+    PropertiesTestState properties;
 };
 
 // =============================================================================
@@ -291,8 +306,8 @@ Owner<View> make_tab_examples() {
                      hfill | vfill;
 
     return tab_view({tab("List", std::move(first_tab)),
-               tab("Controls", std::move(second_tab)),
-               tab("Columns", std::move(third_tab)),
+                     tab("Controls", std::move(second_tab)),
+                     tab("Columns", std::move(third_tab)),
                      tab("Single Button", button("Centered") | center)}) |
            hfill | fixed_height(260.0f);
 }
@@ -368,6 +383,35 @@ static Owner<View> make_wrapping_text_demo(TestState const& state) {
              vseparator(),
              text(bind(&state.long_text), {.wrap = true}),
          })});
+}
+
+// =============================================================================
+// Properties View
+// =============================================================================
+
+static Owner<View> make_properties_view_tests(PropertiesTestState& state) {
+    // clang-format off
+    return vscroll({
+        section({
+            property("Value", 
+                     slider<int>(bind(&state.value), 0, 10, {.format="%d"})),
+            property("Opacity", 
+                     slider<float>(bind(&state.opacity), 0.0f, 1.0f)),
+        }),
+        section({
+            property("Color", color_edit(bind(&state.color))),
+            property("Size", 
+                     slider<vml::float2>(bind(&state.size), 0.0f, 500.0f)),
+            property("Rotation", slider<float>(bind(&state.rotation), -360, 360, 
+                                               {.format="%.1f", 
+                                                .wrap_around=true})),
+            property("Rendering", vstack({
+                hstack({text("Wireframe"), checkbox(bind(&state.wireframe))}), 
+                hstack({text("Shadows"), checkbox(bind(&state.shadows))}), 
+            }, Alignment::high))
+        })
+    });
+    // clang-format on
 }
 
 // =============================================================================
@@ -463,9 +507,11 @@ Owner<View> make_demo_content(TestState& state) {
 
                               make_image_example()});
     auto wrapping_text = make_wrapping_text_demo(state);
-    return tab_view({tab("Main", std::move(main_page)),
-                     tab("Wrapping Text", std::move(wrapping_text)),
-                     tab("Layout stress tests", make_layout_stress_tests())});
+    return tab_view(
+        {tab("Main", std::move(main_page)),
+         tab("Wrapping Text", std::move(wrapping_text)),
+         tab("Properties", make_properties_view_tests(state.properties)),
+         tab("Layout stress tests", make_layout_stress_tests())});
 }
 
 } // namespace

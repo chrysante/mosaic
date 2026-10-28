@@ -646,6 +646,10 @@ public:
         m_elements.push_back(std::move(view));
     }
 
+    void reserve(std::size_t cap) { m_elements.reserve(cap); }
+
+    Array<Owner<V>> steal_elements() { return std::move(m_elements); }
+
 private:
     Array<Owner<V>> m_elements;
 };
