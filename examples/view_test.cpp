@@ -227,21 +227,23 @@ Owner<View> make_scroll_examples() {
     auto vertical_scroll = [j = 0] mutable {
         ViewContainer<> items;
         for (int i = 0; i < 20; ++i)
-            items.push_back(button("Vertical item " + std::to_string(++j)));
-        return vscroll(std::move(items)) | fixed_height(250.0f);
+            items.push_back(button("Vertical item " + std::to_string(++j)) |
+                            align(Axis::horizontal, (Alignment)(i % 3)));
+        return vscroll(std::move(items));
     };
 
     auto horizontal_scroll = hscroll(std::move(horizontal_items)) | vfit;
 
     Array<Column> cols;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 3; ++i)
         cols.push_back(column(vertical_scroll()));
+    cols.push_back(column(button("Centered") | center));
 
     return vstack({
                text("Scroll views"),
 
                text("Vertical scrolling"),
-               vertical_scroll() | framed(),
+               vertical_scroll() | fixed_height(250.0f) | framed(),
 
                text("Horizontal scrolling"),
                std::move(horizontal_scroll) | framed(),
@@ -288,11 +290,10 @@ Owner<View> make_tab_examples() {
                      }) |
                      hfill | vfill;
 
-    return tab_view({
-               tab("List", std::move(first_tab)),
+    return tab_view({tab("List", std::move(first_tab)),
                tab("Controls", std::move(second_tab)),
                tab("Columns", std::move(third_tab)),
-           }) |
+                     tab("Single Button", button("Centered") | center)}) |
            hfill | fixed_height(260.0f);
 }
 

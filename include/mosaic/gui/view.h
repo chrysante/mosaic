@@ -24,15 +24,17 @@ public:
 
     SizeSpec2 size_spec() const { return m_layout.value().size_spec; }
 
-    void set_size_spec(unsigned axis, SizeSpec spec) {
-        m_layout.value().size_spec[axis] = spec;
+    void set_size_spec(Axis axis, SizeSpec spec) {
+        m_layout.value().size_spec[(unsigned)axis] = spec;
     }
 
     Alignment2 alignment() const { return m_layout.value().align; }
 
-    void set_align(unsigned axis, Alignment align) {
-        m_layout.value().align[axis] = align;
+    void set_align(Axis axis, Alignment align) {
+        m_layout.value().align[(unsigned)axis] = align;
     }
+
+    LayoutSpec const& layout() const { return m_layout.value(); }
 
     bool enabled() const { return m_enabled.materialize(); }
 
@@ -64,18 +66,18 @@ private:
 // Pipes
 // =============================================================================
 
-constexpr auto fit(unsigned axis) {
+constexpr auto fit(Axis axis) {
     return ViewPipeAdapter{[axis]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
         if (view) view->set_size_spec(axis, SizeSpec::fit());
         return std::forward<ViewPtr>(view);
     }};
 }
 
-inline constexpr auto hfit = fit(0);
+inline constexpr auto hfit = fit(Axis::horizontal);
 
-inline constexpr auto vfit = fit(1);
+inline constexpr auto vfit = fit(Axis::vertical);
 
-constexpr auto fill_weight(unsigned axis, float weight) {
+constexpr auto fill_weight(Axis axis, float weight) {
     return ViewPipeAdapter{
         [axis, weight]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
             if (view) view->set_size_spec(axis, SizeSpec::fill(weight));
@@ -83,21 +85,21 @@ constexpr auto fill_weight(unsigned axis, float weight) {
         }};
 }
 
-constexpr auto fill(unsigned axis) { return fill_weight(axis, 1.0f); }
+constexpr auto fill(Axis axis) { return fill_weight(axis, 1.0f); }
 
-inline constexpr auto hfill = fill(0);
+inline constexpr auto hfill = fill(Axis::horizontal);
 
-inline constexpr auto vfill = fill(1);
+inline constexpr auto vfill = fill(Axis::vertical);
 
 constexpr inline auto hfill_weight(float weight) {
-    return fill_weight(0, weight);
+    return fill_weight(Axis::horizontal, weight);
 }
 
 constexpr inline auto vfill_weight(float weight) {
-    return fill_weight(1, weight);
+    return fill_weight(Axis::horizontal, weight);
 }
 
-constexpr inline auto fixed_size(unsigned axis, float size) {
+constexpr inline auto fixed_size(Axis axis, float size) {
     return ViewPipeAdapter{
         [axis, size]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
             if (view) view->set_size_spec(axis, SizeSpec::fixed(size));
@@ -105,11 +107,15 @@ constexpr inline auto fixed_size(unsigned axis, float size) {
         }};
 }
 
-constexpr inline auto fixed_width(float size) { return fixed_size(0, size); }
+constexpr inline auto fixed_width(float size) {
+    return fixed_size(Axis::horizontal, size);
+}
 
-constexpr inline auto fixed_height(float size) { return fixed_size(1, size); }
+constexpr inline auto fixed_height(float size) {
+    return fixed_size(Axis::vertical, size);
+}
 
-constexpr auto align(unsigned axis, Alignment alignment) {
+constexpr auto align(Axis axis, Alignment alignment) {
     return ViewPipeAdapter{
         [axis, alignment]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
             if (view) view->set_align(axis, alignment);
@@ -117,17 +123,17 @@ constexpr auto align(unsigned axis, Alignment alignment) {
         }};
 }
 
-constexpr auto align_left = align(0, Alignment::low);
+constexpr auto align_left = align(Axis::horizontal, Alignment::low);
 
-constexpr auto align_right = align(0, Alignment::high);
+constexpr auto align_right = align(Axis::horizontal, Alignment::high);
 
-constexpr auto align_top = align(1, Alignment::low);
+constexpr auto align_top = align(Axis::vertical, Alignment::low);
 
-constexpr auto align_bottom = align(1, Alignment::high);
+constexpr auto align_bottom = align(Axis::vertical, Alignment::high);
 
-constexpr auto hcenter = align(0, Alignment::mid);
+constexpr auto hcenter = align(Axis::horizontal, Alignment::mid);
 
-constexpr auto vcenter = align(1, Alignment::mid);
+constexpr auto vcenter = align(Axis::vertical, Alignment::mid);
 
 constexpr auto center = hcenter | vcenter;
 

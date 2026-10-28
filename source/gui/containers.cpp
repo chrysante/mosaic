@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <mach/memory_object_types.h>
 #include <span>
 
 #include <imgui.h>
@@ -12,27 +11,12 @@
 
 #include "application/debug_settings.h"
 #include "gui/view_debugger.h"
+#include "gui/view_layout_support.h"
 #include "gui/view_support.h"
 #include "support/logger.h"
 
 using namespace mosaic;
 using namespace ui;
-
-static float resolve_child_size(SizeSpec requirement, float intrinsic,
-                                float available) {
-    auto clamp = [available](float value) {
-        return available >= 0 ? std::min(value, available) : value;
-    };
-
-    switch (requirement.mode()) {
-    case SizeSpec::Mode::fixed:
-        return clamp(requirement.fixed_size());
-    case SizeSpec::Mode::fit:
-        return clamp(intrinsic);
-    case SizeSpec::Mode::fill:
-        return clamp(available >= 0 ? available : intrinsic);
-    }
-}
 
 StackView::StackView(Axis main_axis, ViewContainer<>&& children,
                      std::optional<Alignment> align_override)
@@ -170,7 +154,7 @@ void StackView::do_display(Rect frame) {
 
         // Resolve the desired size without allocating any extra fill space.
         // For fill requirements this gives the child's intrinsic base size.
-        float const desired_main = resolve_child_size(
+        float const desired_main = resolve_child_size_axis(
             main_axis_spec, intrinsic_size[main_axis], -1.0f);
         assert(desired_main >= 0.0f);
         child_sizes[i][main_axis] = desired_main;
@@ -212,29 +196,18 @@ void StackView::do_display(Rect frame) {
         auto& child = m_children[i];
         vml::float2 child_size = child_sizes[i];
         SizeSpec2 const size_req = child.size_spec();
-        child_size[cross_axis] =
-            resolve_child_size(size_req[cross_axis], child_size[cross_axis],
-                               size_avail[cross_axis]);
-        Alignment const alignment =
+        child_size[cross_axis] = resolve_child_size_axis(
+            size_req[cross_axis], child_size[cross_axis],
+            size_avail[cross_axis]);
+        Alignment child_align_cross =
             m_align_override.value_or(child.alignment()[cross_axis]);
-        float cross_offset = 0.0f;
-        switch (alignment) {
-        case Alignment::low:
-            cross_offset = 0.0f;
-            break;
-        case Alignment::mid:
-            cross_offset =
-                0.5f * (frame.size[cross_axis] - child_size[cross_axis]);
-            break;
-        case Alignment::high:
-            cross_offset = frame.size[cross_axis] - child_size[cross_axis];
-            break;
-        }
-        vml::float2 pos = cursor;
-        pos[cross_axis] += cross_offset;
-        cursor[main_axis] += child_size[main_axis] + spacing;
-        Rect child_frame = {pos, child_size};
+        vml::float2 child_pos = cursor;
+        child_pos[cross_axis] =
+            resolve_child_pos_axis(cursor[cross_axis], size_avail[cross_axis],
+                                   child_size[cross_axis], child_align_cross);
+        Rect const child_frame = {child_pos, child_size};
         child.display(child_frame);
+        cursor[main_axis] += child_size[main_axis] + spacing;
 #ifndef NDEBUG
         if (have_overflow)
             overflow_debug_info_child(&child, child_frame, main_axis);
@@ -251,10 +224,10 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
         SizeSpec2 size_spec = child.size_spec();
         vml::float2 child_max_size = max_size;
         child_max_size[main_axis] = -1.0f;
-        vml::float2 child_size = child.calc_intrinsic_size(child_max_size);
-        vml::float2 resolved_size =
-            vml::map(size_spec, child_size, vml::float2(-1.0f, -1.0f),
-                     resolve_child_size);
+        vml::float2 child_size_intrin =
+            child.calc_intrinsic_size(child_max_size);
+        vml::float2 resolved_size = resolve_child_size(
+            size_spec, child_size_intrin, vml::float2(-1.0f, -1.0f));
         result[main_axis] += resolved_size[main_axis];
         result[cross_axis] =
             std::max(result[cross_axis], resolved_size[cross_axis]);
@@ -309,12 +282,9 @@ void ScrollView::do_display(Rect frame) {
     float spacing = style.ItemSpacing[main_axis];
     vml::float2 cursor = ImGui::GetCursorScreenPos();
     for (auto& child : m_children) {
-        vml::float2 intrinsic_size = child.calc_intrinsic_size(size_avail);
-        SizeSpec2 size_req = child.size_spec();
-        vml::float2 child_size =
-            vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
-        child.display({cursor, child_size});
-        cursor[main_axis] += child_size[main_axis] + spacing;
+        Rect child_frame = resolve_child_frame(cursor, size_avail, child);
+        child.display(child_frame);
+        cursor[main_axis] += child_frame.size[main_axis] + spacing;
     }
 }
 
@@ -362,17 +332,14 @@ void TabView::do_display(Rect frame) {
     if (!visible) return;
     if (!ImGui::BeginTabBar("##tab-bar")) return;
     utl::scope_guard tab_guard = [] { ImGui::EndTabBar(); };
-    vml::float2 size_avail = ImGui::GetContentRegionAvail();
     for (auto& [title, child] : m_tabs) {
         auto title_string = title.get();
         if (!ImGui::BeginTabItem(title_string.value().c_str(), nullptr))
             continue;
-        vml::float2 intrinsic_size = child->calc_intrinsic_size(size_avail);
-        SizeSpec2 size_req = child->size_spec();
-        vml::float2 child_size =
-            vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
         vml::float2 pos = ImGui::GetCursorScreenPos();
-        child->display({pos, child_size});
+        vml::float2 size_avail = ImGui::GetContentRegionAvail();
+        Rect child_frame = resolve_child_frame(pos, size_avail, *child);
+        child->display(child_frame);
         ImGui::EndTabItem();
     }
 }
@@ -610,7 +577,9 @@ void ColumnView::do_display(Rect frame) {
     for (std::size_t i = 0; i < count; ++i) {
         vml::float2 column_pos = {frame.origin.x + x, frame.origin.y};
         vml::float2 column_size = {widths[i], frame.size.y};
-        m_columns[i].content->display({column_pos, column_size});
+        View& child = *m_columns[i].content;
+        Rect child_frame = resolve_child_frame(column_pos, column_size, child);
+        child.display(child_frame);
         x += widths[i];
         if (i < splitter_count) x += splitter_width;
     }
@@ -644,17 +613,20 @@ template <typename Index> void SwitchView<Index>::do_display(Rect frame) {
         Logger::error("SwitchView: index out of range");
         return;
     }
-    auto& active_child = m_children[(std::size_t)index];
+    View& active_child = m_children[(std::size_t)index];
     active_child.display(frame);
 }
 
 template <typename Index>
 vml::float2
 SwitchView<Index>::do_calc_intrinsic_size(vml::float2 max_size) const {
-    vml::float2 size = {0.0f, 0.0f};
-    for (auto& child : m_children)
-        size = vml::max(size, child.calc_intrinsic_size(max_size));
-    return size;
+    Index index = m_index.materialize();
+    if (index < 0 || (std::size_t)index >= m_children.size()) {
+        Logger::error("SwitchView: index out of range");
+        return {0.0f, 0.0f};
+    }
+    View const& active_child = m_children[(std::size_t)index];
+    return active_child.calc_intrinsic_size(max_size);
 }
 
 template class ui::SwitchView<int>;
