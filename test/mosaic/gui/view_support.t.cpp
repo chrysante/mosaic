@@ -117,6 +117,11 @@ TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
     REQUIRE(view.alignment()[1] == Alignment::high);
     ptr | hfill_weight(2.5f);
     REQUIRE(view.size_spec()[0].is_fill());
+    REQUIRE(view.size_spec()[0].fill_basis() == FillBasis::zero);
+    REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);
+    ptr | hfill_weight(2.5f, FillBasis::intrinsic);
+    REQUIRE(view.size_spec()[0].is_fill());
+    REQUIRE(view.size_spec()[0].fill_basis() == FillBasis::intrinsic);
     REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);
     ptr | enabled(Property<bool const>{false});
     REQUIRE_FALSE(view.enabled());
@@ -151,6 +156,11 @@ TEST_CASE("SizeSpec factories preserve their mode and value", "[SizeSpec]") {
     const auto fill_weighted = SizeSpec::fill(2.25f);
     REQUIRE(fill_weighted.is_fill());
     REQUIRE(fill_weighted.fill_weight() == 2.25f);
+    const auto fill_intrin = SizeSpec::fill(1.0f, FillBasis::intrinsic);
+    REQUIRE(fill_intrin.is_fill());
+    REQUIRE(fill_intrin.fill_basis() == FillBasis::intrinsic);
+    REQUIRE(fill_intrin.mode() == SizeSpec::Mode::fill);
+    REQUIRE(fill_intrin.fill_weight() == 1.0f);
 }
 
 TEST_CASE("SizeSpec accepts zero fill weight and zero fixed size",

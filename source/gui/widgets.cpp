@@ -161,7 +161,7 @@ template <typename T>
 SliderView<T>::SliderView(Property<T>&& state, Property<ScalarType const>&& min,
                           Property<ScalarType const>&& max,
                           SliderOptions options)
-    : View({SizeSpec::fill(), SizeSpec::fit()})
+    : View({SizeSpec::fill(1.0f, FillBasis::intrinsic), SizeSpec::fit()})
     , m_state(std::move(state))
     , m_min(std::move(min))
     , m_max(std::move(max))

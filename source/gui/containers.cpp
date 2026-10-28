@@ -124,25 +124,23 @@ static float size_one_less(std::size_t size) {
 void StackView::do_display(Rect frame) {
     if (m_children.empty()) return;
 
-    const unsigned main_axis = (unsigned)m_main_axis;
-    const unsigned cross_axis = 1 - main_axis;
-    const vml::float2 size_avail = frame.size;
+    unsigned const main_axis = (unsigned)m_main_axis;
+    unsigned const cross_axis = 1 - main_axis;
+    vml::float2 const size_avail = frame.size;
 
     // Spacing must not consume more space than the entire main-axis frame.
     // Normally this leaves ImGui's spacing unchanged.
+    float const available_main = std::max(0.0f, size_avail[main_axis]);
+    float const num_gaps = size_one_less(m_children.size());
     float spacing = ImGui::GetStyle().ItemSpacing[main_axis];
-    const float available_main = std::max(0.0f, size_avail[main_axis]);
-    const float num_gaps = size_one_less(m_children.size());
-
     if (num_gaps > 0.0f) spacing = std::min(spacing, available_main / num_gaps);
-
-    const float total_spacing = spacing * num_gaps;
+    float const total_spacing = spacing * num_gaps;
 
     // Measure intrinsic sizes and calculate each child's initial allocation.
     utl::small_vector<vml::float2, 32> child_sizes(m_children.size(),
                                                    utl::no_init);
     float desired_main_sum = 0.0f;
-    float fill_weight_sum = 0.0f;
+    float grow_weight_sum = 0.0f;
     for (std::size_t i = 0; i < m_children.size(); ++i) {
         View& child = m_children[i];
         vml::float2 child_max_size = frame.size;
@@ -154,13 +152,15 @@ void StackView::do_display(Rect frame) {
 
         // Resolve the desired size without allocating any extra fill space.
         // For fill requirements this gives the child's intrinsic base size.
-        float const desired_main = resolve_child_size_axis(
+        float desired_main = resolve_child_size_axis(
             main_axis_spec, intrinsic_size[main_axis], -1.0f);
+        if (main_axis_spec.is_fill()) {
+            grow_weight_sum += main_axis_spec.fill_weight();
+            if (main_axis_spec.is_fill_zero()) desired_main = 0.0f;
+        }
         assert(desired_main >= 0.0f);
         child_sizes[i][main_axis] = desired_main;
         desired_main_sum += desired_main;
-        if (main_axis_spec.is_fill())
-            fill_weight_sum += main_axis_spec.fill_weight();
     }
 
     // Determine whether the initial allocations fit.
@@ -176,22 +176,22 @@ void StackView::do_display(Rect frame) {
 #ifndef NDEBUG
         overflow_debug_info();
 #endif
-    } else if (remaining > 0.0f && fill_weight_sum > 0.0f) {
+    } else if (remaining > 0.0f && grow_weight_sum > 0.0f) {
         // Only distribute surplus space when the initial allocations fit.
         for (std::size_t i = 0; i < m_children.size(); ++i) {
             SizeSpec2 const size_spec = m_children[i].size_spec();
             SizeSpec const main_axis_spec = size_spec[main_axis];
-            if (!main_axis_spec.is_fill()) continue;
-            float const fill_share =
-                main_axis_spec.fill_weight() / fill_weight_sum;
-            child_sizes[i][main_axis] += remaining * fill_share;
+            if (main_axis_spec.is_fill()) {
+                float const grow_share =
+                    main_axis_spec.fill_weight() / grow_weight_sum;
+                child_sizes[i][main_axis] += remaining * grow_share;
+            }
         }
     }
 
     // Place children using their final main-axis allocations. Cross-axis sizing
     // and alignment continue to follow the existing size requirements.
     vml::float2 cursor = frame.origin;
-
     for (std::size_t i = 0; i < m_children.size(); ++i) {
         auto& child = m_children[i];
         vml::float2 child_size = child_sizes[i];

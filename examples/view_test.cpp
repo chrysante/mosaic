@@ -406,8 +406,8 @@ static Owner<View> make_properties_view_tests(PropertiesTestState& state) {
                                                {.format="%.1f", 
                                                 .wrap_around=true})),
             property("Rendering", vstack({
-                hstack({text("Wireframe"), checkbox(bind(&state.wireframe))}), 
-                hstack({text("Shadows"), checkbox(bind(&state.shadows))}), 
+                hstack({label("Wireframe"), checkbox(bind(&state.wireframe))}), 
+                hstack({label("Shadows"), checkbox(bind(&state.shadows))}), 
             }, Alignment::high))
         })
     });

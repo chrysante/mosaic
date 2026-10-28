@@ -16,9 +16,11 @@ using namespace ui;
 namespace {
 
 struct ControlWrapper : View {
-    explicit ControlWrapper(float weight, Owner<View> control)
-        : View({SizeSpec::fill(weight), SizeSpec::fit()})
-        , control(std::move(control)) {}
+    explicit ControlWrapper(Owner<View> control)
+        : View({SizeSpec::fit(), SizeSpec::fit()})
+        , control(std::move(control)) {
+        this->control |= align_right;
+    }
 
     void do_display(Rect frame) {
         Rect control_frame =
@@ -40,7 +42,8 @@ struct ControlWrapper : View {
 Owner<View> ui::property(Property<std::string const> label,
                          Owner<View> control) {
     auto label_view = ui::label(std::move(label)) | hfill_weight(3.0f);
-    auto control_view = allocate<ControlWrapper>(7.0f, std::move(control));
+    auto control_view =
+        allocate<ControlWrapper>(std::move(control)) | hfill_weight(7.0f);
     return hstack({std::move(label_view), std::move(control_view)}) | hfill;
 }
 

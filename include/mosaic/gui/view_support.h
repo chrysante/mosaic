@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <concepts>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -87,48 +88,125 @@ struct Rect {
     vml::float2 size;
 };
 
+/// Determines the starting size used when allocating space to a fill child.
+///
+/// The basis affects the child's main-axis allocation. Intrinsic measurements
+/// are still used for other purposes, such as cross-axis sizing.
+enum class FillBasis : std::uint8_t {
+    /// Start with a zero main-axis size. The child receives its weighted share
+    /// of the space available for fill children.
+    zero,
+
+    /// Start with the child's intrinsic main-axis size. Any additional space
+    /// is distributed among fill children according to their weights.
+    /// The intrinsic size is a preferred starting size, not a minimum.
+    intrinsic
+};
+
 class SizeSpec {
 public:
-    enum class Mode { fit, fixed, fill };
+    /// Specifies how a view's size is determined along one axis.
+    enum class Mode : std::uint8_t {
+        /// Use the view's intrinsic size.
+        fit,
 
-    static constexpr SizeSpec fit() { return {Mode::fit, 0.0f}; }
+        /// Use an explicitly specified size.
+        fixed,
 
+        /// Participate in weighted allocation of available space.
+        fill
+    };
+
+    /// Creates a sizing specification that uses the view's intrinsic size.
+    static constexpr SizeSpec fit() { return {Mode::fit, 0.0f, {}}; }
+
+    /// Creates a sizing specification with an explicit size.
+    ///
+    /// \param value The requested size, which must be finite and non-negative.
     static constexpr SizeSpec fixed(float value) {
         assert(std::isfinite(value));
         assert(value >= 0);
-        return {Mode::fixed, value};
+        return {Mode::fixed, value, {}};
     }
 
-    static constexpr SizeSpec fill(float weight = 1.0f) {
+    /// Creates a sizing specification that participates in weighted allocation.
+    ///
+    /// Fill children share available space in proportion to their weights.
+    /// The fill basis determines their starting main-axis sizes:
+    /// - `FillBasis::zero`: start at zero and allocate space by weight.
+    /// - `FillBasis::intrinsic`: start at intrinsic size and distribute
+    ///   additional space by weight.
+    ///
+    /// If there is insufficient space, the layout's overflow policy determines
+    /// how child allocations are reduced. The weight is relative to the weights
+    /// of other fill children participating in the same allocation.
+    ///
+    /// \param weight The allocation weight, which must be finite and
+    /// non-negative. A weight of zero does not claim any share of additional
+    /// space.
+    /// \param fill_basis Determines the starting main-axis allocation.
+    static constexpr SizeSpec fill(float weight = 1.0f,
+                                   FillBasis fill_basis = FillBasis::zero) {
         assert(std::isfinite(weight));
         assert(weight >= 0 && "fill weight must be non-negative");
-        return {Mode::fill, weight};
+        return {Mode::fill, weight, fill_basis};
     }
 
+    /// Returns the sizing mode.
     constexpr Mode mode() const { return m_mode; }
 
-    /// \pre Must be of type `fixed`
+    /// Returns the explicitly requested size.
+    /// \pre Must be of type `fixed`.
     constexpr float fixed_size() const {
         assert(is_fixed());
         return m_value;
     }
 
-    /// \pre Must be of type `fill`
+    /// Returns the relative allocation weight.
+    /// \pre Must be of type `fill`.
     constexpr float fill_weight() const {
         assert(is_fill());
         return m_value;
     }
 
+    /// Returns the starting-size policy for a fill child.
+    /// \pre Must be of type `fill`.
+    constexpr FillBasis fill_basis() const {
+        assert(is_fill());
+        return m_fill_basis;
+    }
+
+    /// Returns whether the fill child starts with a zero main-axis size.
+    /// \pre Must be of type `fill`.
+    constexpr bool is_fill_zero() const {
+        assert(is_fill());
+        return fill_basis() == FillBasis::zero;
+    }
+
+    /// Returns whether the fill child starts with its intrinsic main-axis size.
+    /// \pre Must be of type `fill`.
+    constexpr bool is_fill_intrin() const {
+        assert(is_fill());
+        return fill_basis() == FillBasis::intrinsic;
+    }
+
+    /// Returns whether this specification uses intrinsic sizing.
     constexpr bool is_fit() const { return mode() == Mode::fit; }
+
+    /// Returns whether this specification uses an explicit size.
     constexpr bool is_fixed() const { return mode() == Mode::fixed; }
+
+    /// Returns whether this specification participates in weighted allocation.
     constexpr bool is_fill() const { return mode() == Mode::fill; }
 
 private:
-    constexpr SizeSpec(Mode type, float value)
+    constexpr SizeSpec(Mode type, float value, FillBasis fill_basis)
         : m_mode(type)
+        , m_fill_basis(fill_basis)
         , m_value(value) {}
 
     Mode m_mode;
+    FillBasis m_fill_basis;
     float m_value;
 };
 
@@ -144,6 +222,83 @@ struct LayoutSpec {
 };
 
 enum class Axis { horizontal = 0, vertical = 1 };
+
+constexpr auto fit(Axis axis) {
+    return ViewPipeAdapter{[axis]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+        if (view) view->set_size_spec(axis, SizeSpec::fit());
+        return std::forward<ViewPtr>(view);
+    }};
+}
+
+inline constexpr auto hfit = fit(Axis::horizontal);
+
+inline constexpr auto vfit = fit(Axis::vertical);
+
+constexpr auto fill_weight(Axis axis, float weight, FillBasis fill_basis) {
+    return ViewPipeAdapter{
+        [axis, weight, fill_basis]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view)
+                view->set_size_spec(axis, SizeSpec::fill(weight, fill_basis));
+            return std::forward<ViewPtr>(view);
+        }};
+}
+
+constexpr auto fill(Axis axis, FillBasis fill_basis) {
+    return fill_weight(axis, 1.0f, fill_basis);
+}
+
+inline constexpr auto hfill = fill(Axis::horizontal, FillBasis::zero);
+inline constexpr auto hfill_intrin =
+    fill(Axis::horizontal, FillBasis::intrinsic);
+
+inline constexpr auto vfill = fill(Axis::vertical, FillBasis::zero);
+inline constexpr auto vfill_intrin = fill(Axis::vertical, FillBasis::intrinsic);
+
+constexpr inline auto hfill_weight(float weight, FillBasis fill_basis = {}) {
+    return fill_weight(Axis::horizontal, weight, fill_basis);
+}
+
+constexpr inline auto vfill_weight(float weight, FillBasis fill_basis = {}) {
+    return fill_weight(Axis::horizontal, weight, fill_basis);
+}
+
+constexpr inline auto fixed_size(Axis axis, float size) {
+    return ViewPipeAdapter{
+        [axis, size]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_size_spec(axis, SizeSpec::fixed(size));
+            return std::forward<ViewPtr>(view);
+        }};
+}
+
+constexpr inline auto fixed_width(float size) {
+    return fixed_size(Axis::horizontal, size);
+}
+
+constexpr inline auto fixed_height(float size) {
+    return fixed_size(Axis::vertical, size);
+}
+
+constexpr auto align(Axis axis, Alignment alignment) {
+    return ViewPipeAdapter{
+        [axis, alignment]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
+            if (view) view->set_align(axis, alignment);
+            return std::forward<ViewPtr>(view);
+        }};
+}
+
+constexpr auto align_left = align(Axis::horizontal, Alignment::low);
+
+constexpr auto align_right = align(Axis::horizontal, Alignment::high);
+
+constexpr auto align_top = align(Axis::vertical, Alignment::low);
+
+constexpr auto align_bottom = align(Axis::vertical, Alignment::high);
+
+constexpr auto hcenter = align(Axis::horizontal, Alignment::mid);
+
+constexpr auto vcenter = align(Axis::vertical, Alignment::mid);
+
+constexpr auto center = hcenter | vcenter;
 
 // =============================================================================
 // ValueOrRef<T>
