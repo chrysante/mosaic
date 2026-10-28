@@ -193,7 +193,9 @@ static int translate_slider_flags(SliderOptions const& options) {
     if (options.logarithmic) result |= ImGuiSliderFlags_Logarithmic;
     if (!options.round_to_format) result |= ImGuiSliderFlags_NoRoundToFormat;
     if (!options.input) result |= ImGuiSliderFlags_NoInput;
+#if 0 // Not allowed for sliders (only for drag)
     if (options.wrap_around) result |= ImGuiSliderFlags_WrapAround;
+#endif
     if (options.clamp_on_input) result |= ImGuiSliderFlags_ClampOnInput;
     if (options.clamp_zero_range) result |= ImGuiSliderFlags_ClampZeroRange;
     if (!options.speed_tweaks) result |= ImGuiSliderFlags_NoSpeedTweaks;
