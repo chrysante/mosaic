@@ -398,7 +398,7 @@ static Owner<View> make_properties_view_tests(PropertiesTestState& state) {
             property("Opacity", 
                      slider<float>(bind(&state.opacity), 0.0f, 1.0f)),
         }),
-        section({
+        section("Appearance", {
             property("Color", color_edit(bind(&state.color))),
             property("Size", 
                      slider<vml::float2>(bind(&state.size), 0.0f, 500.0f)),

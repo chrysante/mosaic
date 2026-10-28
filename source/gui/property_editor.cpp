@@ -15,6 +15,17 @@ using namespace ui;
 
 namespace {
 
+struct PropertiesStyle {
+    vml::float2 section_padding;
+    float section_rounding = 15.0f;
+    ImU32 section_background = IM_COL32(255, 255, 255, 15);
+};
+
+static PropertiesStyle get_style() {
+    auto& imgui_style = ImGui::GetStyle();
+    return {.section_padding = imgui_style.WindowPadding};
+}
+
 struct ControlWrapper : View {
     explicit ControlWrapper(Owner<View> control)
         : View({SizeSpec::fit(), SizeSpec::fit()})
@@ -48,6 +59,7 @@ Owner<View> ui::property(Property<std::string const> label,
 }
 
 namespace {
+
 struct SectionView : View {
     explicit SectionView(ViewContainer<> children)
         : View({SizeSpec::fill(), SizeSpec::fit()}) {
@@ -63,10 +75,23 @@ struct SectionView : View {
         stack = ui::vstack(std::move(stack_items));
     }
 
-    void do_display(Rect frame) { stack->display(frame); }
+    void do_display(Rect frame) {
+        auto style = get_style();
+        vml::float2 total_padding = 2.0f * style.section_padding;
+        auto* DL = ImGui::GetWindowDrawList();
+        DL->AddRectFilled(frame.min(), frame.max(), style.section_background,
+                          style.section_rounding);
+        Rect stack_frame = {frame.origin + style.section_padding,
+                            frame.size - total_padding};
+        stack->display(stack_frame);
+    }
 
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const {
-        return stack->calc_intrinsic_size(max_size);
+        auto style = get_style();
+        vml::float2 total_padding = 2.0f * style.section_padding;
+        vml::float2 stack_size =
+            stack->calc_intrinsic_size(max_size - total_padding);
+        return stack_size + total_padding;
     }
 
     bool do_is_leaf() const { return false; }
@@ -78,4 +103,10 @@ struct SectionView : View {
 
 Owner<View> ui::section(ViewContainer<> children) {
     return allocate<SectionView>(std::move(children));
+}
+
+Owner<View> ui::section(Property<std::string const> title,
+                        ViewContainer<> children) {
+    return vstack({label(std::move(title)), section(std::move(children))}) |
+           hfill;
 }
