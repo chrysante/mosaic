@@ -25,8 +25,9 @@ static std::filesystem::path user_directory(NSSearchPathDirectory directory) {
                                         create:YES
                                          error:&error];
     if (!base_url) {
-        NSString* description =
-            error.localizedDescription ?: @"Unknown Foundation error";
+        NSString* description = error.localizedDescription
+                                    ? error.localizedDescription
+                                    : @"Unknown Foundation error";
         throw std::runtime_error(description.UTF8String
                                      ? description.UTF8String
                                      : "Failed to locate user directory");
@@ -45,8 +46,9 @@ ensure_directory(std::filesystem::path const& path) {
                                 withIntermediateDirectories:YES
                                                  attributes:nil
                                                       error:&error]) {
-        NSString* description =
-            error.localizedDescription ?: @"Unknown Foundation error";
+        NSString* description = error.localizedDescription
+                                    ? error.localizedDescription
+                                    : @"Unknown Foundation error";
         throw std::runtime_error(
             description.UTF8String ? description.UTF8String
                                    : "Failed to create application directory");

@@ -755,7 +755,8 @@ static void ImGui_Impl_Mosaic_MacOS_UpdateMouseCursor() {
         }
     } else {
         NSCursor* desired = bd->MouseCursors[imgui_cursor]
-                                ?: bd->MouseCursors[ImGuiMouseCursor_Arrow];
+                                ? bd->MouseCursors[imgui_cursor]
+                                : bd->MouseCursors[ImGuiMouseCursor_Arrow];
         // -[NSCursor set] generates measurable overhead if called
         // unconditionally.
         if (desired != NSCursor.currentCursor) {
@@ -1136,7 +1137,7 @@ static bool handle_flags_changed(NSEvent* event) {
     return io.WantCaptureKeyboard;
 }
 
-static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView* view) {
+static bool ImGui_Impl_Mosaic_MacOS_HandleEvent(NSEvent* event, NSView*) {
     // Only process events from the window containing ImGui view
     ImGuiViewport* viewport = find_viewport(event.window);
     if (!viewport) return false;

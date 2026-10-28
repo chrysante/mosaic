@@ -97,7 +97,7 @@ static NSAppearanceName to_native_type(AppearanceType type) {
 }
 
 mosaic::Style mosaic::make_style(AppearanceType type) {
-    __block mosaic::Style result = {type};
+    __block mosaic::Style result = {type, {}, {}};
     NSAppearance* a = [NSAppearance appearanceNamed:to_native_type(type)];
     [a performAsCurrentDrawingAppearance:^() {
       result = make_style_impl(type);
