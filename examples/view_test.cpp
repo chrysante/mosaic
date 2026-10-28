@@ -241,13 +241,13 @@ Owner<View> make_scroll_examples() {
                text("Scroll views"),
 
                text("Vertical scrolling"),
-               vertical_scroll(),
+               vertical_scroll() | framed(),
 
                text("Horizontal scrolling"),
-               std::move(horizontal_scroll),
+               std::move(horizontal_scroll) | framed(),
 
                text("Scrolling in columns"),
-               columns(std::move(cols)) | fixed_height(300.0f),
+               columns(std::move(cols)) | framed() | fixed_height(300.0f),
            }) |
            hfill;
 }

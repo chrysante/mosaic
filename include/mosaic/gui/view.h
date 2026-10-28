@@ -18,16 +18,20 @@ public:
 
     bool is_leaf() const { return do_is_leaf(); }
 
-    SizeSpec2 size_spec() const { return m_size_spec; }
-
-    void set_size_spec(unsigned axis, SizeSpec spec) {
-        m_size_spec[axis] = spec;
+    std::reference_wrapper<LayoutSpec> borrow_layout() {
+        return std::ref(m_layout.value());
     }
 
-    Alignment2 alignment_requirement() const { return m_alignment_requirement; }
+    SizeSpec2 size_spec() const { return m_layout.value().size_spec; }
 
-    void set_alignment_requirement(unsigned axis, Alignment align) {
-        m_alignment_requirement[axis] = align;
+    void set_size_spec(unsigned axis, SizeSpec spec) {
+        m_layout.value().size_spec[axis] = spec;
+    }
+
+    Alignment2 alignment() const { return m_layout.value().align; }
+
+    void set_align(unsigned axis, Alignment align) {
+        m_layout.value().align[axis] = align;
     }
 
     bool enabled() const { return m_enabled.materialize(); }
@@ -37,8 +41,11 @@ public:
     }
 
 protected:
-    View(SizeSpec2 size_requirement)
-        : m_size_spec(size_requirement) {}
+    explicit View(SizeSpec2 size_spec)
+        : m_layout(LayoutSpec{size_spec, {Alignment::low, Alignment::low}}) {}
+
+    explicit View(std::reference_wrapper<LayoutSpec> borrored_layout)
+        : m_layout(borrored_layout) {}
 
 private:
     virtual void do_display(Rect frame) = 0;
@@ -49,8 +56,7 @@ private:
 
     virtual bool do_is_leaf() const { return true; }
 
-    SizeSpec2 m_size_spec;
-    Alignment2 m_alignment_requirement{Alignment::low, Alignment::low};
+    ValueOrRef<LayoutSpec> m_layout;
     Property<bool const> m_enabled = true;
 };
 
@@ -98,9 +104,8 @@ constexpr inline auto fixed_width(float size) { return fixed_size(0, size); }
 constexpr inline auto fixed_height(float size) { return fixed_size(1, size); }
 
 constexpr auto align(unsigned axis, Alignment alignment) {
-    return ViewPipeAdapter{[axis, alignment](View& view) {
-        view.set_alignment_requirement(axis, alignment);
-    }};
+    return ViewPipeAdapter{
+        [axis, alignment](View& view) { view.set_align(axis, alignment); }};
 }
 
 constexpr auto align_left = align(0, Alignment::low);
@@ -121,6 +126,14 @@ inline auto enabled(Property<bool const> is_enabled) {
     return ViewPipeAdapter{[is_enabled = std::move(is_enabled)](View& view) {
         view.set_enabled(is_enabled);
     }};
+}
+
+namespace internal {
+struct FrameAction { Owner<View> operator()(Owner<View>) const; };
+} // namespace internal
+
+inline ViewWrapperPipe<internal::FrameAction> framed() {
+    return ViewWrapperPipe{ui::internal::FrameAction{}};
 }
 
 } // namespace mosaic::ui

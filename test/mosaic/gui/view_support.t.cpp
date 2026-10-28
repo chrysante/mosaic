@@ -112,8 +112,8 @@ TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
     REQUIRE(view.size_spec()[0].is_fit());
     REQUIRE(view.size_spec()[1].is_fill());
     REQUIRE(view.size_spec()[1].fill_weight() == 1.0f);
-    REQUIRE(view.alignment_requirement()[0] == Alignment::mid);
-    REQUIRE(view.alignment_requirement()[1] == Alignment::high);
+    REQUIRE(view.alignment()[0] == Alignment::mid);
+    REQUIRE(view.alignment()[1] == Alignment::high);
     ptr | hfill_weight(2.5f);
     REQUIRE(view.size_spec()[0].is_fill());
     REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);

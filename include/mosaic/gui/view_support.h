@@ -70,6 +70,30 @@ constexpr auto operator|(ViewPipeAdapter<Action1> adapter1,
     }};
 }
 
+template <typename Action> struct ViewWrapperPipe { Action action; };
+
+template <std::derived_from<View> V, typename Action>
+auto operator|(Owner<V>&& view, ViewWrapperPipe<Action> const& pipe) {
+    return std::invoke(pipe.action, std::move(view));
+}
+
+template <typename Action>
+Owner<View>& operator|=(Owner<View>& view,
+                        ViewWrapperPipe<Action> const& pipe) {
+    return view = std::invoke(pipe.action, *view);
+}
+
+template <typename Action1, typename Action2>
+constexpr auto operator|(ViewWrapperPipe<Action1> pipe1,
+                         ViewWrapperPipe<Action2> pipe2) {
+    return ViewWrapperPipe{
+        [pipe1 = std::move(pipe1),
+         pipe2 = std::move(pipe2)]<std::derived_from<View> V>(Owner<V>&& view) {
+            return std::invoke(pipe2.action,
+                               std::invoke(pipe1.action, std::move(view)));
+        }};
+}
+
 // =============================================================================
 // Layout primitives
 // =============================================================================
@@ -135,6 +159,11 @@ using SizeSpec2 = vml::vector<SizeSpec, 2>;
 enum class Alignment { low, mid, high };
 
 using Alignment2 = vml::vector<Alignment, 2>;
+
+struct LayoutSpec {
+    SizeSpec2 size_spec;
+    Alignment2 align;
+};
 
 enum class Axis { horizontal = 0, vertical = 1 };
 

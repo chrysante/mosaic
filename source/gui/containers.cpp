@@ -215,8 +215,8 @@ void StackView::do_display(Rect frame) {
         child_size[cross_axis] =
             resolve_child_size(size_req[cross_axis], child_size[cross_axis],
                                size_avail[cross_axis]);
-        Alignment const alignment = m_align_override.value_or(
-            child.alignment_requirement()[cross_axis]);
+        Alignment const alignment =
+            m_align_override.value_or(child.alignment()[cross_axis]);
         float cross_offset = 0.0f;
         switch (alignment) {
         case Alignment::low:
