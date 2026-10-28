@@ -7,5 +7,5 @@ struct UiTest {
 private:
     bool m_open = false;
     std::shared_ptr<void> m_state;
-    mosaic::ui::Owner<mosaic::ui::View> m_root;
+    mosaic::Owner<mosaic::ui::View> m_root;
 };

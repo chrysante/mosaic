@@ -15,6 +15,8 @@
 #include <utl/vector.hpp>
 #include <vml/vml.hpp>
 
+#include <mosaic/support/memory.h>
+
 namespace mosaic::ui {
 
 // =============================================================================
@@ -47,30 +49,25 @@ concept PointerLike =
 template <PointerLike<View> ViewPtr, typename Action>
 constexpr auto operator|(ViewPtr&& view,
                          ViewPipeAdapter<Action> const& adapter) {
-    adapter.action(*view);
+    std::invoke(adapter.action, *view);
     return std::forward<ViewPtr>(view);
 }
 
 template <PointerLike<View> ViewPtr, typename Action>
 constexpr ViewPtr const& operator|=(ViewPtr const& view,
                                     ViewPipeAdapter<Action> const& adapter) {
-    adapter.action(*view);
+    std::invoke(adapter.action, *view);
     return view;
 }
 
 template <typename Action1, typename Action2>
-constexpr auto operator|(ViewPipeAdapter<Action1> const& adapter1,
-                         ViewPipeAdapter<Action2> const& adapter2) {
-    return ViewPipeAdapter{[=]<typename V = View>(V& view) {
-        adapter1.action(view);
-        adapter2.action(view);
+constexpr auto operator|(ViewPipeAdapter<Action1> adapter1,
+                         ViewPipeAdapter<Action2> adapter2) {
+    return ViewPipeAdapter{[adapter1 = std::move(adapter1),
+                            adapter2 = std::move(adapter2)](View& view) {
+        std::invoke(adapter1.action, view);
+        std::invoke(adapter2.action, view);
     }};
-}
-
-template <typename T> using Owner = std::unique_ptr<T>;
-
-template <typename T, typename... Args> Owner<T> allocate(Args&&... args) {
-    return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 // =============================================================================
@@ -78,21 +75,27 @@ template <typename T, typename... Args> Owner<T> allocate(Args&&... args) {
 // =============================================================================
 
 struct Rect {
+    // The top-left corner of the rectangle (by convention)
     vml::float2 min() const { return origin; }
+
+    // The bottom-right corner of the rectangle (by convention)
     vml::float2 max() const { return origin + size; }
 
     vml::float2 origin;
     vml::float2 size;
 };
 
+// TODO: Rename to `SizeSpec`
 class SizeReq {
 public:
+    // TODO: Rename to `Mode`
     enum class Type { fit, fixed, fill };
 
     static constexpr SizeReq fit() { return {Type::fit, 0.0f}; }
 
     static constexpr SizeReq fixed(float value) {
         assert(std::isfinite(value));
+        assert(value >= 0);
         return {Type::fixed, value};
     }
 
@@ -157,7 +160,7 @@ public:
         else return *std::get<1>(m_value);
     }
 
-    T& value() { return const_cast<T&>(std::as_const(*this).get()); }
+    T& value() { return const_cast<T&>(std::as_const(*this).value()); }
 
 private:
     friend class ValueOrRef<T const>;
@@ -171,15 +174,16 @@ public:
 
     ValueOrRef(ValueOrRef<T> const& other)
         : m_value((T const*)nullptr) {
-        if (m_value.index() == 0) m_value.emplace(std::get<0>(other.m_value));
-        else m_value.emplace(std::get<1>(m_value));
+        if (other.m_value.index() == 0)
+            m_value.template emplace<0>(std::get<0>(other.m_value));
+        else m_value.template emplace<1>(std::get<1>(other.m_value));
     }
 
     ValueOrRef(ValueOrRef<T>&& other)
         : m_value((T const*)nullptr) {
-        if (m_value.index() == 0)
-            m_value.emplace(std::get<0>(std::move(other).m_value));
-        else m_value.emplace(std::get<1>(m_value));
+        if (other.m_value.index() == 0)
+            m_value.template emplace<0>(std::get<0>(std::move(other).m_value));
+        else m_value.template emplace<1>(std::get<1>(other.m_value));
     }
 
     ValueOrRef(T const& value)
@@ -249,18 +253,24 @@ public:
         : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
 
     Property& operator=(Property const& rhs) {
-        if (this != &rhs && rhs.m_impl) m_impl = rhs.m_impl->clone();
+        if (this != &rhs) m_impl = rhs.m_impl ? rhs.m_impl->clone() : nullptr;
         return *this;
     }
 
     explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
         : m_impl(std::move(impl)) {}
 
-    ValueOrRef<T const> get() const { return m_impl->get(); }
+    ValueOrRef<T const> get() const {
+        assert(m_impl && "using moved-from object?");
+        return m_impl->get();
+    }
 
     T materialize() const { return get().value(); }
 
-    void set(T new_value) { m_impl->set(std::move(new_value)); }
+    void set(T new_value) {
+        assert(m_impl && "using moved-from object?");
+        m_impl->set(std::move(new_value));
+    }
 
 private:
     std::unique_ptr<internal::PropertyInterface<T>> m_impl;
@@ -277,7 +287,7 @@ public:
         : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
 
     Property& operator=(Property const& rhs) {
-        if (this != &rhs && rhs.m_impl) m_impl = rhs.m_impl->clone();
+        if (this != &rhs) m_impl = rhs.m_impl ? rhs.m_impl->clone() : nullptr;
         return *this;
     }
 
@@ -295,7 +305,10 @@ public:
     explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
         : m_impl(std::move(impl)) {}
 
-    ValueOrRef<T const> get() const { return m_impl->get(); }
+    ValueOrRef<T const> get() const {
+        assert(m_impl && "using moved-from object?");
+        return m_impl->get();
+    }
 
     T materialize() const { return get().value(); }
 
@@ -345,10 +358,11 @@ template <typename Getter> struct ComputePropertyType {
 template <typename Getter,
           typename T = internal::ComputePropertyType<Getter>::type>
 Property<T const> computed(Getter&& get) {
+    using GetterValue = std::remove_cvref_t<Getter>;
     struct ComputedProperty final : internal::PropertyInterface<T> {
-        explicit ComputedProperty(Getter&& getter)
+        explicit ComputedProperty(GetterValue&& getter)
             : getter(std::move(getter)) {}
-        explicit ComputedProperty(Getter const& getter)
+        explicit ComputedProperty(GetterValue const& getter)
             : getter(getter) {}
 
         ValueOrRef<T const> get() const override { return std::invoke(getter); }
@@ -359,7 +373,7 @@ Property<T const> computed(Getter&& get) {
             return std::make_unique<ComputedProperty>(getter);
         }
 
-        Getter getter;
+        GetterValue getter;
     };
     return Property<T>(
         std::make_unique<ComputedProperty>(std::forward<Getter>(get)));
@@ -369,13 +383,12 @@ template <typename Getter, typename Setter,
           typename T = internal::ComputePropertyType<Getter>::type>
 requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
                                                         Setter&& set) {
+    using GetterValue = std::remove_cvref_t<Getter>;
+    using SetterValue = std::remove_cvref_t<Setter>;
     struct ComputedProperty final : internal::PropertyInterface<T> {
-        explicit ComputedProperty(Getter&& getter, Setter&& setter)
+        explicit ComputedProperty(GetterValue getter, SetterValue setter)
             : getter(std::move(getter))
             , setter(std::move(setter)) {}
-        explicit ComputedProperty(Getter const& getter, Setter const& setter)
-            : getter(getter)
-            , setter(setter) {}
 
         ValueOrRef<T const> get() const override { return std::invoke(getter); }
 
@@ -387,8 +400,8 @@ requires std::invocable<Setter, T> Property<T> computed(Getter&& get,
             return std::make_unique<ComputedProperty>(getter, setter);
         }
 
-        Getter getter;
-        Setter setter;
+        GetterValue getter;
+        SetterValue setter;
     };
 
     return Property<T>(std::make_unique<ComputedProperty>(
@@ -423,11 +436,11 @@ public:
 template <typename V = View> class ViewContainer {
     auto elem_view() {
         return std::views::transform(m_elements,
-                                     [](auto& v) -> View& { return *v; });
+                                     [](auto& v) -> V& { return *v; });
     }
     auto elem_view() const {
         return std::views::transform(m_elements,
-                                     [](auto& v) -> View const& { return *v; });
+                                     [](auto& v) -> V const& { return *v; });
     }
     bool all_none_null() const {
         return std::ranges::all_of(m_elements,

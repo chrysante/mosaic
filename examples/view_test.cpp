@@ -7,7 +7,8 @@
 #include <mosaic/gui/containers.h>
 #include <mosaic/gui/widgets.h>
 
-using namespace mosaic::ui;
+using namespace mosaic;
+using namespace ui;
 
 namespace {
 

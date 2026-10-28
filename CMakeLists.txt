@@ -230,6 +230,7 @@ target_sources(mosaic PRIVATE
     source/gui/toolbar_renderer.cpp
     source/gui/view.cpp
     source/gui/view_debugger.cpp
+    source/gui/view_support.cpp
     source/gui/widgets.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
@@ -332,6 +333,7 @@ add_executable(mosaic_test)
 mosaic_enable_warnings(mosaic_test)
 
 target_sources(mosaic_test PRIVATE
+    test/mosaic/gui/view_support.t.cpp
     test/mosaic/service/event_system.t.cpp
     test/mosaic/service/thread_pool.t.cpp
     test/mosaic/service/dispatcher.t.cpp
