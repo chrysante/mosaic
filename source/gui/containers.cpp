@@ -18,18 +18,18 @@
 using namespace mosaic;
 using namespace ui;
 
-static float resolve_child_size(SizeReq requirement, float intrinsic,
+static float resolve_child_size(SizeSpec requirement, float intrinsic,
                                 float available) {
     auto clamp = [available](float value) {
         return available >= 0 ? std::min(value, available) : value;
     };
 
-    switch (requirement.type()) {
-    case SizeReq::Type::fixed:
+    switch (requirement.mode()) {
+    case SizeSpec::Mode::fixed:
         return clamp(requirement.fixed_size());
-    case SizeReq::Type::fit:
+    case SizeSpec::Mode::fit:
         return clamp(intrinsic);
-    case SizeReq::Type::fill:
+    case SizeSpec::Mode::fill:
         return clamp(available >= 0 ? available : intrinsic);
     }
 }
@@ -165,18 +165,18 @@ void StackView::do_display(Rect frame) {
         child_max_size[main_axis] = -1.0f;
         vml::float2 const intrinsic_size = child_sizes[i] =
             child.calc_intrinsic_size(child_max_size);
-        SizeReq2 const requirement = child.size_requirement();
-        SizeReq const main_requirement = requirement[main_axis];
+        SizeSpec2 const size_spec = child.size_spec();
+        SizeSpec const main_axis_spec = size_spec[main_axis];
 
         // Resolve the desired size without allocating any extra fill space.
         // For fill requirements this gives the child's intrinsic base size.
         float const desired_main = resolve_child_size(
-            main_requirement, intrinsic_size[main_axis], -1.0f);
+            main_axis_spec, intrinsic_size[main_axis], -1.0f);
         assert(desired_main >= 0.0f);
         child_sizes[i][main_axis] = desired_main;
         desired_main_sum += desired_main;
-        if (main_requirement.is_fill())
-            fill_weight_sum += main_requirement.fill_weight();
+        if (main_axis_spec.is_fill())
+            fill_weight_sum += main_axis_spec.fill_weight();
     }
 
     // Determine whether the initial allocations fit.
@@ -195,11 +195,11 @@ void StackView::do_display(Rect frame) {
     } else if (remaining > 0.0f && fill_weight_sum > 0.0f) {
         // Only distribute surplus space when the initial allocations fit.
         for (std::size_t i = 0; i < m_children.size(); ++i) {
-            SizeReq2 const requirement = m_children[i].size_requirement();
-            SizeReq const main_requirement = requirement[main_axis];
-            if (!main_requirement.is_fill()) continue;
+            SizeSpec2 const size_spec = m_children[i].size_spec();
+            SizeSpec const main_axis_spec = size_spec[main_axis];
+            if (!main_axis_spec.is_fill()) continue;
             float const fill_share =
-                main_requirement.fill_weight() / fill_weight_sum;
+                main_axis_spec.fill_weight() / fill_weight_sum;
             child_sizes[i][main_axis] += remaining * fill_share;
         }
     }
@@ -211,7 +211,7 @@ void StackView::do_display(Rect frame) {
     for (std::size_t i = 0; i < m_children.size(); ++i) {
         auto& child = m_children[i];
         vml::float2 child_size = child_sizes[i];
-        SizeReq2 const size_req = child.size_requirement();
+        SizeSpec2 const size_req = child.size_spec();
         child_size[cross_axis] =
             resolve_child_size(size_req[cross_axis], child_size[cross_axis],
                                size_avail[cross_axis]);
@@ -248,12 +248,12 @@ vml::float2 StackView::do_calc_intrinsic_size(vml::float2 max_size) const {
     unsigned cross_axis = 1 - main_axis;
     vml::float2 result = {0.0f, 0.0f};
     for (auto& child : m_children) {
-        SizeReq2 size_req = child.size_requirement();
+        SizeSpec2 size_spec = child.size_spec();
         vml::float2 child_max_size = max_size;
         child_max_size[main_axis] = -1.0f;
         vml::float2 child_size = child.calc_intrinsic_size(child_max_size);
         vml::float2 resolved_size =
-            vml::map(size_req, child_size, vml::float2(-1.0f, -1.0f),
+            vml::map(size_spec, child_size, vml::float2(-1.0f, -1.0f),
                      resolve_child_size);
         result[main_axis] += resolved_size[main_axis];
         result[cross_axis] =
@@ -310,7 +310,7 @@ void ScrollView::do_display(Rect frame) {
     vml::float2 cursor = ImGui::GetCursorScreenPos();
     for (auto& child : m_children) {
         vml::float2 intrinsic_size = child.calc_intrinsic_size(size_avail);
-        SizeReq2 size_req = child.size_requirement();
+        SizeSpec2 size_req = child.size_spec();
         vml::float2 child_size =
             vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
         child.display({cursor, child_size});
@@ -368,7 +368,7 @@ void TabView::do_display(Rect frame) {
         if (!ImGui::BeginTabItem(title_string.value().c_str(), nullptr))
             continue;
         vml::float2 intrinsic_size = child->calc_intrinsic_size(size_avail);
-        SizeReq2 size_req = child->size_requirement();
+        SizeSpec2 size_req = child->size_spec();
         vml::float2 child_size =
             vml::map(size_req, intrinsic_size, size_avail, resolve_child_size);
         vml::float2 pos = ImGui::GetCursorScreenPos();
@@ -664,7 +664,7 @@ namespace {
 
 struct NullView : View {
     NullView()
-        : View({SizeReq::fit(), SizeReq::fit()}) {}
+        : View({SizeSpec::fit(), SizeSpec::fit()}) {}
     void do_display(Rect) override {}
     vml::float2 do_calc_intrinsic_size(vml::float2) const override {
         return {0.0f, 0.0f};

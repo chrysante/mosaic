@@ -19,7 +19,7 @@ namespace {
 class TestView final : public View {
 public:
     TestView()
-        : View(SizeReq2{SizeReq::fit(), SizeReq::fit()}) {}
+        : View(SizeSpec2{SizeSpec::fit(), SizeSpec::fit()}) {}
 
     int display_calls = 0;
     Rect last_frame{{0.0f, 0.0f}, {0.0f, 0.0f}};
@@ -62,8 +62,8 @@ TEST_CASE("View pipe adapter applies an action and returns a pointer value",
     auto result = ptr | fixed_height(42.0f);
     STATIC_REQUIRE(std::same_as<decltype(result), View*>);
     REQUIRE(result == ptr);
-    REQUIRE(view.size_requirement()[1].is_fixed());
-    REQUIRE(view.size_requirement()[1].fixed_size() == 42.0f);
+    REQUIRE(view.size_spec()[1].is_fixed());
+    REQUIRE(view.size_spec()[1].fixed_size() == 42.0f);
 }
 
 TEST_CASE("View pipe adapter accepts smart pointers and wrapper types",
@@ -73,14 +73,14 @@ TEST_CASE("View pipe adapter accepts smart pointers and wrapper types",
     auto result = std::move(owned) | fixed_width(80.0f);
     STATIC_REQUIRE(std::same_as<decltype(result), std::unique_ptr<TestView>>);
     REQUIRE(result.get() == raw);
-    REQUIRE(raw->size_requirement()[0].is_fixed());
-    REQUIRE(raw->size_requirement()[0].fixed_size() == 80.0f);
+    REQUIRE(raw->size_spec()[0].is_fixed());
+    REQUIRE(raw->size_spec()[0].fixed_size() == 80.0f);
     TestView view;
     ArrowWrapper wrapper{&view};
     auto wrapper_result = wrapper | vfit;
     STATIC_REQUIRE(std::same_as<decltype(wrapper_result), ArrowWrapper>);
     REQUIRE(wrapper_result.ptr == &view);
-    REQUIRE(view.size_requirement()[1].is_fit());
+    REQUIRE(view.size_spec()[1].is_fit());
 }
 
 TEST_CASE("Composed pipe adapters run left to right", "[pipe]") {
@@ -88,8 +88,8 @@ TEST_CASE("Composed pipe adapters run left to right", "[pipe]") {
     View* ptr = &view;
     auto result = ptr | (fixed_height(100.0f) | fixed_height(200.0f));
     REQUIRE(result == ptr);
-    REQUIRE(view.size_requirement()[1].is_fixed());
-    REQUIRE(view.size_requirement()[1].fixed_size() == 200.0f);
+    REQUIRE(view.size_spec()[1].is_fixed());
+    REQUIRE(view.size_spec()[1].fixed_size() == 200.0f);
 }
 
 TEST_CASE(
@@ -100,8 +100,8 @@ TEST_CASE(
     auto const& result = (ptr |= fixed_width(55.0f));
     STATIC_REQUIRE(std::same_as<decltype(result), View* const&>);
     REQUIRE(&result == &ptr);
-    REQUIRE(view.size_requirement()[0].is_fixed());
-    REQUIRE(view.size_requirement()[0].fixed_size() == 55.0f);
+    REQUIRE(view.size_spec()[0].is_fixed());
+    REQUIRE(view.size_spec()[0].fixed_size() == 55.0f);
 }
 
 TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
@@ -109,14 +109,14 @@ TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
     TestView view;
     View* ptr = &view;
     ptr | hfit | vfill | hcenter | align_bottom;
-    REQUIRE(view.size_requirement()[0].is_fit());
-    REQUIRE(view.size_requirement()[1].is_fill());
-    REQUIRE(view.size_requirement()[1].fill_weight() == 1.0f);
+    REQUIRE(view.size_spec()[0].is_fit());
+    REQUIRE(view.size_spec()[1].is_fill());
+    REQUIRE(view.size_spec()[1].fill_weight() == 1.0f);
     REQUIRE(view.alignment_requirement()[0] == Alignment::mid);
     REQUIRE(view.alignment_requirement()[1] == Alignment::high);
     ptr | hfill_weight(2.5f);
-    REQUIRE(view.size_requirement()[0].is_fill());
-    REQUIRE(view.size_requirement()[0].fill_weight() == 2.5f);
+    REQUIRE(view.size_spec()[0].is_fill());
+    REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);
     ptr | enabled(Property<bool const>{false});
     REQUIRE_FALSE(view.enabled());
     ptr | enabled(Property<bool const>{true});
@@ -124,7 +124,7 @@ TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
 }
 
 // -----------------------------------------------------------------------------
-// Rect and SizeReq
+// Rect and SizeSpec
 // -----------------------------------------------------------------------------
 
 TEST_CASE("Rect computes minimum and maximum corners", "[Rect]") {
@@ -135,29 +135,30 @@ TEST_CASE("Rect computes minimum and maximum corners", "[Rect]") {
     REQUIRE(rect.max()[1] == 10.0f);
 }
 
-TEST_CASE("SizeReq factories preserve their mode and value", "[SizeReq]") {
-    const auto fit = SizeReq::fit();
+TEST_CASE("SizeSpec factories preserve their mode and value", "[SizeSpec]") {
+    const auto fit = SizeSpec::fit();
     REQUIRE(fit.is_fit());
-    REQUIRE(fit.type() == SizeReq::Type::fit);
-    const auto fixed = SizeReq::fixed(12.5f);
+    REQUIRE(fit.mode() == SizeSpec::Mode::fit);
+    const auto fixed = SizeSpec::fixed(12.5f);
     REQUIRE(fixed.is_fixed());
-    REQUIRE(fixed.type() == SizeReq::Type::fixed);
+    REQUIRE(fixed.mode() == SizeSpec::Mode::fixed);
     REQUIRE(fixed.fixed_size() == 12.5f);
-    const auto fill_default = SizeReq::fill();
+    const auto fill_default = SizeSpec::fill();
     REQUIRE(fill_default.is_fill());
-    REQUIRE(fill_default.type() == SizeReq::Type::fill);
+    REQUIRE(fill_default.mode() == SizeSpec::Mode::fill);
     REQUIRE(fill_default.fill_weight() == 1.0f);
-    const auto fill_weighted = SizeReq::fill(2.25f);
+    const auto fill_weighted = SizeSpec::fill(2.25f);
     REQUIRE(fill_weighted.is_fill());
     REQUIRE(fill_weighted.fill_weight() == 2.25f);
 }
 
-TEST_CASE("SizeReq accepts zero fill weight and zero fixed size", "[SizeReq]") {
-    REQUIRE(SizeReq::fill(0.0f).fill_weight() == 0.0f);
-    REQUIRE(SizeReq::fixed(0.0f).fixed_size() == 0.0f);
+TEST_CASE("SizeSpec accepts zero fill weight and zero fixed size",
+          "[SizeSpec]") {
+    REQUIRE(SizeSpec::fill(0.0f).fill_weight() == 0.0f);
+    REQUIRE(SizeSpec::fixed(0.0f).fixed_size() == 0.0f);
 }
 
-// Note: precondition violations in SizeReq accessors and factory assertions
+// Note: precondition violations in SizeSpec accessors and factory assertions
 // should be tested in a separate death-test setup if your Catch2/platform
 // configuration supports it. Do not call fixed_size() on fit/fill or
 // fill_weight() on fit/fixed in ordinary tests.

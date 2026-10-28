@@ -23,7 +23,7 @@ static bool non_negative(vml::float2 size) {
 }
 
 TextView::TextView(Property<std::string const>&& text, TextOptions options)
-    : View({SizeReq::fit(), SizeReq::fit()})
+    : View({SizeSpec::fit(), SizeSpec::fit()})
     , m_options(std::move(options))
     , m_text(std::move(text)) {}
 
@@ -78,9 +78,9 @@ vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
                        : max_size.x < 0.0f ? m_options.default_wrap_width
                                            : max_size.x;
     wrap_width = std::min(wrap_width, m_options.max_wrap_width);
-    SizeReq width_req = size_requirement().x;
-    if (width_req.is_fixed())
-        wrap_width = std::min(wrap_width, width_req.fixed_size());
+    SizeSpec width_spec = size_spec().x;
+    if (width_spec.is_fixed())
+        wrap_width = std::min(wrap_width, width_spec.fixed_size());
     return ImGui::CalcTextSize(
         text_ref.data(), text_ref.data() + text_ref.size(), false, wrap_width);
 }
@@ -92,7 +92,7 @@ Owner<TextView> ui::text(Property<std::string const> text_arg,
 
 ButtonView::ButtonView(Property<std::string const>&& label,
                        std::function<void()>&& on_click)
-    : View({SizeReq::fit(), SizeReq::fit()})
+    : View({SizeSpec::fit(), SizeSpec::fit()})
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
@@ -121,7 +121,7 @@ Owner<ButtonView> ui::button(Property<std::string const> label,
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)
-    : View({SizeReq::fit(), SizeReq::fit()})
+    : View({SizeSpec::fit(), SizeSpec::fit()})
     , m_state(std::move(state)) {}
 
 void CheckboxView::do_display(Rect frame) {
@@ -148,7 +148,7 @@ template <typename T>
 SliderView<T>::SliderView(Property<T>&& state, Property<ScalarType const>&& min,
                           Property<ScalarType const>&& max,
                           SliderOptions options)
-    : View({SizeReq::fill(), SizeReq::fit()})
+    : View({SizeSpec::fill(), SizeSpec::fit()})
     , m_state(std::move(state))
     , m_min(std::move(min))
     , m_max(std::move(max))
@@ -311,7 +311,7 @@ template class ui::SliderView<vml::vector<double, 4>>;
 template <std::size_t N>
 ColorEditView<N>::ColorEditView(Property<ColorType>&& state,
                                 ColorEditOptions options)
-    : View({SizeReq::fill(), SizeReq::fit()})
+    : View({SizeSpec::fill(), SizeSpec::fit()})
     , m_state(std::move(state))
     , m_options(std::move(options)) {}
 
@@ -361,12 +361,12 @@ Owner<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
     return allocate<ColorEditView<4>>(std::move(state), std::move(options));
 }
 
-static SizeReq2 separator_size_req(Axis main_axis) {
+static SizeSpec2 separator_size_req(Axis main_axis) {
     switch (main_axis) {
     case Axis::horizontal:
-        return {SizeReq::fill(), SizeReq::fit()};
+        return {SizeSpec::fill(), SizeSpec::fit()};
     case Axis::vertical:
-        return {SizeReq::fit(), SizeReq::fill()};
+        return {SizeSpec::fit(), SizeSpec::fill()};
     }
 }
 
@@ -412,7 +412,7 @@ Owner<SeparatorView> ui::vseparator() {
 }
 
 SpacerView::SpacerView(float weight)
-    : View({SizeReq::fill(weight), SizeReq::fill(weight)}) {}
+    : View({SizeSpec::fill(weight), SizeSpec::fill(weight)}) {}
 
 void SpacerView::do_display(Rect) {}
 
@@ -425,7 +425,7 @@ Owner<SpacerView> ui::spacer(float weight) {
 }
 
 ImageView::ImageView(void const* image, float aspect_ratio)
-    : View({SizeReq::fill(), SizeReq::fit()})
+    : View({SizeSpec::fill(), SizeSpec::fit()})
     , m_image(image)
     , m_aspect_ratio(aspect_ratio) {}
 

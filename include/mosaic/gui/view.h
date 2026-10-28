@@ -17,10 +17,10 @@ public:
 
     bool is_leaf() const { return do_is_leaf(); }
 
-    SizeReq2 size_requirement() const { return m_size_requirement; }
+    SizeSpec2 size_spec() const { return m_size_spec; }
 
-    void set_size_requirement(unsigned axis, SizeReq req) {
-        m_size_requirement[axis] = req;
+    void set_size_spec(unsigned axis, SizeSpec spec) {
+        m_size_spec[axis] = spec;
     }
 
     Alignment2 alignment_requirement() const { return m_alignment_requirement; }
@@ -36,8 +36,8 @@ public:
     }
 
 protected:
-    View(SizeReq2 size_requirement)
-        : m_size_requirement(size_requirement) {}
+    View(SizeSpec2 size_requirement)
+        : m_size_spec(size_requirement) {}
 
 private:
     virtual void do_display(Rect frame) = 0;
@@ -48,7 +48,7 @@ private:
 
     virtual bool do_is_leaf() const { return true; }
 
-    SizeReq2 m_size_requirement;
+    SizeSpec2 m_size_spec;
     Alignment2 m_alignment_requirement{Alignment::low, Alignment::low};
     Property<bool const> m_enabled = true;
 };
@@ -58,9 +58,8 @@ private:
 // =============================================================================
 
 constexpr auto fit(unsigned axis) {
-    return ViewPipeAdapter{[axis](View& view) {
-        view.set_size_requirement(axis, SizeReq::fit());
-    }};
+    return ViewPipeAdapter{
+        [axis](View& view) { view.set_size_spec(axis, SizeSpec::fit()); }};
 }
 
 inline constexpr auto hfit = fit(0);
@@ -69,7 +68,7 @@ inline constexpr auto vfit = fit(1);
 
 constexpr auto fill_weight(unsigned axis, float weight) {
     return ViewPipeAdapter{[axis, weight](View& view) {
-        view.set_size_requirement(axis, SizeReq::fill(weight));
+        view.set_size_spec(axis, SizeSpec::fill(weight));
     }};
 }
 
@@ -89,7 +88,7 @@ constexpr inline auto vfill_weight(float weight) {
 
 constexpr inline auto fixed_size(unsigned axis, float size) {
     return ViewPipeAdapter{[axis, size](View& view) {
-        view.set_size_requirement(axis, SizeReq::fixed(size));
+        view.set_size_spec(axis, SizeSpec::fixed(size));
     }};
 }
 

@@ -85,27 +85,25 @@ struct Rect {
     vml::float2 size;
 };
 
-// TODO: Rename to `SizeSpec`
-class SizeReq {
+class SizeSpec {
 public:
-    // TODO: Rename to `Mode`
-    enum class Type { fit, fixed, fill };
+    enum class Mode { fit, fixed, fill };
 
-    static constexpr SizeReq fit() { return {Type::fit, 0.0f}; }
+    static constexpr SizeSpec fit() { return {Mode::fit, 0.0f}; }
 
-    static constexpr SizeReq fixed(float value) {
+    static constexpr SizeSpec fixed(float value) {
         assert(std::isfinite(value));
         assert(value >= 0);
-        return {Type::fixed, value};
+        return {Mode::fixed, value};
     }
 
-    static constexpr SizeReq fill(float weight = 1.0f) {
+    static constexpr SizeSpec fill(float weight = 1.0f) {
         assert(std::isfinite(weight));
         assert(weight >= 0 && "fill weight must be non-negative");
-        return {Type::fill, weight};
+        return {Mode::fill, weight};
     }
 
-    constexpr Type type() const { return m_type; }
+    constexpr Mode mode() const { return m_mode; }
 
     /// \pre Must be of type `fixed`
     constexpr float fixed_size() const {
@@ -119,20 +117,20 @@ public:
         return m_value;
     }
 
-    constexpr bool is_fit() const { return type() == Type::fit; }
-    constexpr bool is_fixed() const { return type() == Type::fixed; }
-    constexpr bool is_fill() const { return type() == Type::fill; }
+    constexpr bool is_fit() const { return mode() == Mode::fit; }
+    constexpr bool is_fixed() const { return mode() == Mode::fixed; }
+    constexpr bool is_fill() const { return mode() == Mode::fill; }
 
 private:
-    constexpr SizeReq(Type type, float value)
-        : m_type(type)
+    constexpr SizeSpec(Mode type, float value)
+        : m_mode(type)
         , m_value(value) {}
 
-    Type m_type;
+    Mode m_mode;
     float m_value;
 };
 
-using SizeReq2 = vml::vector<SizeReq, 2>;
+using SizeSpec2 = vml::vector<SizeSpec, 2>;
 
 enum class Alignment { low, mid, high };
 

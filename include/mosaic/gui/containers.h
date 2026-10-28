@@ -15,8 +15,8 @@ namespace mosaic::ui {
 
 class StackView : public View {
 public:
-    static constexpr SizeReq2 default_size_requirement = {SizeReq::fit(),
-                                                          SizeReq::fit()};
+    static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fit(),
+                                                           SizeSpec::fit()};
 
     explicit StackView(Axis main_axis, ViewContainer<>&& children,
                        std::optional<Alignment> align_override = std::nullopt);
@@ -63,8 +63,8 @@ hstack(Owner<View> (&&elems)[N],
 
 class ScrollView : public View {
 public:
-    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
-                                                          SizeReq::fill()};
+    static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
+                                                           SizeSpec::fill()};
 
     explicit ScrollView(Axis main_axis, ViewContainer<>&& children);
 
@@ -117,8 +117,8 @@ inline Tab tab(Property<std::string const> title, Owner<View> content) {
 
 class TabView : public View {
 public:
-    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
-                                                          SizeReq::fill()};
+    static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
+                                                           SizeSpec::fill()};
 
     explicit TabView(Array<Tab>&& tabs);
 
@@ -167,8 +167,8 @@ inline Column column(Owner<View> content, float min_width = 100.0f,
 
 class ColumnView : public View {
 public:
-    static constexpr SizeReq2 default_size_requirement = {SizeReq::fill(),
-                                                          SizeReq::fill()};
+    static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
+                                                           SizeSpec::fill()};
 
     explicit ColumnView(Array<Column>&& columns);
 
@@ -195,8 +195,8 @@ template <std::size_t N> Owner<ColumnView> columns(Column (&&columns)[N]) {
 
 template <typename Index = int> class SwitchView : public View {
 public:
-    static constexpr SizeReq2 default_size_requirement = {SizeReq::fit(),
-                                                          SizeReq::fit()};
+    static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fit(),
+                                                           SizeSpec::fit()};
 
     explicit SwitchView(Property<Index> index, ViewContainer<>&& children);
 
