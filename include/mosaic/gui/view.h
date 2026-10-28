@@ -3,10 +3,11 @@
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/view_support.h>
+#include <mosaic/support/export.h>
 
 namespace mosaic::ui {
 
-class View {
+class MOSAIC_EXPORT View {
 public:
     virtual ~View() = default;
 

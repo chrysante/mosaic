@@ -25,7 +25,7 @@ struct TextOptions {
     float max_wrap_width = FLT_MAX;
 };
 
-class TextView : public View {
+class MOSAIC_EXPORT TextView : public View {
 public:
     explicit TextView(Property<std::string const>&& text,
                       TextOptions options = {});
@@ -38,14 +38,14 @@ private:
     Property<std::string const> m_text;
 };
 
-Owner<TextView> text(Property<std::string const> text_arg,
-                     TextOptions options = {});
+MOSAIC_EXPORT Owner<TextView> text(Property<std::string const> text_arg,
+                                   TextOptions options = {});
 
 // =============================================================================
 // Button
 // =============================================================================
 
-class ButtonView : public View {
+class MOSAIC_EXPORT ButtonView : public View {
 public:
     explicit ButtonView(Property<std::string const>&& label,
                         std::function<void()>&& on_click);
@@ -58,14 +58,14 @@ private:
     std::function<void()> m_on_click;
 };
 
-Owner<ButtonView> button(Property<std::string const> label,
-                         std::function<void()> action = {});
+MOSAIC_EXPORT Owner<ButtonView> button(Property<std::string const> label,
+                                       std::function<void()> action = {});
 
 // =============================================================================
 // Checkbox
 // =============================================================================
 
-class CheckboxView : public View {
+class MOSAIC_EXPORT CheckboxView : public View {
 public:
     explicit CheckboxView(Property<bool>&& state);
 
@@ -76,7 +76,7 @@ private:
     Property<bool> m_state;
 };
 
-Owner<CheckboxView> checkbox(Property<bool> state);
+MOSAIC_EXPORT Owner<CheckboxView> checkbox(Property<bool> state);
 
 // =============================================================================
 // Slider
@@ -96,7 +96,7 @@ struct SliderOptions {
     bool color_markers = true;
 };
 
-template <typename T> class SliderView : public View {
+template <typename T> class MOSAIC_EXPORT SliderView : public View {
 public:
     using ScalarType = vml::get_underlying_type<T>::type;
 
@@ -142,7 +142,8 @@ struct ColorEditOptions {
     bool enable_drag_drop = true;
 };
 
-template <std::size_t NumComponents> class ColorEditView : public View {
+template <std::size_t NumComponents>
+class MOSAIC_EXPORT ColorEditView : public View {
 public:
     using ColorType = vml::vector<float, NumComponents>;
 
@@ -161,17 +162,17 @@ private:
     ColorEditOptions m_options;
 };
 
-Owner<ColorEditView<3>> color_edit(Property<vml::float3> state,
-                                   ColorEditOptions options = {});
+MOSAIC_EXPORT Owner<ColorEditView<3>> color_edit(Property<vml::float3> state,
+                                                 ColorEditOptions options = {});
 
-Owner<ColorEditView<4>> color_edit(Property<vml::float4> state,
-                                   ColorEditOptions options = {});
+MOSAIC_EXPORT Owner<ColorEditView<4>> color_edit(Property<vml::float4> state,
+                                                 ColorEditOptions options = {});
 
 // =============================================================================
 // Separator
 // =============================================================================
 
-class SeparatorView : public View {
+class MOSAIC_EXPORT SeparatorView : public View {
 public:
     explicit SeparatorView(Axis main_axis);
 
@@ -193,15 +194,15 @@ private:
     Axis m_main_axis;
 };
 
-Owner<SeparatorView> hseparator();
+MOSAIC_EXPORT Owner<SeparatorView> hseparator();
 
-Owner<SeparatorView> vseparator();
+MOSAIC_EXPORT Owner<SeparatorView> vseparator();
 
 // =============================================================================
 // Spacer
 // =============================================================================
 
-class SpacerView : public View {
+class MOSAIC_EXPORT SpacerView : public View {
 public:
     SpacerView(float weight = 1.0f);
 
@@ -210,13 +211,13 @@ private:
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 };
 
-Owner<SpacerView> spacer(float weight = 1.0f);
+MOSAIC_EXPORT Owner<SpacerView> spacer(float weight = 1.0f);
 
 // =============================================================================
 // Image
 // =============================================================================
 
-class ImageView : public View {
+class MOSAIC_EXPORT ImageView : public View {
 public:
     ImageView(void const* image, float aspect_ratio);
 
@@ -229,6 +230,6 @@ private:
 };
 
 /// \p aspect_ratio means `width / height`
-Owner<ImageView> image(void const* image, float aspect_ratio);
+MOSAIC_EXPORT Owner<ImageView> image(void const* image, float aspect_ratio);
 
 } // namespace mosaic::ui

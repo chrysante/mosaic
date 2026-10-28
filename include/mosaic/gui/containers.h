@@ -6,6 +6,7 @@
 
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
+#include <mosaic/support/export.h>
 
 namespace mosaic::ui {
 
@@ -13,7 +14,7 @@ namespace mosaic::ui {
 // StackView
 // =============================================================================
 
-class StackView : public View {
+class MOSAIC_EXPORT StackView : public View {
 public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fit(),
                                                            SizeSpec::fit()};
@@ -37,8 +38,9 @@ private:
     ViewContainer<> m_children;
 };
 
-Owner<StackView> vstack(ViewContainer<> children,
-                        std::optional<Alignment> align_override = std::nullopt);
+MOSAIC_EXPORT Owner<StackView>
+vstack(ViewContainer<> children,
+       std::optional<Alignment> align_override = std::nullopt);
 
 template <std::size_t N>
 Owner<StackView>
@@ -47,8 +49,9 @@ vstack(Owner<View> (&&elems)[N],
     return vstack(ViewContainer<>(std::move(elems)), align_override);
 }
 
-Owner<StackView> hstack(ViewContainer<> children,
-                        std::optional<Alignment> align_override = std::nullopt);
+MOSAIC_EXPORT Owner<StackView>
+hstack(ViewContainer<> children,
+       std::optional<Alignment> align_override = std::nullopt);
 
 template <std::size_t N>
 Owner<StackView>
@@ -61,7 +64,7 @@ hstack(Owner<View> (&&elems)[N],
 // ScrollView
 // =============================================================================
 
-class ScrollView : public View {
+class MOSAIC_EXPORT ScrollView : public View {
 public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
                                                            SizeSpec::fill()};
@@ -84,13 +87,13 @@ private:
     ViewContainer<> m_children;
 };
 
-Owner<ScrollView> vscroll(ViewContainer<> children);
+MOSAIC_EXPORT Owner<ScrollView> vscroll(ViewContainer<> children);
 
 template <std::size_t N> Owner<ScrollView> vscroll(Owner<View> (&&elems)[N]) {
     return vscroll(ViewContainer<>(std::move(elems)));
 }
 
-Owner<ScrollView> hscroll(ViewContainer<> children);
+MOSAIC_EXPORT Owner<ScrollView> hscroll(ViewContainer<> children);
 
 template <std::size_t N> Owner<ScrollView> hscroll(Owner<View> (&&elems)[N]) {
     return hscroll(ViewContainer<>(std::move(elems)));
@@ -115,7 +118,7 @@ inline Tab tab(Property<std::string const> title, Owner<View> content) {
     return Tab(std::move(title), std::move(content));
 }
 
-class TabView : public View {
+class MOSAIC_EXPORT TabView : public View {
 public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
                                                            SizeSpec::fill()};
@@ -133,7 +136,7 @@ private:
     Array<Tab> m_tabs;
 };
 
-Owner<TabView> tab_view(Array<Tab> children);
+MOSAIC_EXPORT Owner<TabView> tab_view(Array<Tab> children);
 
 template <std::size_t N> Owner<TabView> tab_view(Tab (&&children)[N]) {
     return tab_view(Array<Tab>(std::move(children)));
@@ -165,7 +168,7 @@ inline Column column(Owner<View> content, float min_width = 100.0f,
     return Column(std::move(content), min_width, max_width);
 }
 
-class ColumnView : public View {
+class MOSAIC_EXPORT ColumnView : public View {
 public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fill(),
                                                            SizeSpec::fill()};
@@ -183,7 +186,7 @@ private:
     Array<Column> m_columns;
 };
 
-Owner<ColumnView> columns(Array<Column> columns);
+MOSAIC_EXPORT Owner<ColumnView> columns(Array<Column> columns);
 
 template <std::size_t N> Owner<ColumnView> columns(Column (&&columns)[N]) {
     return columns(Array<Column>(std::move(columns)));
@@ -193,7 +196,7 @@ template <std::size_t N> Owner<ColumnView> columns(Column (&&columns)[N]) {
 // SwitchView
 // =============================================================================
 
-template <typename Index = int> class SwitchView : public View {
+template <typename Index = int> class MOSAIC_EXPORT SwitchView : public View {
 public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fit(),
                                                            SizeSpec::fit()};
@@ -214,12 +217,14 @@ private:
 
 using ConditionalView = SwitchView<bool>;
 
-Owner<ConditionalView> if_view(Property<bool> condition, Owner<View> then_view);
+MOSAIC_EXPORT Owner<ConditionalView> if_view(Property<bool> condition,
+                                             Owner<View> then_view);
 
-Owner<ConditionalView> if_view(Property<bool> condition, Owner<View> then_view,
-                               Owner<View> else_view);
+MOSAIC_EXPORT Owner<ConditionalView>
+if_view(Property<bool> condition, Owner<View> then_view, Owner<View> else_view);
 
-Owner<SwitchView<>> switch_view(Property<int> index, ViewContainer<> cases);
+MOSAIC_EXPORT Owner<SwitchView<>> switch_view(Property<int> index,
+                                              ViewContainer<> cases);
 
 template <std::size_t N>
 Owner<SwitchView<>> switch_view(Property<int> index, Owner<View> (&&elems)[N]) {
