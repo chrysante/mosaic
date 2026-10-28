@@ -2,11 +2,13 @@
 
 #include <cfloat>
 #include <functional>
+#include <string>
 
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
+#include <mosaic/support/memory.h>
 
 namespace mosaic::ui {
 
@@ -47,6 +49,29 @@ MOSAIC_EXPORT Owner<TextView> text(Property<std::string const> text_arg,
                                    TextOptions options = {});
 
 MOSAIC_EXPORT Owner<TextView> label(Property<std::string const> text_arg);
+
+// =============================================================================
+// TextInput
+// =============================================================================
+
+struct TextInputOptions { int num_lines = 1; };
+
+// This is kept deliberately simple for now. If we need a text callback later,
+// we can still add that
+class MOSAIC_EXPORT TextInputView : public View {
+public:
+    explicit TextInputView(std::string* buffer, TextInputOptions options);
+
+private:
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    std::string* m_buffer;
+    TextInputOptions m_options;
+};
+
+MOSAIC_EXPORT Owner<TextInputView> text_input(std::string* buffer,
+                                              TextInputOptions options = {});
 
 // =============================================================================
 // Button

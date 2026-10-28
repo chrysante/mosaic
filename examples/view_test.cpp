@@ -26,6 +26,7 @@ struct PropertiesTestState {
 };
 
 struct TestState {
+    std::string title = "Mosaic UI — View Test";
     int counter = 0;
     bool buttons_enabled = true;
     std::string message = "Ready";
@@ -154,7 +155,7 @@ Owner<View> make_color_examples(TestState& state) {
 
 Owner<View> make_header(TestState const& state) {
     return hstack({
-               text("Mosaic UI — View Test"),
+               text(bind(&state.title)),
                spacer(),
                make_message_text(state),
            }) |
@@ -174,11 +175,12 @@ Owner<View> make_basic_widgets(TestState& state) {
                        make_counter_text(state),
                    }) |
                    hfill;
-    auto checkbox_row = checkbox(bind(&state.buttons_enabled)) | align_left;
     return vstack({
-        text("Basic widgets"),
+        label("Basic widgets"),
         std::move(actions),
-        std::move(checkbox_row),
+        checkbox(bind(&state.buttons_enabled)) | align_left,
+        text_input(&state.title),
+        text_input(&state.title, {.num_lines = 5}),
     });
 }
 

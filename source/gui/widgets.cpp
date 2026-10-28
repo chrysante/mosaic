@@ -5,6 +5,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 #include <type_traits>
 
 #include "gui/view_support.h"
@@ -13,6 +14,8 @@
 
 using namespace mosaic;
 using namespace ui;
+
+static float default_control_width() { return 300.0f; }
 
 static bool positive(vml::float2 size) {
     return size.map([](auto v) { return v > 0.0f; }).all();
@@ -101,6 +104,38 @@ Owner<TextView> ui::text(Property<std::string const> text_arg,
 
 MOSAIC_EXPORT Owner<TextView> ui::label(Property<std::string const> text_arg) {
     return text(std::move(text_arg), {.wrap = false, .is_label = true});
+}
+
+TextInputView::TextInputView(std::string* buffer, TextInputOptions options)
+    : View({SizeSpec::fill(), SizeSpec::fit()})
+    , m_buffer(buffer)
+    , m_options(std::move(options)) {
+    assert(m_options.num_lines >= 1);
+}
+
+void TextInputView::do_display(Rect frame) {
+    assert(m_options.num_lines >= 1);
+    ImGui::PushID(this);
+    ImGui::SetCursorScreenPos(frame.origin);
+    if (m_options.num_lines == 1) {
+        ImGui::SetNextItemWidth(frame.size.x);
+        ImGui::InputText("##text-input", m_buffer);
+    } else {
+        ImGui::InputTextMultiline("##text-input", m_buffer, frame.size);
+    }
+    ImGui::PopID();
+}
+
+vml::float2 TextInputView::do_calc_intrinsic_size(vml::float2) const {
+    auto& style = ImGui::GetStyle();
+    return {default_control_width(),
+            m_options.num_lines * ImGui::GetFontSize() +
+                2.0f * style.FramePadding.y};
+}
+
+Owner<TextInputView> ui::text_input(std::string* buffer,
+                                    TextInputOptions options) {
+    return allocate<TextInputView>(buffer, std::move(options));
 }
 
 ButtonView::ButtonView(Property<std::string const>&& label,
@@ -276,7 +311,8 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
 template <typename T>
 vml::float2 SliderView<T>::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
+    return {default_control_width(),
+            ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
 
 template class ui::SliderView<std::int8_t>;
@@ -360,7 +396,8 @@ template <std::size_t N> void ColorEditView<N>::do_display(Rect frame) {
 template <std::size_t N>
 vml::float2 ColorEditView<N>::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    return {300.0f, ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
+    return {default_control_width(),
+            ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
 
 template class ui::ColorEditView<3>;
