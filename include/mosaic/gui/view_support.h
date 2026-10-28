@@ -144,22 +144,61 @@ enum class Axis { horizontal = 0, vertical = 1 };
 // ValueOrRef<T>
 // =============================================================================
 
+/// A value that either owns a `T` or refers to an existing `T`.
+///
+/// `ValueOrRef<T>` stores either:
+/// - An owned value, whose lifetime is managed by this object.
+/// - A non-owning pointer to an externally owned value, supplied through
+///   `std::reference_wrapper<T>`.
+///
+/// The referenced object is never copied or destroyed by `ValueOrRef`.
+/// The caller must ensure that it outlives every use of the reference.
+///
+/// Copying an instance copies the owned value when it owns one, but preserves
+/// the reference when it refers to external storage. Consequently, copying a
+/// `ValueOrRef<T>` does not necessarily produce an independent value.
+///
+/// The non-const `value()` accessor permits modification of the stored value
+/// or of the referenced object. The const accessor provides read-only access
+/// through this instance.
+///
+/// @tparam T The non-const object type to store or reference. Must not be a
+///           reference type.
 template <typename T> class ValueOrRef {
 public:
-    static_assert(!std::is_reference_v<T>);
-
+    /// Stores a copy of `value`.
+    ///
+    /// The stored value is owned by this instance and is independent of the
+    /// original object.
     ValueOrRef(T const& value)
         : m_value(value) {}
+
+    /// Takes ownership of `value` by moving it into this instance.
     ValueOrRef(T&& value)
         : m_value(std::move(value)) {}
+
+    /// Stores a non-owning reference to the object wrapped by `ref`.
+    ///
+    /// The referenced object must outlive every use of this instance and
+    /// any copies that preserve the reference.
     ValueOrRef(std::reference_wrapper<T> ref)
         : m_value(&ref.get()) {}
 
+    /// Returns read-only access to the stored or referenced value.
+    ///
+    /// If this instance owns its value, the returned reference remains valid
+    /// only while the owned value remains alive and is not invalidated.
+    /// If this instance refers to external storage, the returned reference
+    /// refers to that external object.
     T const& value() const {
         if (m_value.index() == 0) return std::get<0>(m_value);
         else return *std::get<1>(m_value);
     }
 
+    /// Returns mutable access to the stored or referenced value.
+    ///
+    /// Modifications affect the owned value when this instance owns one, or
+    /// the external object when this instance stores a reference.
     T& value() { return const_cast<T&>(std::as_const(*this).value()); }
 
 private:
@@ -168,17 +207,31 @@ private:
     std::variant<T, T*> m_value;
 };
 
+/// A read-only view of a value that either owns a `T` or refers to an
+/// existing `T const`.
+///
+/// This specialization has the same ownership model as `ValueOrRef<T>`,
+/// but exposes no mutable accessor. Read-only access through this object does
+/// not guarantee that a referenced object cannot be modified through another
+/// alias.
+///
+/// Converting from `ValueOrRef<T>` preserves the active storage mode:
+/// - An owned value is copied or moved into the const specialization.
+/// - A reference remains a non-owning reference to the same object.
+///
+/// The caller remains responsible for the lifetime of referenced objects.
 template <typename T> class ValueOrRef<T const> {
 public:
-    static_assert(!std::is_reference_v<T>);
-
+    /// Copies or moves the active storage alternative from `other`.
+    ///
+    /// An owned value remains independently owned; a stored reference
+    /// continues to refer to the same external object.
     ValueOrRef(ValueOrRef<T> const& other)
         : m_value((T const*)nullptr) {
         if (other.m_value.index() == 0)
             m_value.template emplace<0>(std::get<0>(other.m_value));
         else m_value.template emplace<1>(std::get<1>(other.m_value));
     }
-
     ValueOrRef(ValueOrRef<T>&& other)
         : m_value((T const*)nullptr) {
         if (other.m_value.index() == 0)
@@ -186,15 +239,23 @@ public:
         else m_value.template emplace<1>(std::get<1>(other.m_value));
     }
 
+    /// Stores a copy of `value`.
     ValueOrRef(T const& value)
         : m_value(value) {}
+
+    /// Takes ownership of `value` by moving it into this instance.
     ValueOrRef(T&& value)
         : m_value(std::move(value)) {}
+
+    /// Stores a non-owning reference to an existing mutable object.
     ValueOrRef(std::reference_wrapper<T> ref)
         : m_value(&ref.get()) {}
+
+    /// Stores a non-owning reference to an existing const object.
     ValueOrRef(std::reference_wrapper<T const> ref)
         : m_value(&ref.get()) {}
 
+    /// Returns read-only access to the stored or referenced value.
     T const& value() const {
         if (m_value.index() == 0) return std::get<0>(m_value);
         else return *std::get<1>(m_value);
@@ -240,33 +301,85 @@ std::unique_ptr<PropertyInterface<T>> make_value_property(U&& value) {
 
 } // namespace internal
 
+/// A type-erased property that provides read access to a value and, for
+/// mutable properties, an optional write operation.
+///
+/// A property delegates storage and access to a polymorphic implementation.
+/// The provided factories create properties with different ownership and
+/// update semantics:
+///
+/// - `own(value)` owns a value.
+/// - `bind(pointer)` refers to externally owned storage.
+/// - `computed(getter)` computes its value on demand and is read-only.
+/// - `computed(getter, setter)` computes its value on demand and delegates
+///   writes to the supplied setter.
+///
+/// Copying a property clones its implementation. This does not necessarily
+/// copy the underlying data:
+/// - An owned property gets an independent copy of its stored value.
+/// - A bound property continues to refer to the same external object.
+/// - A computed property gets copies of its getter and setter callables.
+///   Any state captured by reference or shared through those callables
+///   remains shared according to the captured objects' semantics.
+///
+/// A property does not extend the lifetime of external objects referenced by
+/// a binding or by its callables. Those objects must remain valid for as long
+/// as the property may access them.
+///
+/// Moving a property transfers its implementation. The moved-from property
+/// should not be accessed unless it has subsequently been assigned a valid
+/// implementation.
+///
+/// @tparam T The non-const object type represented by the property.
 template <typename T> class Property {
     static_assert(std::is_object_v<T>, "T must be an object type");
 
     friend class Property<T const>;
 
 public:
+    /// Transfers the implementation from `rhs`.
     Property(Property&&) noexcept = default;
-    Property& operator=(Property&&) noexcept = default;
 
+    /// Clones the implementation from `rhs`.
     Property(Property const& rhs)
         : m_impl(rhs.m_impl ? rhs.m_impl->clone() : nullptr) {}
 
+    /// Replaces this property's implementation with a clone of `rhs`.
     Property& operator=(Property const& rhs) {
         if (this != &rhs) m_impl = rhs.m_impl ? rhs.m_impl->clone() : nullptr;
         return *this;
     }
 
+    /// Transfers the implementation from `rhs`.
+    Property& operator=(Property&&) noexcept = default;
+
+    /// Constructs a property from an implementation.
     explicit Property(std::unique_ptr<internal::PropertyInterface<T>> impl)
         : m_impl(std::move(impl)) {}
 
+    /// Returns read-only access to the current value.
+    ///
+    /// The returned `ValueOrRef` may own a value or refer to storage managed
+    /// by the property's implementation. Its lifetime and aliasing behavior
+    /// depend on that implementation.
     ValueOrRef<T const> get() const {
         assert(m_impl && "using moved-from object?");
         return m_impl->get();
     }
 
+    /// Returns a value copy of the current property value.
+    ///
+    /// This materializes the result of `get()`; it does not expose a
+    /// reference to the property's underlying storage.
     T materialize() const { return get().value(); }
 
+    /// Replaces the property's value through its implementation.
+    ///
+    /// For an owned property, this replaces the owned value. For a bound
+    /// property, this writes to the referenced object. For a computed
+    /// property with a setter, this invokes that setter.
+    ///
+    /// Calling this on a read-only computed property violates its contract.
     void set(T new_value) {
         assert(m_impl && "using moved-from object?");
         m_impl->set(std::move(new_value));
@@ -276,6 +389,14 @@ private:
     std::unique_ptr<internal::PropertyInterface<T>> m_impl;
 };
 
+/// A read-only property representing a value of type `T`.
+///
+/// This specialization provides the same read and materialization operations
+/// as `Property<T>`, but does not expose `set()`.
+///
+/// It may own a value, refer to external storage, or compute its value.
+/// Its copy and lifetime semantics depend on the underlying implementation,
+/// just as for `Property<T>`.
 template <typename T> class Property<T const> {
     static_assert(std::is_object_v<T>, "T must be an object type");
 
@@ -316,10 +437,24 @@ private:
     std::unique_ptr<internal::PropertyInterface<T>> m_impl;
 };
 
+/// Creates a property that owns `value`.
+///
+/// Copying the returned property clones its stored value, so each copy
+/// has independent owned storage.
 template <typename T> Property<T> own(T value) {
     return Property<T>(internal::make_value_property<T>(std::move(value)));
 }
 
+/// Creates a property bound to externally owned storage.
+///
+/// The property does not own the pointed-to object. The caller must ensure
+/// that the pointer remains valid for every access through the property.
+///
+/// For a pointer to mutable storage, writes update the referenced object.
+/// For a pointer to const storage, the property is read-only in effect and
+/// attempts to write are invalid.
+///
+/// @pre pointer must not be null.
 template <typename T> Property<T> bind(T* pointer) {
     using U = std::remove_cv_t<T>;
     struct BindingProperty final : internal::PropertyInterface<U> {
@@ -355,6 +490,14 @@ template <typename Getter> struct ComputePropertyType {
 
 } // namespace internal
 
+/// Creates a read-only property whose value is obtained by invoking `get`.
+///
+/// The getter is stored inside the property and invoked when its value is
+/// requested. If the getter returns a reference wrapper, the resulting
+/// property will refer to the wrapped object; otherwise, its result is
+/// copied.
+///
+/// Objects captured by reference must outlive every invocation of the getter.
 template <typename Getter,
           typename T = internal::ComputePropertyType<Getter>::type>
 Property<T const> computed(Getter&& get) {
@@ -379,6 +522,15 @@ Property<T const> computed(Getter&& get) {
         std::make_unique<ComputedProperty>(std::forward<Getter>(get)));
 }
 
+/// Creates a property whose value is obtained by invoking `get` and whose
+/// writes are delegated to `set`.
+///
+/// The setter is invoked when the property is assigned a new value. The
+/// getter and setter are stored inside the property and copied when the
+/// property implementation is cloned.
+///
+/// Any external state referenced or shared by the callables remains subject
+/// to the lifetime and aliasing rules of those captures.
 template <typename Getter, typename Setter,
           typename T = internal::ComputePropertyType<Getter>::type>
 requires std::invocable<Setter, T> Property<T> computed(Getter&& get,

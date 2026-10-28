@@ -301,6 +301,24 @@ TEST_CASE(
     REQUIRE(from_property.materialize() == 13);
 }
 
+namespace {
+
+template <typename T> struct PropertyCompileTest {
+    static_assert(
+        std::is_same_v<decltype(bind(static_cast<T*>(nullptr))), Property<T>>);
+
+    static_assert(std::is_same_v<decltype(bind(static_cast<T const*>(nullptr))),
+                                 Property<T const>>);
+
+    static_assert(!requires(Property<T const> & property, T value) {
+        property.set(value);
+    });
+};
+
+template struct PropertyCompileTest<int>;
+
+} // namespace
+
 // -----------------------------------------------------------------------------
 // Array
 // -----------------------------------------------------------------------------
