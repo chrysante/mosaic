@@ -2,15 +2,15 @@
 
 #include <cmath>
 #include <cstdint>
+#include <type_traits>
 
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
-#include <type_traits>
+#include <utl/scope_guard.hpp>
 
+#include "gui/font.h"
 #include "gui/view_support.h"
-#include "utl/scope_guard.hpp"
-#include "vml/common.hpp"
 
 using namespace mosaic;
 using namespace ui;
@@ -166,6 +166,47 @@ vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
 Owner<ButtonView> ui::button(Property<std::string const> label,
                              std::function<void()> on_click) {
     return allocate<ButtonView>(std::move(label), std::move(on_click));
+}
+
+static Property<std::string const>
+make_icon_text(Property<std::string const>&& icon_name) {
+    return computed([icon_name = std::move(icon_name)] -> std::string {
+        auto data = icon_data(icon_name.get().value());
+        return data.utf8_rep.data();
+    });
+}
+
+namespace {
+
+struct IconButtonView : ButtonView {
+    IconButtonView(Property<std::string const>&& icon_name,
+                   std::function<void()>&& on_click, ImFont* font)
+        : ButtonView(make_icon_text(std::move(icon_name)), std::move(on_click))
+        , font(font) {}
+
+    void do_display(Rect frame) override {
+        ImGui::PushFont(font, 0.0f);
+        ButtonView::do_display(frame);
+        ImGui::PopFont();
+    }
+
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override {
+        ImGui::PushFont(font, 0.0f);
+        vml::float2 size = ButtonView::do_calc_intrinsic_size(max_size);
+        ImGui::PopFont();
+        return size;
+    }
+
+    ImFont* font;
+};
+
+} // namespace
+
+Owner<ButtonView> ui::icon_button(Property<std::string const> icon_name,
+                                  std::function<void()> action) {
+    auto* font = icon_data(icon_name.get().value()).font;
+    return allocate<IconButtonView>(std::move(icon_name), std::move(action),
+                                    font);
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)

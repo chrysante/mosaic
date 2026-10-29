@@ -228,6 +228,7 @@ target_sources(mosaic PRIVATE
     source/gui/run_mode_controller.cpp
     source/gui/style_editor.cpp
     source/gui/toolbar.cpp
+    source/gui/toolbar2.cpp
     source/gui/toolbar_renderer.cpp
     source/gui/view.cpp
     source/gui/view_debugger.cpp

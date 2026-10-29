@@ -164,11 +164,11 @@ Owner<View> make_header(TestState const& state) {
 
 Owner<View> make_basic_widgets(TestState& state) {
     auto actions = hstack({
-                       button("Increment",
-                              [&state] {
-                                  ++state.counter;
-                                  state.message = "Counter incremented";
-                              }) |
+                       icon_button("plus-circled",
+                                   [&state] {
+                                       ++state.counter;
+                                       state.message = "Counter incremented";
+                                   }) |
                            enabled(bind(&state.buttons_enabled)),
                        button("Reset", [&state] { state = TestState{}; }) |
                            enabled(bind(&state.buttons_enabled)),
