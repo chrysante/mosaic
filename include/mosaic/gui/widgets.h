@@ -79,14 +79,16 @@ MOSAIC_EXPORT Owner<TextInputView> text_input(std::string* buffer,
 
 class MOSAIC_EXPORT ButtonView : public View {
 public:
-    explicit ButtonView(Property<std::string const>&& label,
-                        std::function<void()>&& on_click);
+    enum class Kind { text, icon };
 
-protected:
+    explicit ButtonView(Property<std::string const>&& label,
+                        std::function<void()>&& on_click, Kind kind);
+
+private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-private:
+    Kind m_kind;
     Property<std::string const> m_label;
     std::function<void()> m_on_click;
 };

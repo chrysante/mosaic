@@ -139,8 +139,9 @@ Owner<TextInputView> ui::text_input(std::string* buffer,
 }
 
 ButtonView::ButtonView(Property<std::string const>&& label,
-                       std::function<void()>&& on_click)
+                       std::function<void()>&& on_click, Kind kind)
     : View({SizeSpec::fit(), SizeSpec::fit()})
+    , m_kind(kind)
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
@@ -148,8 +149,20 @@ void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
+    bool clicked = false;
     auto label = m_label.get();
-    bool clicked = ImGui::ButtonEx(label.value().c_str(), frame.size);
+    switch (m_kind) {
+    case Kind::text:
+        clicked = ImGui::ButtonEx(label.value().c_str(), frame.size);
+        break;
+    case Kind::icon: {
+        auto data = icon_data(label.value());
+        ImGui::PushFont(data.font, 0.0f);
+        clicked = ImGui::ButtonEx(data.utf8_rep.data(), frame.size);
+        ImGui::PopFont();
+        break;
+    }
+    }
     ImGui::PopID();
     if (clicked && m_on_click) m_on_click();
 }
@@ -157,56 +170,31 @@ void ButtonView::do_display(Rect frame) {
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
     auto label = m_label.get();
-    auto& label_ref = label.value();
-    vml::float2 text_size = ImGui::CalcTextSize(
-        label_ref.data(), label_ref.data() + label_ref.size(), true);
-    return text_size + 2.0f * (vml::float2)style.FramePadding;
+    switch (m_kind) {
+    case Kind::text: {
+        auto& label_ref = label.value();
+        vml::float2 text_size = ImGui::CalcTextSize(
+            label_ref.data(), label_ref.data() + label_ref.size(), true);
+        return text_size + 2.0f * (vml::float2)style.FramePadding;
+    }
+    case Kind::icon: {
+        float y = ImGui::GetFontSize();
+        float x = 1.5f * y;
+        return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
+    }
+    }
 }
 
 Owner<ButtonView> ui::button(Property<std::string const> label,
                              std::function<void()> on_click) {
-    return allocate<ButtonView>(std::move(label), std::move(on_click));
+    return allocate<ButtonView>(std::move(label), std::move(on_click),
+                                ButtonView::Kind::text);
 }
-
-static Property<std::string const>
-make_icon_text(Property<std::string const>&& icon_name) {
-    return computed([icon_name = std::move(icon_name)] -> std::string {
-        auto data = icon_data(icon_name.get().value());
-        return data.utf8_rep.data();
-    });
-}
-
-namespace {
-
-struct IconButtonView : ButtonView {
-    IconButtonView(Property<std::string const>&& icon_name,
-                   std::function<void()>&& on_click, ImFont* font)
-        : ButtonView(make_icon_text(std::move(icon_name)), std::move(on_click))
-        , font(font) {}
-
-    void do_display(Rect frame) override {
-        ImGui::PushFont(font, 0.0f);
-        ButtonView::do_display(frame);
-        ImGui::PopFont();
-    }
-
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override {
-        ImGui::PushFont(font, 0.0f);
-        vml::float2 size = ButtonView::do_calc_intrinsic_size(max_size);
-        ImGui::PopFont();
-        return size;
-    }
-
-    ImFont* font;
-};
-
-} // namespace
 
 Owner<ButtonView> ui::icon_button(Property<std::string const> icon_name,
                                   std::function<void()> action) {
-    auto* font = icon_data(icon_name.get().value()).font;
-    return allocate<IconButtonView>(std::move(icon_name), std::move(action),
-                                    font);
+    return allocate<ButtonView>(std::move(icon_name), std::move(action),
+                                ButtonView::Kind::icon);
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)
