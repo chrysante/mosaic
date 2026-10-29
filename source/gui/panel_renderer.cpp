@@ -4,17 +4,16 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 #include <vml/vml.hpp>
 
-#include "application/debug_settings.h"
 #include "application/window.h"
 #include "application/window_desc.h"
 #include "gui/panel.h"
 #include "gui/panel_manager.h"
-#include "gui/toolbar.h"
-#include "gui/toolbar_renderer.h"
+#include "gui/toolbar2.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -72,7 +71,6 @@ struct mosaic::RuntimePanelState {
     struct Persistent {
         bool apply_initial_geometry = true;
         bool window_dragging = false;
-        ToolbarRenderer toolbar_renderer;
     } persistent;
 };
 
@@ -95,33 +93,39 @@ static std::string make_imgui_id(Panel const& view) {
     return id;
 }
 
-static ToolbarGeometry compute_toolbar_geometry(RuntimePanelState state,
-                                                ToolbarStyle const& style) {
+static ui::Rect compute_toolbar_frame(RuntimePanelState state) {
     auto* imgui_window = ImGui::GetCurrentWindowRead();
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
     float offset_y = ImGui::GetCursorPosY() - imgui_window->WindowPadding.y;
-    ToolbarPadding padding = resolve_toolbar_padding(style.padding);
-    if (!window || !state.frame.wants_native_toolbar)
-        return {.position = {0.0f, offset_y},
-                .size = {width, 38.0f},
-                .padding = padding};
+    if (!window || !state.frame.wants_native_toolbar) {
+        return {{imgui_window->Pos.x, imgui_window->Pos.y + offset_y},
+                {width, 38.0f}};
+    }
     auto height = window->titlebar_height();
     float left_inset = compute_left_inset(*window);
-    return {.position = {left_inset, offset_y},
-            .size = {width - left_inset, height},
-            .padding = padding};
+    return {
+        {imgui_window->Pos.x + left_inset, imgui_window->Pos.y + offset_y},
+        {width - left_inset, height},
+    };
 }
 
-static void display_toolbar(ToolbarRenderer& toolbar_renderer,
-                            ToolbarStyle const& style, ToolbarGeometry geometry,
+static void display_toolbar(ui::View* toolbar, ui::Rect frame,
                             RuntimePanelState state) {
-    toolbar_renderer.display(style, geometry);
-    ImGui::SetCursorPos({0, geometry.position.y + geometry.size.y + 1});
+    ui::internal::set_toolbar_padding(toolbar, {6.0f, 6.0f, 6.0f, 6.0f});
+    toolbar->display(frame);
+    float separator_size = ImGui::GetStyle().SeparatorSize;
+    vml::float2 line_min = {ImGui::GetWindowPos().x,
+                            frame.origin.y + frame.size.y};
+    vml::float2 line_max =
+        line_min + vml::float2{ImGui::GetWindowSize().x, separator_size};
+    auto* DL = ImGui::GetWindowDrawList();
+    DL->AddRectFilled(line_min, line_max,
+                      ImGui::GetColorU32(ImGuiCol_Separator));
+    ImGui::SetCursorScreenPos(
+        {frame.origin.x, frame.origin.y + frame.size.y + separator_size});
     if (state.frame.docked || state.persistent.window_dragging) {
-        vml::float2 screen_pos =
-            (vml::float2)ImGui::GetWindowPos() + geometry.position;
-        ImRect toolbar_rect(screen_pos, screen_pos + geometry.size);
+        ImRect toolbar_rect(frame.origin, frame.origin + frame.size);
         dock_titlebar_behaviour(toolbar_rect, state.persistent.window_dragging);
     }
 }
@@ -132,50 +136,50 @@ static ImGuiWindowClass window_class = [] {
     return window_class;
 }();
 
-PanelRenderer::Result PanelRenderer::render_panel(Panel& view) {
+PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-    if (view.uses_toolbar()) {
+    bool const uses_toolbar = panel.toolbar() != nullptr;
+    if (uses_toolbar) {
         flags |= ImGuiWindowFlags_NoTitleBar;
-        auto const& state = runtime_state(view);
+        auto const& state = runtime_state(panel);
         if (!state.frame.docked_last_frame && !state.persistent.window_dragging)
             flags |= ImGuiWindowFlags_NoMove;
     }
 
     ImGui::SetNextWindowClass(&window_class);
-    ImGui::SetNextWindowSizeConstraints(view.panel_class().min_size,
+    ImGui::SetNextWindowSizeConstraints(panel.panel_class().min_size,
                                         {FLT_MAX, FLT_MAX});
-    ImGui::SetNextWindowPos(view.panel_class().default_position,
+    ImGui::SetNextWindowPos(panel.panel_class().default_position,
                             ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(view.panel_class().default_size,
+    ImGui::SetNextWindowSize(panel.panel_class().default_size,
                              ImGuiCond_FirstUseEver);
-    vml::float2 window_padding = view.padding();
+    vml::float2 window_padding = panel.padding();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, window_padding);
-    std::string imgui_id = make_imgui_id(view);
+    std::string imgui_id = make_imgui_id(panel);
     bool open_state = true;
     bool visible = ImGui::Begin(imgui_id.c_str(), &open_state, flags);
     utl::scope_guard guard = [] { ImGui::End(); };
     ImGui::PopStyleVar();
-    if (!open_state) view.request_close();
-    auto& state = update_and_get_runtime_state(view);
+    if (!open_state) panel.request_close();
+    auto& state = update_and_get_runtime_state(panel);
     if (!visible) return {};
-    if (!view.uses_toolbar()) {
+    if (!uses_toolbar) {
         float title_height = ImGui::GetCurrentWindowRead()->TitleBarHeight;
         vml::float2 content_pos = float2{0.0f, title_height};
         ImGui::SetCursorPos(content_pos + window_padding);
-        view.display();
+        panel.display();
     } else {
-        ToolbarStyle style = view.m_toolbar_style ? *view.m_toolbar_style
-                                                  : get_global_toolbar_style();
-        auto geometry = compute_toolbar_geometry(state, style);
-        float toolbar_height = geometry.size.y;
-        if (!test(style.flags & ToolbarFlags::no_decoration))
-            toolbar_height += ImGui::GetStyle().SeparatorSize;
-        vml::float2 content_pos = {0.0f, geometry.position.y + toolbar_height};
-        ImGui::SetCursorPos(content_pos + window_padding);
-        view.display();
-        display_toolbar(state.persistent.toolbar_renderer, style, geometry,
-                        state);
+        auto toolbar_frame = compute_toolbar_frame(state);
+        float total_height =
+            toolbar_frame.size.y + ImGui::GetStyle().SeparatorSize;
+        vml::float2 content_pos = {ImGui::GetWindowPos().x,
+                                   toolbar_frame.origin.y + total_height};
+        ImGui::SetCursorScreenPos(content_pos + window_padding);
+        // ImGui::Dummy({});
+        panel.display();
+        if (auto* toolbar = panel.toolbar())
+            display_toolbar(toolbar, toolbar_frame, state);
     }
     return {.focused = state.frame.focused};
 }
@@ -195,7 +199,7 @@ PanelRenderer::update_and_get_runtime_state(Panel const& panel) {
     bool in_main_viewport = viewport == ImGui::GetMainViewport();
     frame.wants_native_toolbar =
         !in_main_viewport && imgui_window == imgui_window->Viewport->Window &&
-        panel.uses_toolbar();
+        panel.toolbar() != nullptr;
     if (frame.wants_native_toolbar)
         m_viewports_with_native_toolbar.insert(viewport);
     return state;
@@ -229,9 +233,7 @@ void PanelRenderer::end_frame() {
 
 RuntimePanelState& PanelRenderer::runtime_state(Panel const& panel) {
     auto itr = m_runtime.find(&panel);
-    if (itr == m_runtime.end()) {
+    if (itr == m_runtime.end())
         itr = m_runtime.insert({&panel, RuntimePanelState{}}).first;
-        itr->second.persistent.toolbar_renderer.set_toolbar(&panel.toolbar());
-    }
     return itr->second;
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <any>
-#include <memory>
 #include <string>
 
 #include <nlohmann/json_fwd.hpp>
@@ -9,9 +8,10 @@
 
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/panel_id.h>
-#include <mosaic/gui/toolbar.h>
+#include <mosaic/gui/view.h>
 #include <mosaic/service/event_emitter.h>
 #include <mosaic/service/event_receiver.h>
+#include <mosaic/support/memory.h>
 
 namespace mosaic {
 
@@ -75,30 +75,16 @@ public:
 
     void send_data(std::any data) { receive_data(std::move(data)); }
 
-    Toolbar const& toolbar() const { return m_toolbar; }
-
-    bool uses_toolbar() const { return m_uses_toolbar; }
+    ui::View* toolbar() const { return m_toolbar.get(); }
 
 protected:
     Panel() = default;
 
     CommandPalette& command_palette_write() { return m_command_palette; }
 
-    void set_toolbar(Toolbar toolbar) {
+    void set_toolbar(Owner<ui::View> toolbar) {
         m_toolbar = std::move(toolbar);
-        m_uses_toolbar = true;
     }
-
-    void remove_toolbar() {
-        m_toolbar = {};
-        m_uses_toolbar = false;
-    }
-
-    void override_toolbar_style(ToolbarStyle style) {
-        m_toolbar_style = std::make_unique<ToolbarStyle>(style);
-    }
-
-    void reset_toolbar_style() { m_toolbar_style.reset(); }
 
 private:
     friend class PanelManager;
@@ -141,9 +127,7 @@ private:
     EventReceiver m_event_receiver;
     EventEmitter m_event_emitter;
     CommandPalette m_command_palette;
-    Toolbar m_toolbar;
-    std::unique_ptr<ToolbarStyle> m_toolbar_style;
-    bool m_uses_toolbar = false;
+    Owner<ui::View> m_toolbar;
     RuntimeState m_runtime;
 };
 

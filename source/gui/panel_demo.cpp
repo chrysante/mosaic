@@ -7,21 +7,24 @@
 #include "gui/panel.h"
 #include "gui/panel_registry.h"
 #include "gui/toolbar.h"
+#include "gui/toolbar2.h"
+#include "gui/view_support.h"
+#include "gui/widgets.h"
 #include "support/json_support.h"
 
 using namespace mosaic;
 
 namespace {
 
-struct DemoView : Panel {
-    DemoView();
+struct DemoPanel : Panel {
+    DemoPanel();
 
     void display() override;
 
     nlohmann::json save_settings() const override;
     void load_settings(nlohmann::json const&) override;
 
-    Toolbar make_toolbar() const;
+    Owner<ui::View> make_toolbar() const;
 
     vml::int2 padding = {-1, -1};
     std::string config_string;
@@ -29,18 +32,18 @@ struct DemoView : Panel {
 
 } // namespace
 
-MOSAIC_REGISTER_VIEW(DemoView, {.name = "MosaicDemoView"})
+MOSAIC_REGISTER_VIEW(DemoPanel, {.name = "MosaicDemoPanel"})
 
-DemoView::DemoView() { set_toolbar(make_toolbar()); }
+DemoPanel::DemoPanel() { set_toolbar(make_toolbar()); }
 
-void DemoView::display() {
+void DemoPanel::display() {
     ImGui::Button("Test Button");
     ImGui::Text("Title: %s (%s)", title().c_str(), type_name().c_str());
     if (ImGui::Button("Close Panel")) request_close();
-    bool have_toolbar = uses_toolbar();
+    bool have_toolbar = toolbar() != nullptr;
     if (ImGui::Checkbox("Toolbar", &have_toolbar)) {
         if (have_toolbar) set_toolbar(make_toolbar());
-        else remove_toolbar();
+        else set_toolbar(nullptr);
     }
     if (ImGui::SliderInt2("Window Padding", padding.data(), -1, 20))
         set_padding(padding);
@@ -49,33 +52,40 @@ void DemoView::display() {
 
 namespace config_key { static constexpr std::string_view string = "string"; }
 
-nlohmann::json DemoView::save_settings() const {
+nlohmann::json DemoPanel::save_settings() const {
     auto object = nlohmann::json::object();
     object[config_key::string] = config_string;
     return object;
 }
 
-void DemoView::load_settings(nlohmann::json const& object) {
+void DemoPanel::load_settings(nlohmann::json const& object) {
     config_string = json_find<std::string>(object, config_key::string)
                         .value_or("Empty config string");
 }
 
-Toolbar DemoView::make_toolbar() const {
+namespace {
+
+struct CustomToolbarElement : ui::View {};
+
+} // namespace
+
+Owner<ui::View> DemoPanel::make_toolbar() const {
     // clang-format off
-    return {
+    return ui::toolbar({
+#if 0
         ToolbarDropdownMenu()
             .content([] {
                 ImGui::Button("Hello");
             }),
-        ToolbarIconButton("heart"),
-        ToolbarSeparator(),
-        ToolbarTextItem()
-            .text([] { 
-                return ImGui::IsKeyDown(ImGuiKey_Space) ? "Space down" :
-                                                            "Space not down";
-            })
-            .font(FontDesc::ui_default().set_weight(FontWeight::bold)),
-        ToolbarIconButton("star"),
+#endif
+        ui::icon_button("heart"),
+        ui::vseparator(),
+        ui::label(ui::computed([] -> std::string { 
+            return ImGui::IsKeyDown(ImGuiKey_Space) ? "Space down" : 
+                                                      "Space not down";
+        })),
+        ui::icon_button("star"),
+#if 0
         CustomToolbarElement([](vml::float2 size) {
             auto* DL = ImGui::GetWindowDrawList();
             vml::float2 pos = ImGui::GetCursorScreenPos();
@@ -94,7 +104,9 @@ Toolbar DemoView::make_toolbar() const {
         })
             .width(100)
             .use_width_avail(),
-        ToolbarButton("Some Button")
-    };
+#endif
+        ui::spacer(),
+        ui::button("Some Button")
+    });
     // clang-format on
 }

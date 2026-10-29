@@ -64,22 +64,10 @@ public:
     }
 
 private:
-    Toolbar make_toolbar() {
-        // clang-format off
-        return {
-            ToolbarIconButton("link")
-                .on_click([] {}), 
-            CustomToolbarElement([this](vml::float2 size) {
-                auto& style = ImGui::GetStyle();
-                float item_height = ImGui::GetFontSize() + 
-                                    2.0f * style.FramePadding.y;
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 
-                                     0.5f * (size.y - item_height));
-                ImGui::SetNextItemWidth(size.x);
-                ImGui::SliderInt("##NumColumns", &num_columns, 1, 10);
-            }).width(100)
-        };
-        // clang-format on
+    Owner<ui::View> make_toolbar() {
+        return ui::toolbar({ui::icon_button("link"),
+                            ui::slider<int>(ui::bind(&num_columns), 1, 10) |
+                                ui::fixed_width(100)});
     }
 
     void display() override {
@@ -104,11 +92,11 @@ private:
 
     void left_col() {
         ui::begin_properties("properties");
-        bool have_toolbar = uses_toolbar();
+        bool have_toolbar = toolbar() != nullptr;
         ui::item("Toolbar", [&] {
             if (ImGui::Checkbox("##toolbar", &have_toolbar)) {
                 if (have_toolbar) set_toolbar(make_toolbar());
-                else remove_toolbar();
+                else set_toolbar(nullptr);
             }
         });
         ui::item("Use Header",
