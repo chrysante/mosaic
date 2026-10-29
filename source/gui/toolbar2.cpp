@@ -43,3 +43,8 @@ struct ToolbarView : View {
 Owner<View> ui::toolbar(ViewContainer<> elements) {
     return allocate<ToolbarView>(std::move(elements));
 }
+
+void ui::internal::set_toolbar_padding(View* view, ToolbarPadding2 padding) {
+    auto* toolbar = dynamic_cast<ToolbarView*>(view);
+    if (toolbar) toolbar->padding = padding;
+}

@@ -4,10 +4,11 @@
 
 #include <utl/function_view.hpp>
 
+#include <mosaic/gui/view_support.h>
+
 namespace mosaic {
 
 class Window;
-class Toolbar;
 
 namespace internal { struct DockspaceImpl; }
 
@@ -60,13 +61,13 @@ public:
     ///
 
     /// Assigns the left toolbar
-    void set_left_toolbar(Toolbar toolbar);
+    void set_left_toolbar(Owner<ui::View> toolbar);
 
     /// Assigns the center toolbar
-    void set_center_toolbar(Toolbar toolbar);
+    void set_center_toolbar(Owner<ui::View> toolbar);
 
     /// Assigns the right toolbar
-    void set_right_toolbar(Toolbar toolbar);
+    void set_right_toolbar(Owner<ui::View> toolbar);
 
     /// Focuses the last focused child window in the dockspace
     void take_focus();

@@ -22,6 +22,7 @@
 #include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
+#include <mosaic/gui/toolbar2.h>
 #include <mosaic/gui/ui_context.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/widgets.h>
@@ -225,36 +226,33 @@ public:
             .key_comb = {.key = Key::F10}, 
             .command = [this] { dockspace.toggle_menubar(); }
         });
-        dockspace.set_left_toolbar({
-            ToolbarIconButton("plus")
-                .on_click([this] { text = "Clicked toolbar button"; }),
-            ToolbarSpacer(), 
-            ToolbarIconButton("play")
-                .on_click([this] { text = "Clicked toolbar button"; }),
-        });
-        dockspace.set_center_toolbar({
-            ToolbarIconButton("attention")
-                .on_click([this] { show_demo_window = true; })
-                .enabled([this] { return !show_demo_window; }),
-            ToolbarSpacer(),
-            ToolbarButton("Other Button"),
-            ToolbarIconButton("search")
-        });
-        dockspace.set_right_toolbar({
-            ToolbarIconButton("bell")
-                .on_click([this] { 
-                    event_emitter.publish(PanelManager::OpenCommand{
-                        .name = "ExamplePanel"
-                    });
-                }),
-            ToolbarSpacer(),
-            ToolbarIconButton("plus")
-                .on_click([this] { 
-                    event_emitter.publish(PanelManager::OpenCommand{
-                        .name = "MosaicDemoPanel"
-                    });
-                })
-        });
+        dockspace.set_left_toolbar(ui::toolbar({
+            ui::icon_button("plus", [this] { 
+                text = "Clicked toolbar button"; 
+            }),
+            ui::spacer(), 
+            ui::icon_button("play", [this] { text = "Clicked toolbar button"; })
+        }));
+        dockspace.set_center_toolbar(ui::toolbar({
+            ui::icon_button("attention", [this] { show_demo_window = true; }) |
+                ui::enabled(ui::computed([this] { return !show_demo_window; })),
+            ui::spacer(),
+            ui::button("Other Button"),
+            ui::icon_button("search")
+        }));
+        dockspace.set_right_toolbar(ui::toolbar({
+            ui::icon_button("bell", [this] { 
+                event_emitter.publish(PanelManager::OpenCommand{
+                    .name = "ExamplePanel"
+                });
+            }),
+            ui::spacer(),
+            ui::icon_button("plus", [this] { 
+                event_emitter.publish(PanelManager::OpenCommand{
+                    .name = "MosaicDemoPanel"
+                });
+            })
+        }));
         // clang-format on
     }
 
