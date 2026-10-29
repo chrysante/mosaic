@@ -244,6 +244,10 @@ target_sources(mosaic PRIVATE
     source/service/thread_pool.cpp
     source/support/json_support.cpp
     source/support/logger.cpp
+    source/tool/demo_tool.cpp
+    source/tool/tool.cpp
+    source/tool/tool_manager.cpp
+    source/tool/tool_registry.cpp
 )
 
 if(MOSAIC_PLATFORM_MACOS)
