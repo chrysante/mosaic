@@ -167,23 +167,23 @@ Owner<View> make_header(TestState const& state) {
 }
 
 Owner<View> make_basic_widgets(TestState& state) {
-    auto actions = hstack({
-                       button(lucide_icon("circle-plus"),
-                              [&state] {
-                                  ++state.counter;
-                                  state.message = "Counter incremented";
-                              }) |
-                           enabled(bind(&state.buttons_enabled)) | vfill,
-                       button("Reset", [&state] { state = TestState{}; }) |
-                           enabled(bind(&state.buttons_enabled)) |
-                           font({
-                               .weight_offset = 3,
-                               .style_override = FontStyle::monospaced,
-                               .size_scale = 2.0f,
-                           }),
-                       make_counter_text(state) | vcenter,
-                   }) |
-                   hfill;
+    auto actions =
+        hstack({button(lucide_icon("circle-plus"),
+                       [&state] {
+                           ++state.counter;
+                           state.message = "Counter incremented";
+                       }) |
+                    enabled(bind(&state.buttons_enabled)) | vfill,
+                button("Reset", [&state] { state = TestState{}; }) |
+                    enabled(bind(&state.buttons_enabled)) |
+                    font({
+                        .weight_offset = 3,
+                        .style_override = FontStyle::monospaced,
+                        .size_scale = 2.0f,
+                    }),
+                make_counter_text(state) | vcenter,
+                button(lucide_icon("this icon does not exist")) | vfill}) |
+        hfill;
     return vstack({
         label("Basic widgets"),
         std::move(actions),

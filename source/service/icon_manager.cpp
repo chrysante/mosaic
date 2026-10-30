@@ -84,4 +84,7 @@ void mosaic::load_default_icons(IconManager& icon_manager) {
     assert(names.size() == icon_ids.size());
     for (std::size_t i = 0; i < names.size(); ++i)
         ui_context.lucide_icon_table.emplace(std::move(names[i]), icon_ids[i]);
+
+    icon_manager.set_fallback_icon(
+        icon_manager.get_icon(ui::lucide_icon_id("circle-question-mark")));
 }
