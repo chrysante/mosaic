@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <functional>
 #include <string>
+#include <vector>
 
 #include <vml/vml.hpp>
 
@@ -48,6 +49,18 @@ MOSAIC_EXPORT Owner<View> button(Property<Icon const> icon,
                                  std::function<void()> action = {});
 
 MOSAIC_EXPORT Owner<View> checkbox(Property<bool> state);
+
+enum class ComboHeight { small, regular, large, giant };
+
+struct ComboOptions {
+    ComboHeight height = ComboHeight::regular;
+    bool arrow_button = true;
+};
+
+MOSAIC_EXPORT Owner<View> combo(Property<int> selection,
+                                Property<std::string const> preview,
+                                Property<std::vector<std::string> const> items,
+                                ComboOptions options = {});
 
 struct SliderOptions {
     // FIXME: Provide a default for int-sliders as well

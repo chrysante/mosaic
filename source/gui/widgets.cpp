@@ -11,6 +11,7 @@
 #include <utl/scope_guard.hpp>
 #include <variant>
 
+#include "gui/containers.h"
 #include "gui/icon.h"
 #include "gui/view_support.h"
 
@@ -25,6 +26,38 @@ static bool positive(vml::float2 size) {
 
 static bool non_negative(vml::float2 size) {
     return size.map([](auto v) { return v >= 0.0f; }).all();
+}
+
+template <typename Callback>
+static decltype(auto) with_widget_size(vml::float2 size, Callback&& callback) {
+    auto& g = *GImGui;
+    // Hacky way to adjust the height of the widget
+    ImGuiStyle const& style = ImGui::GetStyle();
+    float const font_size = ImGui::GetFontSize();
+    float const original_padding_y = style.FramePadding.y;
+    float const target_height = size.y;
+    float adjusted_font_size = font_size;
+    float adjusted_padding_y = original_padding_y;
+    if (target_height >= font_size + 2.0f * original_padding_y) {
+        // Grow using padding only; never increase the font size.
+        adjusted_padding_y = (target_height - font_size) * 0.5f;
+    } else {
+        // Shrink padding first, then the font if necessary.
+        adjusted_padding_y =
+            std::min(original_padding_y,
+                     std::max(0.0f, (target_height - font_size) * 0.5f));
+        adjusted_font_size =
+            std::max(1.0f, target_height - 2.0f * adjusted_padding_y);
+    }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+                        ImVec2(style.FramePadding.x, adjusted_padding_y));
+    g.FontSize = adjusted_font_size;
+    ImGui::SetNextItemWidth(size.x);
+    utl::scope_guard end = [&] {
+        ImGui::PopStyleVar();
+        g.FontSize = font_size;
+    };
+    return std::invoke(std::forward<Callback>(callback));
 }
 
 // =============================================================================
@@ -341,6 +374,98 @@ Owner<View> ui::checkbox(Property<bool> state) {
 }
 
 // =============================================================================
+// Combo
+// =============================================================================
+
+namespace {
+
+struct ComboView : View {
+    ComboView(Property<int>&& selection, Property<std::string const>&& preview,
+              Property<std::vector<std::string> const>&& items,
+              ComboOptions options)
+        : View({SizeSpec::fill(), SizeSpec::fit()})
+        , selection(std::move(selection))
+        , preview(std::move(preview))
+        , items(std::move(items))
+        , options(options) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Property<int> selection;
+    Property<std::string const> preview;
+    Property<std::vector<std::string> const> items;
+    ComboOptions options;
+};
+
+} // namespace
+
+static int translate_combo_flags(ComboOptions const& options) {
+    int flags = 0;
+    switch (options.height) {
+    case ComboHeight::small:
+        flags |= ImGuiComboFlags_HeightSmall;
+        break;
+    case ComboHeight::regular:
+        flags |= ImGuiComboFlags_HeightRegular;
+        break;
+    case ComboHeight::large:
+        flags |= ImGuiComboFlags_HeightLarge;
+        break;
+    case ComboHeight::giant:
+        flags |= ImGuiComboFlags_HeightLargest;
+        break;
+    }
+    if (!options.arrow_button) flags |= ImGuiComboFlags_NoArrowButton;
+    return flags;
+}
+
+void ComboView::do_display(Rect frame) {
+    ImGui::PushID(this);
+    with_widget_size(frame.size, [&] {
+        ImGui::SetCursorScreenPos(frame.origin);
+        auto preview = this->preview.get();
+        auto& style = ImGui::GetStyle();
+        ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding,
+                             2.0f * style.FramePadding.x);
+        int combo_flags = translate_combo_flags(options);
+        bool open =
+            ImGui::BeginCombo("##combo", preview.value().c_str(), combo_flags);
+        ImGui::PopStyleVar();
+        if (open) {
+            int selection = this->selection.materialize();
+            int new_selection = -1;
+            auto options = this->items.get();
+            int index = 0;
+            for (std::string const& option : options.value()) {
+                ImGui::PushID(index);
+                if (ImGui::Selectable(option.c_str(), index == selection))
+                    new_selection = index;
+                ImGui::PopID();
+                ++index;
+            }
+            if (new_selection != -1) this->selection.set(new_selection);
+            ImGui::EndCombo();
+        }
+    });
+    ImGui::PopID();
+}
+
+vml::float2 ComboView::do_calc_intrinsic_size(vml::float2) const {
+    auto& style = ImGui::GetStyle();
+    return {default_control_width(),
+            ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
+}
+
+Owner<View> ui::combo(Property<int> selection,
+                      Property<std::string const> preview,
+                      Property<std::vector<std::string> const> items,
+                      ComboOptions options) {
+    return allocate<ComboView>(std::move(selection), std::move(preview),
+                               std::move(items), options);
+}
+
+// =============================================================================
 // Slider
 // =============================================================================
 
@@ -352,10 +477,6 @@ template <typename T> struct SliderView : View {
     explicit SliderView(Property<T>&& state, Property<ScalarType const>&& min,
                         Property<ScalarType const>&& max,
                         SliderOptions options = {});
-
-    Property<T> const& get_state() const { return state; }
-
-    void set_state(Property<T> state) { state = std::move(state); }
 
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
@@ -425,38 +546,6 @@ static int translate_slider_flags(SliderOptions const& options) {
     if (!options.speed_tweaks) result |= ImGuiSliderFlags_NoSpeedTweaks;
     if (options.color_markers) result |= ImGuiSliderFlags_ColorMarkers;
     return result;
-}
-
-template <typename Callback>
-static decltype(auto) with_widget_size(vml::float2 size, Callback&& callback) {
-    auto& g = *GImGui;
-    // Hacky way to adjust the height of the widget
-    ImGuiStyle const& style = ImGui::GetStyle();
-    float const font_size = ImGui::GetFontSize();
-    float const original_padding_y = style.FramePadding.y;
-    float const target_height = size.y;
-    float adjusted_font_size = font_size;
-    float adjusted_padding_y = original_padding_y;
-    if (target_height >= font_size + 2.0f * original_padding_y) {
-        // Grow using padding only; never increase the font size.
-        adjusted_padding_y = (target_height - font_size) * 0.5f;
-    } else {
-        // Shrink padding first, then the font if necessary.
-        adjusted_padding_y =
-            std::min(original_padding_y,
-                     std::max(0.0f, (target_height - font_size) * 0.5f));
-        adjusted_font_size =
-            std::max(1.0f, target_height - 2.0f * adjusted_padding_y);
-    }
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
-                        ImVec2(style.FramePadding.x, adjusted_padding_y));
-    g.FontSize = adjusted_font_size;
-    ImGui::SetNextItemWidth(size.x);
-    utl::scope_guard end = [&] {
-        ImGui::PopStyleVar();
-        g.FontSize = font_size;
-    };
-    return std::invoke(std::forward<Callback>(callback));
 }
 
 template <typename T> void SliderView<T>::do_display(Rect frame) {

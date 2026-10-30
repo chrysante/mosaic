@@ -27,6 +27,12 @@ struct PropertiesTestState {
     float rotation = 0.0f;
     bool wireframe = false;
     bool shadows = true;
+
+    std::size_t combo_selection = 4;
+    std::vector<std::string> combo_options = {
+        "Default", "Automatic", "Custom",      "None", "Small",
+        "Medium",  "Large",     "Extra Large", "Low",
+    };
 };
 
 struct TestState {
@@ -407,6 +413,20 @@ static Owner<View> make_wrapping_text_demo(TestState const& state) {
 // Properties View
 // =============================================================================
 
+static Owner<View> make_combo(PropertiesTestState& state) {
+    return combo(computed([&] { return (int)state.combo_selection; },
+                          [&](int new_selection) {
+                              state.combo_selection =
+                                  (std::size_t)new_selection;
+                          }),
+                 computed([&] -> std::string {
+                     if (state.combo_selection < state.combo_options.size())
+                         return state.combo_options[state.combo_selection];
+                     return "<Invalid Selection>";
+                 }),
+                 bind(&state.combo_options));
+}
+
 static Owner<View> make_properties_view_tests(PropertiesTestState& state) {
     // clang-format off
     return vscroll({
@@ -426,7 +446,8 @@ static Owner<View> make_properties_view_tests(PropertiesTestState& state) {
             property("Rendering", vstack({
                 hstack({label("Wireframe"), checkbox(bind(&state.wireframe))}), 
                 hstack({label("Shadows"), checkbox(bind(&state.shadows))}), 
-            }, Alignment::high))
+            }, Alignment::high)),
+            property("Combo", make_combo(state))
         })
     });
     // clang-format on
