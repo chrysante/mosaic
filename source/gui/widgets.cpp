@@ -139,6 +139,52 @@ Owner<TextInputView> ui::text_input(std::string* buffer,
     return allocate<TextInputView>(buffer, std::move(options));
 }
 
+static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
+    std::array<char, 5> buf;
+    ImTextCharToUtf8(buf.data(), code_point);
+    return buf;
+}
+
+namespace {
+
+struct IconView : View {
+    explicit IconView(Property<Icon const> icon)
+        : View({SizeSpec::fit(), SizeSpec::fit()})
+        , icon(std::move(icon)) {}
+
+    void do_display(Rect frame) override {
+        FontIcon font_icon = std::get<FontIcon>(icon.materialize());
+        auto text = get_code_point_utf8(font_icon.code_point);
+        ImGui::SetCursorScreenPos(frame.origin);
+        ImGui::ItemSize(frame.size);
+        ImGui::ItemAdd({frame.min(), frame.max()}, 0);
+        ImGui::PushClipRect(frame.min(), frame.max(), true);
+        auto* DL = ImGui::GetWindowDrawList();
+        DL->AddText(font_icon.font, 0.0f, frame.origin,
+                    ImGui::GetColorU32(ImGuiCol_Text), text.data(),
+                    text.data() + 4);
+        ImGui::PopClipRect();
+    }
+
+    vml::float2 do_calc_intrinsic_size(vml::float2) const override {
+        FontIcon font_icon = std::get<FontIcon>(icon.materialize());
+        auto text = get_code_point_utf8(font_icon.code_point);
+        ImGui::PushFont(font_icon.font, 0.0f);
+        vml::float2 text_size =
+            ImGui::CalcTextSize(text.data(), text.data() + 4);
+        ImGui::PopFont();
+        return text_size;
+    }
+
+    Property<Icon const> icon;
+};
+
+} // namespace
+
+Owner<View> ui::icon(Property<Icon const> icon) {
+    return allocate<IconView>(std::move(icon));
+}
+
 ButtonView::ButtonView(Label&& label, std::function<void()>&& on_click)
     : View({SizeSpec::fit(), SizeSpec::fit()})
     , m_label(std::move(label))
@@ -148,12 +194,6 @@ static bool display_button(Property<std::string const> const& label,
                            vml::float2 size) {
     auto text = label.get();
     return ImGui::ButtonEx(text.value().c_str(), size);
-}
-
-static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
-    std::array<char, 5> buf;
-    ImTextCharToUtf8(buf.data(), code_point);
-    return buf;
 }
 
 static bool display_button(Property<Icon const> const& label,

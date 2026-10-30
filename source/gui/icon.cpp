@@ -5,7 +5,7 @@
 
 using namespace mosaic;
 
-Icon ui::icon(IconId icon_id) {
+Icon ui::resolve_icon(IconId icon_id) {
     return get_current_ui_context().icon_manager.get_icon(icon_id);
 }
 

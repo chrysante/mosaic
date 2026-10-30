@@ -159,7 +159,9 @@ Owner<View> make_color_examples(TestState& state) {
 
 Owner<View> make_header(TestState const& state) {
     return hstack({
-               text(bind(&state.title)),
+               text(bind(&state.title)) |
+                   font({.weight_override = FontWeight::bold,
+                         .size_scale = 2.0f}),
                spacer(),
                make_message_text(state),
            }) |
@@ -168,7 +170,9 @@ Owner<View> make_header(TestState const& state) {
 
 Owner<View> make_basic_widgets(TestState& state) {
     auto actions =
-        hstack({button(lucide_icon("circle-plus"),
+        hstack(
+            {
+                button(lucide_icon("circle-plus"),
                        [&state] {
                            ++state.counter;
                            state.message = "Counter incremented";
@@ -182,7 +186,10 @@ Owner<View> make_basic_widgets(TestState& state) {
                         .size_scale = 2.0f,
                     }),
                 make_counter_text(state) | vcenter,
-                button(lucide_icon("this icon does not exist")) | vfill}) |
+                icon(lucide_icon("hospital")) | font({.size_scale = 3.0f}),
+                icon(lucide_icon("this icon does not exist")),
+            },
+            Alignment::mid) |
         hfill;
     return vstack({
         label("Basic widgets"),

@@ -30,12 +30,12 @@ constexpr IconId const IconId::invalid_id = {.value = (unsigned)-1};
 namespace ui {
 
 ///
-Icon icon(IconId icon_id);
+Icon resolve_icon(IconId icon_id);
 
 IconId lucide_icon_id(std::string_view name);
 
 inline Icon lucide_icon(std::string_view name) {
-    return icon(lucide_icon_id(name));
+    return resolve_icon(lucide_icon_id(name));
 }
 
 } // namespace ui
