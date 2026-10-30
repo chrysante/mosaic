@@ -10,7 +10,6 @@
 #include <utl/scope_guard.hpp>
 #include <variant>
 
-#include "gui/font.h"
 #include "gui/icon.h"
 #include "gui/view_support.h"
 
@@ -140,27 +139,15 @@ Owner<TextInputView> ui::text_input(std::string* buffer,
     return allocate<TextInputView>(buffer, std::move(options));
 }
 
-ButtonView::ButtonView(Label&& label, std::function<void()>&& on_click,
-                       Kind kind)
+ButtonView::ButtonView(Label&& label, std::function<void()>&& on_click)
     : View({SizeSpec::fit(), SizeSpec::fit()})
-    , m_kind(kind)
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
 static bool display_button(Property<std::string const> const& label,
-                           vml::float2 size, ButtonView::Kind kind) {
+                           vml::float2 size) {
     auto text = label.get();
-    switch (kind) {
-    case ButtonView::Kind::text:
-        return ImGui::ButtonEx(text.value().c_str(), size);
-    case ButtonView::Kind::icon: {
-        auto data = icon_data(text.value());
-        ImGui::PushFont(data.font, 0.0f);
-        bool clicked = ImGui::ButtonEx(data.utf8_rep.data(), size);
-        ImGui::PopFont();
-        return clicked;
-    }
-    }
+    return ImGui::ButtonEx(text.value().c_str(), size);
 }
 
 static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
@@ -169,8 +156,8 @@ static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
     return buf;
 }
 
-static bool display_button(Property<Icon const> const& label, vml::float2 size,
-                           ButtonView::Kind) {
+static bool display_button(Property<Icon const> const& label,
+                           vml::float2 size) {
     FontIcon icon = std::get<FontIcon>(label.materialize());
     ImGui::PushFont(icon.font, 0.0f);
     auto text = get_code_point_utf8(icon.code_point);
@@ -184,52 +171,39 @@ void ButtonView::do_display(Rect frame) {
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     bool clicked = std::visit(
-        [&](auto& prop) { return display_button(prop, frame.size, m_kind); },
-        m_label);
+        [&](auto& prop) { return display_button(prop, frame.size); }, m_label);
     ImGui::PopID();
     if (clicked && m_on_click) m_on_click();
 }
 
-vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
+static vml::float2 measure_button(Property<std::string const> const& label) {
     auto& style = ImGui::GetStyle();
-    if (m_label.index() == 0) {
-        auto label = std::get<0>(m_label).get();
-        switch (m_kind) {
-        case Kind::text: {
-            auto& label_ref = label.value();
-            vml::float2 text_size = ImGui::CalcTextSize(
-                label_ref.data(), label_ref.data() + label_ref.size(), true);
-            return text_size + 2.0f * (vml::float2)style.FramePadding;
-        }
-        case Kind::icon: {
-            float y = ImGui::GetFontSize();
-            float x = 1.5f * y;
-            return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
-        }
-        }
-    } else {
-        float y = ImGui::GetFontSize();
-        float x = 1.5f * y;
-        return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
-    }
+    auto text = label.get();
+    auto& text_ref = text.value();
+    vml::float2 text_size = ImGui::CalcTextSize(
+        text_ref.data(), text_ref.data() + text_ref.size(), true);
+    return text_size + 2.0f * (vml::float2)style.FramePadding;
+}
+
+static vml::float2 measure_button(Property<Icon const> const&) {
+    auto& style = ImGui::GetStyle();
+    float y = ImGui::GetFontSize();
+    float x = 1.5f * y;
+    return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
+}
+
+vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
+    return std::visit([](auto& prop) { return measure_button(prop); }, m_label);
 }
 
 Owner<ButtonView> ui::button(Property<std::string const> label,
                              std::function<void()> on_click) {
-    return allocate<ButtonView>(std::move(label), std::move(on_click),
-                                ButtonView::Kind::text);
-}
-
-Owner<ButtonView> ui::icon_button(Property<std::string const> icon_name,
-                                  std::function<void()> action) {
-    return allocate<ButtonView>(std::move(icon_name), std::move(action),
-                                ButtonView::Kind::icon);
+    return allocate<ButtonView>(std::move(label), std::move(on_click));
 }
 
 Owner<ButtonView> ui::button(Property<Icon const> icon,
                              std::function<void()> action) {
-    return allocate<ButtonView>(std::move(icon), std::move(action),
-                                ButtonView::Kind{});
+    return allocate<ButtonView>(std::move(icon), std::move(action));
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)

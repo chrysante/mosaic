@@ -55,8 +55,3 @@ void ui::pop_font() {
     auto& font_stack = get_current_ui_context().font_stack;
     font_stack.pop();
 }
-
-IconData ui::icon_data(std::string_view name) {
-    auto& ui_context = get_current_ui_context();
-    return ui_context.font_manager.get_icon(name);
-}

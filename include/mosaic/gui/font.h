@@ -91,35 +91,3 @@ template <> struct std::hash<mosaic::FontDesc> {
         return utl::hash_combine(desc.weight, desc.style);
     }
 };
-
-// =============================================================================
-// Icons
-// =============================================================================
-
-// TODO: Rework the whole icon system
-
-// ImGui font type. Forward declare this here so we don't need to include
-// imgui.h
-struct ImFont;
-
-namespace mosaic {
-
-/// Result structure of `FontManager::get_icon(...)`
-struct IconData {
-    using StringType = std::array<char, 16>;
-
-    /// The font that encodes the icon
-    ImFont* font;
-
-    /// The string that represents the icon
-    StringType utf8_rep{};
-};
-
-namespace ui {
-
-///
-IconData icon_data(std::string_view name);
-
-} // namespace ui
-
-} // namespace mosaic

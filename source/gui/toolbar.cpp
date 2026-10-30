@@ -61,6 +61,7 @@ bool toolbar_button(ToolbarButtonStyle const& style, char const* label, int id,
         id, flags, size, enabled, open);
 }
 
+#if 0
 bool toolbar_icon_button(ToolbarButtonStyle const& style, IconData icon, int id,
                          int flags, float2 size, char const* tooltip,
                          bool enabled = true, bool open = false) {
@@ -79,6 +80,7 @@ bool toolbar_icon_button(ToolbarButtonStyle const& style, IconData icon, int id,
     }
     return result;
 }
+#endif
 
 void ToolbarButton::Display::display(ToolbarButton const& button,
                                      ToolbarItemDisplayData data) {
@@ -110,10 +112,13 @@ ToolbarIconButton::ToolbarIconButton(Command const* command,
 
 void ToolbarIconButton::Display::display(ToolbarIconButton const& button,
                                          ToolbarItemDisplayData data) {
+    assert(false);
+#if 0
     bool active = toolbar_icon_button(
         data.button_style, ui::icon_data(button.m_icon_name()), data.ID,
         get_button_flags(button), data.actual_size, tooltip(button));
     if (active) do_action(button);
+#endif
 }
 
 static float const icon_button_width_height_ratio = 1.7;
@@ -128,6 +133,7 @@ ToolbarDropdownMenu::ToolbarDropdownMenu()
 
 void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
                                            ToolbarItemDisplayData const& data) {
+#if 0
     vml::float2 cursor_pos = ImGui::GetCursorScreenPos();
     ImRect bb(cursor_pos, cursor_pos + data.actual_size);
     // Use a stable, unique ID for this dropdown.
@@ -162,6 +168,7 @@ void ToolbarDropdownMenu::Display::display(ToolbarDropdownMenu const& item,
         if (item.m_content) item.m_content();
         ImGui::EndPopup();
     }
+#endif
 }
 
 float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,

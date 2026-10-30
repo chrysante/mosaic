@@ -8,7 +8,6 @@
 #include <imgui_internal.h>
 #include <vml/vml.hpp>
 
-#include "gui/font.h"
 #include "gui/layout.h"
 
 using namespace mosaic;
@@ -193,16 +192,12 @@ void StyleEditor::empty_editor() {
 static void header(char const* title,
                    std::vector<std::unique_ptr<StyleColor>>& colors) {
     auto cp = ImGui::GetCursorScreenPos();
-
-    float width = ImGui::GetContentRegionAvail().x;
-    IconData icon = ui::icon_data("plus-squared");
-    ImGui::PushFont(icon.font, 0.0f);
     ImVec2 size = {60,
                    ImGui::GetFontSize() + 2 * ImGui::GetStyle().FramePadding.y};
+    float width = ImGui::GetContentRegionAvail().x;
     ImVec2 pos = {cp.x + width - size.x, cp.y};
     ImGui::SetCursorScreenPos(pos);
-    bool pressed = ImGui::ButtonEx(icon.utf8_rep.data(), size);
-    ImGui::PopFont();
+    bool pressed = ImGui::ButtonEx("[+]", size);
     if (pressed) ImGui::OpenPopup("##new-color-popup");
     ImGui::SetNextWindowSize({500, 400});
     auto flags = ImGuiWindowFlags_NoResize;

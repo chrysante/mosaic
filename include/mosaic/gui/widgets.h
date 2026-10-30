@@ -84,26 +84,18 @@ class MOSAIC_EXPORT ButtonView : public View {
         std::variant<Property<std::string const>, Property<Icon const>>;
 
 public:
-    enum class Kind { text, icon };
-
-    explicit ButtonView(Label&& label, std::function<void()>&& on_click,
-                        Kind kind);
+    explicit ButtonView(Label&& label, std::function<void()>&& on_click);
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
-    Kind m_kind;
     Label m_label;
     std::function<void()> m_on_click;
 };
 
 MOSAIC_EXPORT Owner<ButtonView> button(Property<std::string const> label,
                                        std::function<void()> action = {});
-
-MOSAIC_EXPORT Owner<ButtonView>
-icon_button(Property<std::string const> icon_name,
-            std::function<void()> action = {});
 
 MOSAIC_EXPORT Owner<ButtonView> button(Property<Icon const> icon,
                                        std::function<void()> action = {});

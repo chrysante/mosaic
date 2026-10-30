@@ -37,7 +37,6 @@ using namespace mosaic;
 static void menubar();
 static void display_properties_test(bool* open);
 static void draw_test_properties(char const* str_id);
-static void display_icon_viewer(bool* open, FontManager& font_manager);
 static void display_view_test(bool* open);
 
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
@@ -249,7 +248,6 @@ private:
             if (ImGui::Button("Application Settings")) show_app_settings = true;
             if (ImGui::Button("Properties Test")) show_properties_test = true;
             if (ImGui::Button("Style Editor")) show_style_editor = true;
-            if (ImGui::Button("Icon Viewer")) show_icon_viewer = true;
             if (ImGui::Button("View Test")) show_view_test = true;
             if (ImGui::Button("View Test 2")) ui_test.show();
         }
@@ -270,9 +268,6 @@ private:
             if (visible) style_editor.draw();
             ImGui::End();
         }
-        if (show_icon_viewer)
-            display_icon_viewer(&show_icon_viewer,
-                                service_context().font_manager());
         if (show_view_test) display_view_test(&show_view_test);
         ui_test.display();
     }
@@ -285,7 +280,6 @@ private:
     bool show_app_settings = false;
     bool show_properties_test = false;
     bool show_style_editor = false;
-    bool show_icon_viewer = false;
     UiTest ui_test;
     bool show_view_test = false;
     StyleEditor style_editor;
@@ -419,10 +413,7 @@ static void menubar() {
 }
 
 static void help_marker(char const* text) {
-    IconData icon = ui::icon_data("info-circled");
-    ImGui::PushFont(icon.font, 0.0f);
-    ImGui::TextDisabled("%s", icon.utf8_rep.data());
-    ImGui::PopFont();
+    ImGui::TextDisabled("(?)");
     ImGui::SetItemTooltip("%s", text);
 }
 
@@ -597,40 +588,6 @@ static void display_properties_test(bool* open) {
     });
     ui::end_properties();
 
-    ImGui::End();
-}
-
-void display_icon_viewer(bool* open, FontManager& font_manager) {
-    ImGui::Begin("Icon Viewer", open);
-    auto const& all_icons = font_manager.get_all_icon_codes();
-    constexpr int columns = 6;
-    constexpr float cell_height = 72.0f;
-    if (ImGui::BeginTable(
-            "Icons", columns,
-            ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_BordersInnerV |
-                ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_PadOuterX)) {
-        for (auto const& [name, code] : all_icons) {
-            ImGui::TableNextColumn();
-            auto icon_data = ui::icon_data(name);
-            float cell_width = ImGui::GetContentRegionAvail().x;
-            float start_x = ImGui::GetCursorPosX();
-            // Icon
-            float icon_width = 24.0f;
-            ImGui::SetCursorPosX(start_x + (cell_width - icon_width) * 0.5f);
-            ImGui::PushFont(icon_data.font, 32.0f);
-            ImGui::TextEx(icon_data.utf8_rep.data());
-            ImGui::PopFont();
-            // Name
-            ImGui::SetCursorPosX(start_x);
-            ImGui::SetNextItemWidth(cell_width);
-            ImGui::TextWrapped("%s", name.c_str());
-            // Give each cell a consistent minimum height.
-            float remaining =
-                cell_height - (ImGui::GetCursorPosY() - ImGui::GetCursorPosY());
-            (void)remaining;
-        }
-        ImGui::EndTable();
-    }
     ImGui::End();
 }
 
