@@ -138,7 +138,7 @@ static void draw_window_info(Window const* window) {
     ImGui::Text("Size: %d x %d", size.x, size.y);
     // Native
     ImGui::TableSetColumnIndex(WindowTable::native);
-    ui::with_font(ui::font(FontStyle::monospaced), [&] {
+    ui::with_font({.style_override = FontStyle::monospaced}, [&] {
         ImGui::TextUnformatted(
             internal::WindowImpl::get_native_debug_string(*window).c_str());
     });

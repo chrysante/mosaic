@@ -23,7 +23,6 @@
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/toolbar2.h>
-#include <mosaic/gui/ui_context.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/widgets.h>
 #include <mosaic/service/event_receiver.h>
@@ -37,7 +36,7 @@ using namespace mosaic;
 static void menubar();
 static void display_properties_test(bool* open);
 static void draw_test_properties(char const* str_id);
-static void display_icon_viewer(bool* open);
+static void display_icon_viewer(bool* open, FontManager& font_manager);
 static void display_view_test(bool* open);
 
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
@@ -117,13 +116,10 @@ private:
             ImGui::EndGroup();
         });
         if (mode != current_mode) {
-            if (mode == 0) {
-                run_mode_lease.reset();
-            } else {
-                if (auto* ui_context = get_current_ui_context())
-                    run_mode_lease = ui_context->run_mode_controller
-                                         .enter_continuous_run_mode();
-            }
+            if (mode == 0) run_mode_lease.reset();
+            else
+                run_mode_lease =
+                    get_run_mode_controller().enter_continuous_run_mode();
         }
         ui::end_properties();
     }
@@ -273,7 +269,9 @@ private:
             if (visible) style_editor.draw();
             ImGui::End();
         }
-        if (show_icon_viewer) display_icon_viewer(&show_icon_viewer);
+        if (show_icon_viewer)
+            display_icon_viewer(&show_icon_viewer,
+                                service_context().font_manager());
         if (show_view_test) display_view_test(&show_view_test);
         ui_test.display();
     }
@@ -601,10 +599,9 @@ static void display_properties_test(bool* open) {
     ImGui::End();
 }
 
-void display_icon_viewer(bool* open) {
+void display_icon_viewer(bool* open, FontManager& font_manager) {
     ImGui::Begin("Icon Viewer", open);
-    auto const& all_icons =
-        get_current_ui_context()->font_manager.get_all_icon_codes();
+    auto const& all_icons = font_manager.get_all_icon_codes();
     constexpr int columns = 6;
     constexpr float cell_height = 72.0f;
     if (ImGui::BeginTable(
@@ -619,8 +616,9 @@ void display_icon_viewer(bool* open) {
             // Icon
             float icon_width = 24.0f;
             ImGui::SetCursorPosX(start_x + (cell_width - icon_width) * 0.5f);
-            ui::with_font(icon_data.font, 32.0f,
-                          [&] { ImGui::TextEx(icon_data.utf8_rep.data()); });
+            ImGui::PushFont(icon_data.font, 32.0f);
+            ImGui::TextEx(icon_data.utf8_rep.data());
+            ImGui::PopFont();
             // Name
             ImGui::SetCursorPosX(start_x);
             ImGui::SetNextItemWidth(cell_width);

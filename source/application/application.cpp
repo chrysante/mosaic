@@ -22,6 +22,7 @@
 #include "application/window_desc.h"
 #include "application/window_impl.h"
 #include "gui/appearance_internal.h"
+#include "gui/font.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/service_context.h"
 #include "support/json_support.h"
@@ -159,6 +160,7 @@ void ApplicationImpl::init() {
     init_platform();
     create_main_window();
     imgui_init();
+    init_font();
 }
 
 namespace {
@@ -300,12 +302,24 @@ void ApplicationImpl::imgui_init() {
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
-    io.FontDefault = fm.get_font(FontDesc::ui_default());
     io.IniFilename = nullptr;
 
+    init_font();
     imgui_init_platform();
     ImGui::LoadIniSettingsFromDisk(imgui_ini_file().c_str());
     load_app_settings_from_disk();
+}
+
+void ApplicationImpl::init_font() {
+    FontDesc desc = {.weight = FontWeight::regular, .style = FontStyle::roman};
+    FontContext font_ctx{
+        .desc = desc,
+        .size = ImGui::GetFontSize(),
+        .font = service_context.font_manager().get_font(font_ctx.desc)};
+    ui_context.font_stack.push(font_ctx);
+
+    auto& io = ImGui::GetIO();
+    io.FontDefault = ui_context.font_stack.top().font;
 }
 
 void ApplicationImpl::imgui_begin_frame() {

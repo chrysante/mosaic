@@ -29,4 +29,6 @@ private:
     std::size_t m_count = 0;
 };
 
+RunModeController& get_run_mode_controller();
+
 } // namespace mosaic

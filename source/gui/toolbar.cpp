@@ -55,9 +55,10 @@ static bool toolbar_button_impl(ToolbarButtonStyle const& style,
 bool toolbar_button(ToolbarButtonStyle const& style, char const* label, int id,
                     int flags, float2 size, bool enabled = true,
                     bool open = false) {
-    return toolbar_button_impl(style, label,
-                               ui::font(FontWeight::semibold, FontStyle::roman),
-                               id, flags, size, enabled, open);
+    return toolbar_button_impl(
+        style, label,
+        nullptr, // ui::font(FontWeight::semibold, FontStyle::roman),
+        id, flags, size, enabled, open);
 }
 
 bool toolbar_icon_button(ToolbarButtonStyle const& style, IconData icon, int id,
@@ -175,7 +176,7 @@ float ToolbarDropdownMenu::Display::calc_width(ToolbarDropdownMenu const& item,
 
 void ToolbarTextItem::Display::display(ToolbarTextItem const& item,
                                        ToolbarItemDisplayData const& data) {
-    auto* font = ui::font(item.get_font_desc());
+    ImFont* font = nullptr; // ui::font(item.get_font_desc());
     auto* window = ImGui::GetCurrentWindow();
     auto* DL = window->DrawList;
     auto& style = ImGui::GetStyle();
@@ -200,7 +201,7 @@ float ToolbarTextItem::Display::calc_width(ToolbarTextItem const& item, float) {
 char const* ToolbarTextItem::get_text() const { return m_text ? m_text() : ""; }
 
 FontDesc ToolbarTextItem::get_font_desc() const {
-    return m_font_desc ? m_font_desc() : FontDesc::ui_default();
+    return m_font_desc ? m_font_desc() : FontDesc{};
 }
 
 void ToolbarEmptyItem::Display::display(ToolbarEmptyItem,

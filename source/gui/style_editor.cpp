@@ -1,7 +1,5 @@
 #include "gui/style_editor.h"
 
-#include <algorithm>
-#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -198,13 +196,13 @@ static void header(char const* title,
 
     float width = ImGui::GetContentRegionAvail().x;
     IconData icon = ui::icon_data("plus-squared");
-    bool pressed = ui::with_font(icon.font, [&] {
-        ImVec2 size = {60, ImGui::GetFontSize() +
-                               2 * ImGui::GetStyle().FramePadding.y};
-        ImVec2 pos = {cp.x + width - size.x, cp.y};
-        ImGui::SetCursorScreenPos(pos);
-        return ImGui::ButtonEx(icon.utf8_rep.data(), size);
-    });
+    ImGui::PushFont(icon.font, 0.0f);
+    ImVec2 size = {60,
+                   ImGui::GetFontSize() + 2 * ImGui::GetStyle().FramePadding.y};
+    ImVec2 pos = {cp.x + width - size.x, cp.y};
+    ImGui::SetCursorScreenPos(pos);
+    bool pressed = ImGui::ButtonEx(icon.utf8_rep.data(), size);
+    ImGui::PopFont();
     if (pressed) ImGui::OpenPopup("##new-color-popup");
     ImGui::SetNextWindowSize({500, 400});
     auto flags = ImGuiWindowFlags_NoResize;

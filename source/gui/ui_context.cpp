@@ -4,6 +4,6 @@
 
 using namespace mosaic;
 
-UIContext const* mosaic::get_current_ui_context() {
-    return static_cast<UIContext const*>(ImGui::GetIO().UserData);
+UIContext& mosaic::get_current_ui_context() {
+    return *static_cast<UIContext*>(ImGui::GetIO().UserData);
 }

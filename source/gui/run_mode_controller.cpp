@@ -4,6 +4,7 @@
 
 #include "application/application_impl.h"
 #include "application/frame_scheduler.h"
+#include "gui/ui_context.h"
 
 using namespace mosaic;
 
@@ -27,4 +28,9 @@ void RunModeController::Deleter::operator()(
         auto& scheduler = *controller->m_app_impl.frame_scheduler;
         scheduler.stop_running();
     });
+}
+
+RunModeController& mosaic::get_run_mode_controller() {
+    auto& ui_context = get_current_ui_context();
+    return ui_context.run_mode_controller;
 }

@@ -462,9 +462,9 @@ static void start_section(Context& ctx, const char* title) {
     if (ctx.num_sections > 0) ctx.cursor_y += properties_style.section_spacing;
     // Draw title
     if (title) {
-        auto font_desc = FontDesc::ui_default().set_weight(FontWeight::bold);
         ImGui::SetCursorScreenPos({ctx.content_left, ctx.cursor_y});
-        ui::with_font(font_desc, [&] { ImGui::TextEx(title); });
+        ui::with_font({.weight_override = FontWeight::bold},
+                      [&] { ImGui::TextEx(title); });
         float font_size = ImGui::GetFontSize();
         ctx.cursor_y += font_size + 0.5f * properties_style.row_spacing;
     }
