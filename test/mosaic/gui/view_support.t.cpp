@@ -109,24 +109,20 @@ TEST_CASE("Built-in view adapters set size, alignment, and enabled properties",
           "[pipe]") {
     TestView view;
     View* ptr = &view;
-    ptr | hfit | vfill | hcenter | align_bottom;
+    ptr |= hfit | vfill | hcenter | align_bottom;
     REQUIRE(view.size_spec()[0].is_fit());
     REQUIRE(view.size_spec()[1].is_fill());
     REQUIRE(view.size_spec()[1].fill_weight() == 1.0f);
     REQUIRE(view.alignment()[0] == Alignment::mid);
     REQUIRE(view.alignment()[1] == Alignment::high);
-    ptr | hfill_weight(2.5f);
+    ptr |= hfill_weight(2.5f);
     REQUIRE(view.size_spec()[0].is_fill());
     REQUIRE(view.size_spec()[0].fill_basis() == FillBasis::zero);
     REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);
-    ptr | hfill_weight(2.5f, FillBasis::intrinsic);
+    ptr |= hfill_weight(2.5f, FillBasis::intrinsic);
     REQUIRE(view.size_spec()[0].is_fill());
     REQUIRE(view.size_spec()[0].fill_basis() == FillBasis::intrinsic);
     REQUIRE(view.size_spec()[0].fill_weight() == 2.5f);
-    ptr | enabled(Property<bool const>{false});
-    REQUIRE_FALSE(view.enabled());
-    ptr | enabled(Property<bool const>{true});
-    REQUIRE(view.enabled());
 }
 
 // -----------------------------------------------------------------------------

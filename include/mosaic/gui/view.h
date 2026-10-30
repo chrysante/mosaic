@@ -36,12 +36,6 @@ public:
 
     LayoutSpec const& layout() const { return m_layout.value(); }
 
-    bool enabled() const { return m_enabled.materialize(); }
-
-    void set_enabled(Property<bool const> enabled) {
-        m_enabled = std::move(enabled);
-    }
-
 protected:
     explicit View(SizeSpec2 size_spec)
         : m_layout(LayoutSpec{size_spec, {Alignment::low, Alignment::low}}) {}
@@ -59,28 +53,33 @@ private:
     virtual bool do_is_leaf() const { return true; }
 
     ValueOrRef<LayoutSpec> m_layout;
-    Property<bool const> m_enabled = true;
 };
 
 // =============================================================================
-// Pipes
+// View adapters
 // =============================================================================
 
-inline auto enabled(Property<bool const> is_enabled) {
-    return ViewPipeAdapter{
-        [is_enabled =
-             std::move(is_enabled)]<PointerLike<View> ViewPtr>(ViewPtr&& view) {
-            if (view) view->set_enabled(is_enabled);
-            return std::forward<ViewPtr>(view);
-        }};
+namespace internal {
+struct EnabledAction {
+    Owner<View> operator()(Owner<View>) const;
+    Property<bool const> is_enabled;
+};
+} // namespace internal
+
+inline ViewPipeAdapter<internal::EnabledAction>
+enabled(Property<bool const> is_enabled) {
+    return ViewPipeAdapter{ui::internal::EnabledAction{std::move(is_enabled)}};
 }
 
 namespace internal {
-struct FrameAction { Owner<View> operator()(Owner<View>) const; };
+struct FrameAction {
+    float thickness;
+    Owner<View> operator()(Owner<View>) const;
+};
 } // namespace internal
 
-inline ViewPipeAdapter<internal::FrameAction> framed() {
-    return ViewPipeAdapter{ui::internal::FrameAction{}};
+inline ViewPipeAdapter<internal::FrameAction> framed(float thickness = 1.0f) {
+    return ViewPipeAdapter{ui::internal::FrameAction{thickness}};
 }
 
 } // namespace mosaic::ui
