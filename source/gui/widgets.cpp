@@ -561,14 +561,14 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
         ImGui::PushID(this);
         int flags = translate_slider_flags(options);
         utl::scope_guard end = [&] { ImGui::PopID(); };
+        ImGuiDataType data_type = get_data_type<T>();
         if constexpr (num_components == 1)
-            return ImGui::SliderScalar("##slider", get_data_type<T>(), &value,
-                                       &min, &max, options.format.c_str(),
-                                       flags);
+            return ImGui::SliderScalar("##slider", data_type, &value, &min,
+                                       &max, options.format, flags);
         else
-            return ImGui::SliderScalarN("##slider", get_data_type<T>(),
-                                        value.data(), num_components, &min,
-                                        &max, options.format.c_str(), flags);
+            return ImGui::SliderScalarN("##slider", data_type, value.data(),
+                                        num_components, &min, &max,
+                                        options.format, flags);
     });
     if (changed) state.set(value);
 }

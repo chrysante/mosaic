@@ -63,8 +63,8 @@ MOSAIC_EXPORT Owner<View> combo(Property<int> selection,
                                 ComboOptions options = {});
 
 struct SliderOptions {
-    // FIXME: Provide a default for int-sliders as well
-    std::string format = "%0.1f";
+    /// printf-style format string
+    char const* format = nullptr;
 
     bool logarithmic = false;
     bool round_to_format = true;
@@ -73,7 +73,7 @@ struct SliderOptions {
     bool clamp_on_input = false;
     bool clamp_zero_range = false;
     bool speed_tweaks = true;
-    bool color_markers = true;
+    bool color_markers = false;
 };
 
 template <typename T> using ScalarType = vml::get_underlying_type<T>::type;
