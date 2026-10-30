@@ -598,16 +598,8 @@ Duis mauris mi, dignissim in tincidunt vitae, egestas eget lorem. Praesent congu
 Etiam id eros at mauris sodales blandit non vulputate felis. Vivamus risus felis, scelerisque in nisi non, porta sodales odio. Nunc scelerisque laoreet eros ac rutrum. Donec interdum, elit eget fermentum sollicitudin, purus eros mollis neque, a pellentesque turpis massa non odio. Nullam varius dui tortor, eget varius augue malesuada vitae. Phasellus rutrum ligula purus, eu sodales augue molestie faucibus. Morbi mattis, ipsum vitae ultricies blandit, leo urna ultrices nibh, id sagittis felis orci ac velit. Vivamus mattis consequat nisl nec laoreet. Suspendisse a mollis dui. Fusce vitae sollicitudin odio, sed aliquam quam. Ut suscipit enim et mauris hendrerit, id lobortis nulla consequat. Praesent ac turpis eget ex tincidunt dapibus. Aliquam nec urna id leo tristique pellentesque non quis velit. Vestibulum finibus risus mattis efficitur pharetra. Quisque vel ullamcorper urna, id faucibus urna. )";
 }
 
-static Owner<ui::SliderView<float>> make_float_slider() {
-    auto value = std::make_shared<float>(30.0f);
-    auto slider = ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
-    slider->set_state(
-        ui::computed([value] { return *value; },
-                     [value, slider = slider.get()](float new_value) mutable {
-                         *value = new_value;
-                         slider |= ui::fixed_height(*value);
-                     }));
-    return slider;
+static Owner<ui::View> make_float_slider() {
+    return ui::slider<float>(ui::own(0.0f), 0.0f, 300.0f);
 }
 
 static void display_view_test(bool* open) {

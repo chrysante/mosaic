@@ -3,7 +3,6 @@
 #include <cfloat>
 #include <functional>
 #include <string>
-#include <variant>
 
 #include <vml/vml.hpp>
 
@@ -13,10 +12,6 @@
 #include <mosaic/support/memory.h>
 
 namespace mosaic::ui {
-
-// =============================================================================
-// Text
-// =============================================================================
 
 struct TextOptions {
     /// Wrapping
@@ -34,101 +29,28 @@ struct TextOptions {
     float max_wrap_width = FLT_MAX;
 };
 
-class MOSAIC_EXPORT TextView : public View {
-public:
-    explicit TextView(Property<std::string const>&& text,
-                      TextOptions options = {});
+MOSAIC_EXPORT Owner<View> text(Property<std::string const> text_arg,
+                               TextOptions options = {});
 
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    TextOptions m_options;
-    Property<std::string const> m_text;
-};
-
-MOSAIC_EXPORT Owner<TextView> text(Property<std::string const> text_arg,
-                                   TextOptions options = {});
-
-MOSAIC_EXPORT Owner<TextView> label(Property<std::string const> text_arg);
-
-// =============================================================================
-// TextInput
-// =============================================================================
+MOSAIC_EXPORT Owner<View> label(Property<std::string const> text_arg);
 
 struct TextInputOptions { int num_lines = 1; };
 
-// This is kept deliberately simple for now. If we need a text callback later,
-// we can still add that
-class MOSAIC_EXPORT TextInputView : public View {
-public:
-    explicit TextInputView(std::string* buffer, TextInputOptions options);
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    std::string* m_buffer;
-    TextInputOptions m_options;
-};
-
-MOSAIC_EXPORT Owner<TextInputView> text_input(std::string* buffer,
-                                              TextInputOptions options = {});
-
-// =============================================================================
-// Icon
-// =============================================================================
+MOSAIC_EXPORT Owner<View> text_input(std::string* buffer,
+                                     TextInputOptions options = {});
 
 MOSAIC_EXPORT Owner<View> icon(Property<Icon const> icon);
 
-// =============================================================================
-// Button
-// =============================================================================
+MOSAIC_EXPORT Owner<View> button(Property<std::string const> label,
+                                 std::function<void()> action = {});
 
-class MOSAIC_EXPORT ButtonView : public View {
-    using Label =
-        std::variant<Property<std::string const>, Property<Icon const>>;
+MOSAIC_EXPORT Owner<View> button(Property<Icon const> icon,
+                                 std::function<void()> action = {});
 
-public:
-    explicit ButtonView(Label&& label, std::function<void()>&& on_click);
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    Label m_label;
-    std::function<void()> m_on_click;
-};
-
-MOSAIC_EXPORT Owner<ButtonView> button(Property<std::string const> label,
-                                       std::function<void()> action = {});
-
-MOSAIC_EXPORT Owner<ButtonView> button(Property<Icon const> icon,
-                                       std::function<void()> action = {});
-
-// =============================================================================
-// Checkbox
-// =============================================================================
-
-class MOSAIC_EXPORT CheckboxView : public View {
-public:
-    explicit CheckboxView(Property<bool>&& state);
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    Property<bool> m_state;
-};
-
-MOSAIC_EXPORT Owner<CheckboxView> checkbox(Property<bool> state);
-
-// =============================================================================
-// Slider
-// =============================================================================
+MOSAIC_EXPORT Owner<View> checkbox(Property<bool> state);
 
 struct SliderOptions {
-    // Only used for floating point sliders
+    // FIXME: Provide a default for int-sliders as well
     std::string format = "%0.1f";
 
     bool logarithmic = false;
@@ -141,41 +63,12 @@ struct SliderOptions {
     bool color_markers = true;
 };
 
-template <typename T> class MOSAIC_EXPORT SliderView : public View {
-public:
-    using ScalarType = vml::get_underlying_type<T>::type;
-
-    explicit SliderView(Property<T>&& state, Property<ScalarType const>&& min,
-                        Property<ScalarType const>&& max,
-                        SliderOptions options = {});
-
-    Property<T> const& get_state() const { return m_state; }
-
-    void set_state(Property<T> state) { m_state = std::move(state); }
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    Property<T> m_state;
-    Property<ScalarType const> m_min;
-    Property<ScalarType const> m_max;
-    SliderOptions m_options;
-};
+template <typename T> using ScalarType = vml::get_underlying_type<T>::type;
 
 template <typename T>
-Owner<SliderView<T>>
-slider(Property<T> state,
-       Property<typename SliderView<T>::ScalarType const> min,
-       Property<typename SliderView<T>::ScalarType const> max,
-       SliderOptions options = {}) {
-    return allocate<SliderView<T>>(std::move(state), std::move(min),
-                                   std::move(max), std::move(options));
-}
-
-// =============================================================================
-// ColorEdit
-// =============================================================================
+Owner<View> slider(Property<T> state, Property<ScalarType<T> const> min,
+                   Property<ScalarType<T> const> max,
+                   SliderOptions options = {});
 
 struct ColorEditOptions {
     bool alpha = true;
@@ -187,94 +80,19 @@ struct ColorEditOptions {
     bool enable_drag_drop = true;
 };
 
-template <std::size_t NumComponents>
-class MOSAIC_EXPORT ColorEditView : public View {
-public:
-    using ColorType = vml::vector<float, NumComponents>;
+MOSAIC_EXPORT Owner<View> color_edit(Property<vml::float3> state,
+                                     ColorEditOptions options = {});
 
-    explicit ColorEditView(Property<ColorType>&& state,
-                           ColorEditOptions options = {});
+MOSAIC_EXPORT Owner<View> color_edit(Property<vml::float4> state,
+                                     ColorEditOptions options = {});
 
-    Property<ColorType> const& get_state() const { return m_state; }
+MOSAIC_EXPORT Owner<View> hseparator();
 
-    void set_state(Property<ColorType> state) { m_state = std::move(state); }
+MOSAIC_EXPORT Owner<View> vseparator();
 
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    Property<ColorType> m_state;
-    ColorEditOptions m_options;
-};
-
-MOSAIC_EXPORT Owner<ColorEditView<3>> color_edit(Property<vml::float3> state,
-                                                 ColorEditOptions options = {});
-
-MOSAIC_EXPORT Owner<ColorEditView<4>> color_edit(Property<vml::float4> state,
-                                                 ColorEditOptions options = {});
-
-// =============================================================================
-// Separator
-// =============================================================================
-
-class MOSAIC_EXPORT SeparatorView : public View {
-public:
-    explicit SeparatorView(Axis main_axis);
-
-    /// The axis along which the line is drawn, that is `vertical` for a
-    /// vertical line (between horizontally adjacent elements) and `horizontal`
-    /// for a horizontal line (between vertically adjacent elements).
-    ///
-    ///     `vertical`   -> `vseparator()`
-    ///     `horizontal` -> `hseparator()`
-    ///
-    /// Note that in a `vstack` you would normally use `hseparator()` to
-    /// separate the elements and vice-versa.
-    Axis main_axis() const { return m_main_axis; }
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    Axis m_main_axis;
-};
-
-MOSAIC_EXPORT Owner<SeparatorView> hseparator();
-
-MOSAIC_EXPORT Owner<SeparatorView> vseparator();
-
-// =============================================================================
-// Spacer
-// =============================================================================
-
-class MOSAIC_EXPORT SpacerView : public View {
-public:
-    SpacerView(float weight = 1.0f);
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-};
-
-MOSAIC_EXPORT Owner<SpacerView> spacer(float weight = 1.0f);
-
-// =============================================================================
-// Image
-// =============================================================================
-
-class MOSAIC_EXPORT ImageView : public View {
-public:
-    ImageView(void const* image, float aspect_ratio);
-
-private:
-    void do_display(Rect frame) override;
-    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
-
-    void const* m_image;
-    float m_aspect_ratio;
-};
+MOSAIC_EXPORT Owner<View> spacer(float weight = 1.0f);
 
 /// \p aspect_ratio means `width / height`
-MOSAIC_EXPORT Owner<ImageView> image(void const* image, float aspect_ratio);
+MOSAIC_EXPORT Owner<View> image(void const* image, float aspect_ratio);
 
 } // namespace mosaic::ui

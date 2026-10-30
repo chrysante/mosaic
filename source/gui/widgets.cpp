@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <type_traits>
+#include <variant>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -26,22 +27,37 @@ static bool non_negative(vml::float2 size) {
     return size.map([](auto v) { return v >= 0.0f; }).all();
 }
 
-TextView::TextView(Property<std::string const>&& text, TextOptions options)
-    : View({SizeSpec::fit(), SizeSpec::fit()})
-    , m_options(std::move(options))
-    , m_text(std::move(text)) {}
+// =============================================================================
+// Text
+// =============================================================================
+
+namespace {
+
+struct TextView : View {
+    explicit TextView(Property<std::string const>&& text, TextOptions options)
+        : View({SizeSpec::fit(), SizeSpec::fit()})
+        , options(std::move(options))
+        , text(std::move(text)) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    TextOptions options;
+    Property<std::string const> text;
+};
+
+} // namespace
 
 void TextView::do_display(Rect frame) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) return;
 
-    auto text = m_text.get();
-    float wrap_width = m_options.wrap ? frame.size.x : 0.0f;
-    wrap_width = std::min(wrap_width, m_options.max_wrap_width);
+    auto text = this->text.get();
+    float wrap_width = options.wrap ? frame.size.x : 0.0f;
+    wrap_width = std::min(wrap_width, options.max_wrap_width);
     auto const& text_ref = text.value();
 
-    bool const use_child_window =
-        m_options.wrap && m_options.scrollable_on_clip;
+    bool const use_child_window = options.wrap && options.scrollable_on_clip;
 
     vml::float2 pos = frame.origin;
     if (use_child_window) {
@@ -65,7 +81,7 @@ void TextView::do_display(Rect frame) {
         ImGui::PushClipRect(frame.min(), frame.max(), true);
     }
     vml::float2 padding = [&] -> vml::float2 {
-        if (m_options.is_label) return ImGui::GetStyle().FramePadding;
+        if (options.is_label) return ImGui::GetStyle().FramePadding;
         return {0.0f, 0.0f};
     }();
     auto* DL = ImGui::GetWindowDrawList();
@@ -80,62 +96,78 @@ void TextView::do_display(Rect frame) {
 }
 
 vml::float2 TextView::do_calc_intrinsic_size(vml::float2 max_size) const {
-    auto text = m_text.get();
+    auto text = this->text.get();
     auto const& text_ref = text.value();
-    float wrap_width = !m_options.wrap     ? -1.0f
-                       : max_size.x < 0.0f ? m_options.default_wrap_width
+    float wrap_width = !options.wrap       ? -1.0f
+                       : max_size.x < 0.0f ? options.default_wrap_width
                                            : max_size.x;
-    wrap_width = std::min(wrap_width, m_options.max_wrap_width);
+    wrap_width = std::min(wrap_width, options.max_wrap_width);
     SizeSpec width_spec = size_spec().x;
     if (width_spec.is_fixed())
         wrap_width = std::min(wrap_width, width_spec.fixed_size());
     vml::float2 text_size = ImGui::CalcTextSize(
         text_ref.data(), text_ref.data() + text_ref.size(), false, wrap_width);
-    if (m_options.is_label) {
+    if (options.is_label) {
         vml::float2 padding = ImGui::GetStyle().FramePadding;
         return text_size + 2.0f * padding;
     }
     return text_size;
 }
 
-Owner<TextView> ui::text(Property<std::string const> text_arg,
-                         TextOptions options) {
+Owner<View> ui::text(Property<std::string const> text_arg,
+                     TextOptions options) {
     return allocate<TextView>(std::move(text_arg), std::move(options));
 }
 
-MOSAIC_EXPORT Owner<TextView> ui::label(Property<std::string const> text_arg) {
+Owner<View> ui::label(Property<std::string const> text_arg) {
     return text(std::move(text_arg), {.wrap = false, .is_label = true});
 }
 
-TextInputView::TextInputView(std::string* buffer, TextInputOptions options)
-    : View({SizeSpec::fill(), SizeSpec::fit()})
-    , m_buffer(buffer)
-    , m_options(std::move(options)) {
-    assert(m_options.num_lines >= 1);
-}
+// =============================================================================
+// TextInput
+// =============================================================================
+
+namespace {
+
+// This is kept deliberately simple for now. If we need a text callback later,
+// we can still add that
+struct TextInputView : View {
+    explicit TextInputView(std::string* buffer, TextInputOptions options)
+        : View({SizeSpec::fill(), SizeSpec::fit()})
+        , options(std::move(options))
+        , buffer(buffer) {
+        assert(options.num_lines >= 1);
+    }
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    TextInputOptions options;
+    std::string* buffer;
+};
+
+} // namespace
 
 void TextInputView::do_display(Rect frame) {
-    assert(m_options.num_lines >= 1);
+    assert(options.num_lines >= 1);
     ImGui::PushID(this);
     ImGui::SetCursorScreenPos(frame.origin);
-    if (m_options.num_lines == 1) {
+    if (options.num_lines == 1) {
         ImGui::SetNextItemWidth(frame.size.x);
-        ImGui::InputText("##text-input", m_buffer);
+        ImGui::InputText("##text-input", buffer);
     } else {
-        ImGui::InputTextMultiline("##text-input", m_buffer, frame.size);
+        ImGui::InputTextMultiline("##text-input", buffer, frame.size);
     }
     ImGui::PopID();
 }
 
 vml::float2 TextInputView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    return {default_control_width(),
-            m_options.num_lines * ImGui::GetFontSize() +
-                2.0f * style.FramePadding.y};
+    return {default_control_width(), options.num_lines * ImGui::GetFontSize() +
+                                         2.0f * style.FramePadding.y};
 }
 
-Owner<TextInputView> ui::text_input(std::string* buffer,
-                                    TextInputOptions options) {
+Owner<View> ui::text_input(std::string* buffer, TextInputOptions options) {
     return allocate<TextInputView>(buffer, std::move(options));
 }
 
@@ -144,6 +176,10 @@ static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
     ImTextCharToUtf8(buf.data(), code_point);
     return buf;
 }
+
+// =============================================================================
+// Icon
+// =============================================================================
 
 namespace {
 
@@ -185,10 +221,29 @@ Owner<View> ui::icon(Property<Icon const> icon) {
     return allocate<IconView>(std::move(icon));
 }
 
-ButtonView::ButtonView(Label&& label, std::function<void()>&& on_click)
-    : View({SizeSpec::fit(), SizeSpec::fit()})
-    , m_label(std::move(label))
-    , m_on_click(std::move(on_click)) {}
+// =============================================================================
+// Button
+// =============================================================================
+
+namespace {
+
+struct ButtonView : View {
+    using Label =
+        std::variant<Property<std::string const>, Property<Icon const>>;
+
+    explicit ButtonView(Label&& label, std::function<void()>&& on_click)
+        : View({SizeSpec::fit(), SizeSpec::fit()})
+        , label(std::move(label))
+        , on_click(std::move(on_click)) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Label label;
+    std::function<void()> on_click;
+};
+
+} // namespace
 
 static bool display_button(Property<std::string const> const& label,
                            vml::float2 size) {
@@ -211,9 +266,9 @@ void ButtonView::do_display(Rect frame) {
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
     bool clicked = std::visit(
-        [&](auto& prop) { return display_button(prop, frame.size); }, m_label);
+        [&](auto& prop) { return display_button(prop, frame.size); }, label);
     ImGui::PopID();
-    if (clicked && m_on_click) m_on_click();
+    if (clicked && on_click) on_click();
 }
 
 static vml::float2 measure_button(Property<std::string const> const& label) {
@@ -233,31 +288,46 @@ static vml::float2 measure_button(Property<Icon const> const&) {
 }
 
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
-    return std::visit([](auto& prop) { return measure_button(prop); }, m_label);
+    return std::visit([](auto& prop) { return measure_button(prop); }, label);
 }
 
-Owner<ButtonView> ui::button(Property<std::string const> label,
-                             std::function<void()> on_click) {
+Owner<View> ui::button(Property<std::string const> label,
+                       std::function<void()> on_click) {
     return allocate<ButtonView>(std::move(label), std::move(on_click));
 }
 
-Owner<ButtonView> ui::button(Property<Icon const> icon,
-                             std::function<void()> action) {
+Owner<View> ui::button(Property<Icon const> icon,
+                       std::function<void()> action) {
     return allocate<ButtonView>(std::move(icon), std::move(action));
 }
 
-CheckboxView::CheckboxView(Property<bool>&& state)
-    : View({SizeSpec::fit(), SizeSpec::fit()})
-    , m_state(std::move(state)) {}
+// =============================================================================
+// Checkbox
+// =============================================================================
+
+namespace {
+
+struct CheckboxView : View {
+    explicit CheckboxView(Property<bool>&& state)
+        : View({SizeSpec::fit(), SizeSpec::fit()})
+        , state(std::move(state)) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Property<bool> state;
+};
+
+} // namespace
 
 void CheckboxView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
-    bool current_value = m_state.materialize();
+    bool current_value = state.materialize();
     ImGui::PushID(this);
     bool active = ImGui::Checkbox("##checkbox", &current_value);
     ImGui::PopID();
-    if (active) m_state.set(current_value);
+    if (active) state.set(current_value);
 }
 
 vml::float2 CheckboxView::do_calc_intrinsic_size(vml::float2) const {
@@ -266,19 +336,47 @@ vml::float2 CheckboxView::do_calc_intrinsic_size(vml::float2) const {
            2.0f * (vml::float2)style.FramePadding;
 }
 
-Owner<CheckboxView> ui::checkbox(Property<bool> state) {
+Owner<View> ui::checkbox(Property<bool> state) {
     return allocate<CheckboxView>(std::move(state));
 }
+
+// =============================================================================
+// Slider
+// =============================================================================
+
+namespace {
+
+template <typename T> struct SliderView : View {
+    using ScalarType = ui::ScalarType<T>;
+
+    explicit SliderView(Property<T>&& state, Property<ScalarType const>&& min,
+                        Property<ScalarType const>&& max,
+                        SliderOptions options = {});
+
+    Property<T> const& get_state() const { return state; }
+
+    void set_state(Property<T> state) { state = std::move(state); }
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Property<T> state;
+    Property<ScalarType const> min;
+    Property<ScalarType const> max;
+    SliderOptions options;
+};
+
+} // namespace
 
 template <typename T>
 SliderView<T>::SliderView(Property<T>&& state, Property<ScalarType const>&& min,
                           Property<ScalarType const>&& max,
                           SliderOptions options)
     : View({SizeSpec::fill(1.0f, FillBasis::intrinsic), SizeSpec::fit()})
-    , m_state(std::move(state))
-    , m_min(std::move(min))
-    , m_max(std::move(max))
-    , m_options(options) {}
+    , state(std::move(state))
+    , min(std::move(min))
+    , max(std::move(max))
+    , options(options) {}
 
 template <typename T> static constexpr ImGuiDataType get_data_type_impl() {
 #define MAP(Type, Result)                                                      \
@@ -366,24 +464,24 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     static constexpr unsigned num_components = get_data_dimension<T>();
     static_assert(num_components >= 1);
     static_assert(num_components <= 4);
-    T value = m_state.materialize();
-    ScalarType const min = m_min.materialize();
-    ScalarType const max = m_max.materialize();
+    T value = state.materialize();
+    ScalarType const min = this->min.materialize();
+    ScalarType const max = this->max.materialize();
     bool changed = with_widget_size(frame.size, [&] {
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::PushID(this);
-        int flags = translate_slider_flags(m_options);
+        int flags = translate_slider_flags(options);
         utl::scope_guard end = [&] { ImGui::PopID(); };
         if constexpr (num_components == 1)
             return ImGui::SliderScalar("##slider", get_data_type<T>(), &value,
-                                       &min, &max, m_options.format.c_str(),
+                                       &min, &max, options.format.c_str(),
                                        flags);
         else
             return ImGui::SliderScalarN("##slider", get_data_type<T>(),
                                         value.data(), num_components, &min,
-                                        &max, m_options.format.c_str(), flags);
+                                        &max, options.format.c_str(), flags);
     });
-    if (changed) m_state.set(value);
+    if (changed) state.set(value);
 }
 
 template <typename T>
@@ -393,56 +491,88 @@ vml::float2 SliderView<T>::do_calc_intrinsic_size(vml::float2) const {
             ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
 
-template class ui::SliderView<std::int8_t>;
-template class ui::SliderView<std::int16_t>;
-template class ui::SliderView<std::int32_t>;
-template class ui::SliderView<std::int64_t>;
-template class ui::SliderView<std::uint8_t>;
-template class ui::SliderView<std::uint16_t>;
-template class ui::SliderView<std::uint32_t>;
-template class ui::SliderView<std::uint64_t>;
-template class ui::SliderView<float>;
-template class ui::SliderView<double>;
+template <typename T>
+Owner<View> ui::slider(Property<T> state, Property<ScalarType<T> const> min,
+                       Property<ScalarType<T> const> max,
+                       SliderOptions options) {
+    return allocate<SliderView<T>>(std::move(state), std::move(min),
+                                   std::move(max), std::move(options));
+}
 
-template class ui::SliderView<vml::vector<std::int8_t, 2>>;
-template class ui::SliderView<vml::vector<std::int16_t, 2>>;
-template class ui::SliderView<vml::vector<std::int32_t, 2>>;
-template class ui::SliderView<vml::vector<std::int64_t, 2>>;
-template class ui::SliderView<vml::vector<std::uint8_t, 2>>;
-template class ui::SliderView<vml::vector<std::uint16_t, 2>>;
-template class ui::SliderView<vml::vector<std::uint32_t, 2>>;
-template class ui::SliderView<vml::vector<std::uint64_t, 2>>;
-template class ui::SliderView<vml::vector<float, 2>>;
-template class ui::SliderView<vml::vector<double, 2>>;
+#define INSTANTIATE_SLIDER(...)                                                \
+    template Owner<View> ui::slider<__VA_ARGS__>(                              \
+        Property<__VA_ARGS__> state,                                           \
+        Property<ScalarType<__VA_ARGS__> const> min,                           \
+        Property<ScalarType<__VA_ARGS__> const> max, SliderOptions options);
 
-template class ui::SliderView<vml::vector<std::int8_t, 3>>;
-template class ui::SliderView<vml::vector<std::int16_t, 3>>;
-template class ui::SliderView<vml::vector<std::int32_t, 3>>;
-template class ui::SliderView<vml::vector<std::int64_t, 3>>;
-template class ui::SliderView<vml::vector<std::uint8_t, 3>>;
-template class ui::SliderView<vml::vector<std::uint16_t, 3>>;
-template class ui::SliderView<vml::vector<std::uint32_t, 3>>;
-template class ui::SliderView<vml::vector<std::uint64_t, 3>>;
-template class ui::SliderView<vml::vector<float, 3>>;
-template class ui::SliderView<vml::vector<double, 3>>;
+INSTANTIATE_SLIDER(std::int8_t)
+INSTANTIATE_SLIDER(std::int16_t)
+INSTANTIATE_SLIDER(std::int32_t)
+INSTANTIATE_SLIDER(std::int64_t)
+INSTANTIATE_SLIDER(std::uint8_t)
+INSTANTIATE_SLIDER(std::uint16_t)
+INSTANTIATE_SLIDER(std::uint32_t)
+INSTANTIATE_SLIDER(std::uint64_t)
+INSTANTIATE_SLIDER(float)
+INSTANTIATE_SLIDER(double)
+INSTANTIATE_SLIDER(vml::vector<std::int8_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::int16_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::int32_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::int64_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::uint8_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::uint16_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::uint32_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::uint64_t, 2>)
+INSTANTIATE_SLIDER(vml::vector<float, 2>)
+INSTANTIATE_SLIDER(vml::vector<double, 2>)
+INSTANTIATE_SLIDER(vml::vector<std::int8_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::int16_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::int32_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::int64_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::uint8_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::uint16_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::uint32_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::uint64_t, 3>)
+INSTANTIATE_SLIDER(vml::vector<float, 3>)
+INSTANTIATE_SLIDER(vml::vector<double, 3>)
+INSTANTIATE_SLIDER(vml::vector<std::int8_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::int16_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::int32_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::int64_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::uint8_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::uint16_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::uint32_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<std::uint64_t, 4>)
+INSTANTIATE_SLIDER(vml::vector<float, 4>)
+INSTANTIATE_SLIDER(vml::vector<double, 4>)
 
-template class ui::SliderView<vml::vector<std::int8_t, 4>>;
-template class ui::SliderView<vml::vector<std::int16_t, 4>>;
-template class ui::SliderView<vml::vector<std::int32_t, 4>>;
-template class ui::SliderView<vml::vector<std::int64_t, 4>>;
-template class ui::SliderView<vml::vector<std::uint8_t, 4>>;
-template class ui::SliderView<vml::vector<std::uint16_t, 4>>;
-template class ui::SliderView<vml::vector<std::uint32_t, 4>>;
-template class ui::SliderView<vml::vector<std::uint64_t, 4>>;
-template class ui::SliderView<vml::vector<float, 4>>;
-template class ui::SliderView<vml::vector<double, 4>>;
+// =============================================================================
+// ColorEdit
+// =============================================================================
 
-template <std::size_t N>
-ColorEditView<N>::ColorEditView(Property<ColorType>&& state,
-                                ColorEditOptions options)
-    : View({SizeSpec::fill(), SizeSpec::fit()})
-    , m_state(std::move(state))
-    , m_options(std::move(options)) {}
+namespace {
+
+template <std::size_t NumComponents> struct ColorEditView : View {
+    using ColorType = vml::vector<float, NumComponents>;
+
+    explicit ColorEditView(Property<ColorType>&& state,
+                           ColorEditOptions options)
+        : View({SizeSpec::fill(), SizeSpec::fit()})
+        , state(std::move(state))
+        , options(std::move(options)) {}
+
+    Property<ColorType> const& get_state() const { return state; }
+
+    void set_state(Property<ColorType> state) { state = std::move(state); }
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    Property<ColorType> state;
+    ColorEditOptions options;
+};
+
+} // namespace
 
 static int translate_color_edit_flags(ColorEditOptions const& options) {
     int flags = 0;
@@ -458,17 +588,17 @@ static int translate_color_edit_flags(ColorEditOptions const& options) {
 
 template <std::size_t N> void ColorEditView<N>::do_display(Rect frame) {
     if (!non_negative(frame.size)) return;
-    ColorType value = m_state.materialize();
+    ColorType value = state.materialize();
     bool changed = with_widget_size(frame.size, [&] {
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::PushID(this);
-        int flags = translate_color_edit_flags(m_options);
+        int flags = translate_color_edit_flags(options);
         utl::scope_guard end = [&] { ImGui::PopID(); };
         if constexpr (N == 3)
             return ImGui::ColorEdit3("##color-edit", value.data(), flags);
         else return ImGui::ColorEdit4("##color-edit", value.data(), flags);
     });
-    if (changed) m_state.set(value);
+    if (changed) state.set(value);
 }
 
 template <std::size_t N>
@@ -478,16 +608,13 @@ vml::float2 ColorEditView<N>::do_calc_intrinsic_size(vml::float2) const {
             ImGui::GetFontSize() + 2.0f * style.FramePadding.y};
 }
 
-template class ui::ColorEditView<3>;
-template class ui::ColorEditView<4>;
-
-Owner<ColorEditView<3>> ui::color_edit(Property<vml::float3> state,
-                                       ColorEditOptions options) {
+Owner<View> ui::color_edit(Property<vml::float3> state,
+                           ColorEditOptions options) {
     return allocate<ColorEditView<3>>(std::move(state), std::move(options));
 }
 
-Owner<ColorEditView<4>> ui::color_edit(Property<vml::float4> state,
-                                       ColorEditOptions options) {
+Owner<View> ui::color_edit(Property<vml::float4> state,
+                           ColorEditOptions options) {
     return allocate<ColorEditView<4>>(std::move(state), std::move(options));
 }
 
@@ -500,16 +627,40 @@ static SizeSpec2 separator_size_req(Axis main_axis) {
     }
 }
 
-SeparatorView::SeparatorView(Axis main_axis)
-    : View(separator_size_req(main_axis))
-    , m_main_axis(main_axis) {}
+// =============================================================================
+// Separator
+// =============================================================================
+
+namespace {
+
+struct SeparatorView : View {
+    explicit SeparatorView(Axis main_axis)
+        : View(separator_size_req(main_axis))
+        , main_axis(main_axis) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    /// The axis along which the line is drawn, that is `vertical` for a
+    /// vertical line (between horizontally adjacent elements) and `horizontal`
+    /// for a horizontal line (between vertically adjacent elements).
+    ///
+    ///     `vertical`   -> `vseparator()`
+    ///     `horizontal` -> `hseparator()`
+    ///
+    /// Note that in a `vstack` you would normally use `hseparator()` to
+    /// separate the elements and vice-versa.
+    Axis main_axis;
+};
+
+} // namespace
 
 void SeparatorView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
 
     auto& style = ImGui::GetStyle();
     auto* DL = ImGui::GetWindowDrawList();
-    switch (m_main_axis) {
+    switch (main_axis) {
     case Axis::horizontal:
         DL->AddLineH(
             frame.min().x, frame.max().x, frame.origin.y + 0.5f * frame.size.y,
@@ -525,7 +676,7 @@ void SeparatorView::do_display(Rect frame) {
 
 vml::float2 SeparatorView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    switch (m_main_axis) {
+    switch (main_axis) {
     case Axis::horizontal:
         return {0.0f, style.SeparatorSize + 2.0f * style.ItemSpacing.y};
     case Axis::vertical:
@@ -533,31 +684,51 @@ vml::float2 SeparatorView::do_calc_intrinsic_size(vml::float2) const {
     }
 }
 
-Owner<SeparatorView> ui::hseparator() {
+Owner<View> ui::hseparator() {
     return allocate<SeparatorView>(Axis::horizontal);
 }
 
-Owner<SeparatorView> ui::vseparator() {
-    return allocate<SeparatorView>(Axis::vertical);
-}
+Owner<View> ui::vseparator() { return allocate<SeparatorView>(Axis::vertical); }
 
-SpacerView::SpacerView(float weight)
-    : View({SizeSpec::fill(weight), SizeSpec::fill(weight)}) {}
+// =============================================================================
+// Spacer
+// =============================================================================
 
-void SpacerView::do_display(Rect) {}
+namespace {
 
-vml::float2 SpacerView::do_calc_intrinsic_size(vml::float2) const {
-    return {0.0f, 0.0f};
-}
+struct SpacerView : View {
+    SpacerView(float weight = 1.0f)
+        : View({SizeSpec::fill(weight), SizeSpec::fill(weight)}) {}
+    void do_display(Rect) override {}
+    vml::float2 do_calc_intrinsic_size(vml::float2) const override {
+        return {0.0f, 0.0f};
+    }
+};
 
-Owner<SpacerView> ui::spacer(float weight) {
-    return allocate<SpacerView>(weight);
-}
+} // namespace
 
-ImageView::ImageView(void const* image, float aspect_ratio)
-    : View({SizeSpec::fill(), SizeSpec::fit()})
-    , m_image(image)
-    , m_aspect_ratio(aspect_ratio) {}
+Owner<View> ui::spacer(float weight) { return allocate<SpacerView>(weight); }
+
+// =============================================================================
+// Image
+// =============================================================================
+
+namespace {
+
+struct ImageView : View {
+    ImageView(void const* image, float aspect_ratio)
+        : View({SizeSpec::fill(), SizeSpec::fit()})
+        , m_image(image)
+        , m_aspect_ratio(aspect_ratio) {}
+
+    void do_display(Rect frame) override;
+    vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
+
+    void const* m_image;
+    float m_aspect_ratio;
+};
+
+} // namespace
 
 static bool is_valid_ratio(float ratio) {
     return ratio > 0.0f && !std::isinf(ratio) && !std::isnan(ratio);
@@ -588,6 +759,6 @@ vml::float2 ImageView::do_calc_intrinsic_size(vml::float2 max_size) const {
     return {width, height};
 }
 
-Owner<ImageView> ui::image(void const* image, float aspect_ratio) {
+Owner<View> ui::image(void const* image, float aspect_ratio) {
     return allocate<ImageView>(image, aspect_ratio);
 }
