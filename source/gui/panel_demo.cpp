@@ -5,7 +5,7 @@
 
 #include "gui/panel.h"
 #include "gui/panel_registry.h"
-#include "gui/toolbar2.h"
+#include "gui/toolbar.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
 #include "support/json_support.h"

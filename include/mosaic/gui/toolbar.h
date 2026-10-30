@@ -14,14 +14,14 @@ template <std::size_t N> Owner<View> toolbar(Owner<View> (&&elements)[N]) {
 
 namespace internal {
 
-struct ToolbarPadding2 {
+struct ToolbarPadding {
     float left;
     float right;
     float top;
     float bottom;
 };
 
-void set_toolbar_padding(View* toolbar, ToolbarPadding2 padding);
+void set_toolbar_padding(View* toolbar, ToolbarPadding padding);
 
 } // namespace internal
 

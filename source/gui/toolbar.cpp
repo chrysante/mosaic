@@ -1,4 +1,4 @@
-#include "gui/toolbar2.h"
+#include "gui/toolbar.h"
 
 #include <imgui.h>
 #include <vml/vml.hpp>
@@ -55,7 +55,7 @@ struct ToolbarView : View {
     bool do_is_leaf() const override { return false; }
 
     Owner<StackView> stack;
-    ui::internal::ToolbarPadding2 padding;
+    ui::internal::ToolbarPadding padding;
 };
 
 } // namespace
@@ -67,7 +67,7 @@ Owner<View> ui::toolbar(ViewContainer<> elements) {
     return allocate<ToolbarView>(std::move(views));
 }
 
-void ui::internal::set_toolbar_padding(View* view, ToolbarPadding2 padding) {
+void ui::internal::set_toolbar_padding(View* view, ToolbarPadding padding) {
     auto* toolbar = dynamic_cast<ToolbarView*>(view);
     if (toolbar) toolbar->padding = padding;
 }

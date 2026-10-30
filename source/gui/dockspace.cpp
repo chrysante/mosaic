@@ -15,7 +15,7 @@
 
 #include "application/debug_settings.h"
 #include "application/window.h"
-#include "gui/toolbar2.h"
+#include "gui/toolbar.h"
 #include "gui/view.h"
 
 using namespace mosaic;
@@ -316,9 +316,9 @@ static float compute_left_inset(Window const& window) {
            title_buttons_area.upper_bound().x;
 }
 
-static std::array<ui::internal::ToolbarPadding2, 3>
+static std::array<ui::internal::ToolbarPadding, 3>
 dockspace_resolve_toolbar_padding() {
-    using Padding = ui::internal::ToolbarPadding2;
+    using Padding = ui::internal::ToolbarPadding;
 
     vml::float2 padding_value = {6.0f, 6.0f};
     float item_spacing = ImGui::GetStyle().ItemSpacing.x;

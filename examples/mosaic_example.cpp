@@ -22,7 +22,7 @@
 #include <mosaic/gui/panel_registry.h>
 #include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/style_editor.h>
-#include <mosaic/gui/toolbar2.h>
+#include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/widgets.h>
 #include <mosaic/service/event_receiver.h>

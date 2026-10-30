@@ -13,7 +13,7 @@
 #include "application/window_desc.h"
 #include "gui/panel.h"
 #include "gui/panel_manager.h"
-#include "gui/toolbar2.h"
+#include "gui/toolbar.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
