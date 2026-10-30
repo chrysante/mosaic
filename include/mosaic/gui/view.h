@@ -2,6 +2,7 @@
 
 #include <vml/vml.hpp>
 
+#include <mosaic/gui/font.h>
 #include <mosaic/gui/view_support.h>
 #include <mosaic/support/export.h>
 
@@ -61,8 +62,16 @@ private:
 
 namespace internal {
 struct EnabledAction {
-    Owner<View> operator()(Owner<View>) const;
     Property<bool const> is_enabled;
+    Owner<View> operator()(Owner<View>) const;
+};
+struct FontModAction {
+    FontModifier mod;
+    Owner<View> operator()(Owner<View>) const;
+};
+struct FrameAction {
+    float thickness;
+    Owner<View> operator()(Owner<View>) const;
 };
 } // namespace internal
 
@@ -71,12 +80,9 @@ enabled(Property<bool const> is_enabled) {
     return ViewPipeAdapter{ui::internal::EnabledAction{std::move(is_enabled)}};
 }
 
-namespace internal {
-struct FrameAction {
-    float thickness;
-    Owner<View> operator()(Owner<View>) const;
-};
-} // namespace internal
+inline ViewPipeAdapter<internal::FontModAction> font(FontModifier font_mod) {
+    return ViewPipeAdapter{ui::internal::FontModAction{font_mod}};
+}
 
 inline ViewPipeAdapter<internal::FrameAction> framed(float thickness = 1.0f) {
     return ViewPipeAdapter{ui::internal::FrameAction{thickness}};

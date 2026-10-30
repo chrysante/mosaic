@@ -314,7 +314,7 @@ void ApplicationImpl::init_font() {
     FontDesc desc = {.weight = FontWeight::regular, .style = FontStyle::roman};
     FontContext font_ctx{
         .desc = desc,
-        .size = ImGui::GetFontSize(),
+        .size = ImGui::GetStyle().FontSizeBase,
         .font = service_context.font_manager().get_font(font_ctx.desc)};
     ui_context.font_stack.push(font_ctx);
 

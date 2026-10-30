@@ -107,6 +107,8 @@ Owner<View> ui::section(ViewContainer<> children) {
 
 Owner<View> ui::section(Property<std::string const> title,
                         ViewContainer<> children) {
-    return vstack({label(std::move(title)), section(std::move(children))}) |
+    return vstack({label(std::move(title)) |
+                       font({.weight_offset = 3, .size_add = 1}),
+                   section(std::move(children))}) |
            hfill;
 }

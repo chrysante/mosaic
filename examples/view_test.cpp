@@ -1,4 +1,5 @@
 #include "view_test.h"
+#include "mosaic/gui/font.h"
 #include "mosaic/gui/property_editor.h"
 #include "mosaic/gui/view.h"
 #include "mosaic/gui/view_support.h"
@@ -169,10 +170,15 @@ Owner<View> make_basic_widgets(TestState& state) {
                                        ++state.counter;
                                        state.message = "Counter incremented";
                                    }) |
-                           enabled(bind(&state.buttons_enabled)),
+                           enabled(bind(&state.buttons_enabled)) | vfill,
                        button("Reset", [&state] { state = TestState{}; }) |
-                           enabled(bind(&state.buttons_enabled)),
-                       make_counter_text(state),
+                           enabled(bind(&state.buttons_enabled)) |
+                           font({
+                               .weight_offset = 3,
+                               .style_override = FontStyle::monospaced,
+                               .size_scale = 2.0f,
+                           }),
+                       make_counter_text(state) | vcenter,
                    }) |
                    hfill;
     return vstack({

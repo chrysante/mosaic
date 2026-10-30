@@ -4,6 +4,7 @@
 #include <imgui_internal.h>
 
 #include "application/debug_settings.h"
+#include "gui/font.h"
 #include "gui/view_debugger.h"
 #include "gui/view_support.h"
 #include "support/memory.h"
@@ -53,8 +54,13 @@ struct DecoratorView : View {
     void do_display(Rect frame) {
         bool const disabled = !is_enabled.materialize();
         if (disabled) ImGui::BeginDisabled();
+        if (font_mod) push_font(*font_mod);
+
         wrapped->display(frame);
+
+        if (font_mod) pop_font();
         if (disabled) ImGui::EndDisabled();
+
         if (frame_thickness > 0.0f) {
             auto* DL = ImGui::GetWindowDrawList();
             DL->AddRect(frame.min(), frame.max(),
@@ -63,11 +69,15 @@ struct DecoratorView : View {
         }
     }
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const {
-        return wrapped->calc_intrinsic_size(max_size);
+        if (font_mod) push_font(*font_mod);
+        vml::float2 result = wrapped->calc_intrinsic_size(max_size);
+        if (font_mod) pop_font();
+        return result;
     }
     bool do_is_leaf() const { return false; }
 
     Property<bool const> is_enabled = true;
+    std::optional<FontModifier> font_mod;
     float frame_thickness = 0.0f;
 
     Owner<View> wrapped;
@@ -76,9 +86,15 @@ struct DecoratorView : View {
 } // namespace
 
 Owner<View> ui::internal::EnabledAction::operator()(Owner<View> in) const {
-    auto control_wrapper = make_wrapper<DecoratorView>(std::move(in));
-    control_wrapper->is_enabled = is_enabled;
-    return control_wrapper;
+    auto decorator = make_wrapper<DecoratorView>(std::move(in));
+    decorator->is_enabled = is_enabled;
+    return decorator;
+}
+
+Owner<View> ui::internal::FontModAction::operator()(Owner<View> in) const {
+    auto decorator = make_wrapper<DecoratorView>(std::move(in));
+    decorator->font_mod = mod;
+    return decorator;
 }
 
 Owner<View> ui::internal::FrameAction::operator()(Owner<View> in) const {
