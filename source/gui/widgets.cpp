@@ -8,8 +8,10 @@
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <utl/scope_guard.hpp>
+#include <variant>
 
 #include "gui/font.h"
+#include "gui/icon.h"
 #include "gui/view_support.h"
 
 using namespace mosaic;
@@ -138,50 +140,77 @@ Owner<TextInputView> ui::text_input(std::string* buffer,
     return allocate<TextInputView>(buffer, std::move(options));
 }
 
-ButtonView::ButtonView(Property<std::string const>&& label,
-                       std::function<void()>&& on_click, Kind kind)
+ButtonView::ButtonView(Label&& label, std::function<void()>&& on_click,
+                       Kind kind)
     : View({SizeSpec::fit(), SizeSpec::fit()})
     , m_kind(kind)
     , m_label(std::move(label))
     , m_on_click(std::move(on_click)) {}
 
+static bool display_button(Property<std::string const> const& label,
+                           vml::float2 size, ButtonView::Kind kind) {
+    auto text = label.get();
+    switch (kind) {
+    case ButtonView::Kind::text:
+        return ImGui::ButtonEx(text.value().c_str(), size);
+    case ButtonView::Kind::icon: {
+        auto data = icon_data(text.value());
+        ImGui::PushFont(data.font, 0.0f);
+        bool clicked = ImGui::ButtonEx(data.utf8_rep.data(), size);
+        ImGui::PopFont();
+        return clicked;
+    }
+    }
+}
+
+static std::array<char, 5> get_code_point_utf8(unsigned code_point) {
+    std::array<char, 5> buf;
+    ImTextCharToUtf8(buf.data(), code_point);
+    return buf;
+}
+
+static bool display_button(Property<Icon const> const& label, vml::float2 size,
+                           ButtonView::Kind) {
+    FontIcon icon = std::get<FontIcon>(label.materialize());
+    ImGui::PushFont(icon.font, 0.0f);
+    auto text = get_code_point_utf8(icon.code_point);
+    bool clicked = ImGui::ButtonEx(text.data(), size);
+    ImGui::PopFont();
+    return clicked;
+}
+
 void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
-    bool clicked = false;
-    auto label = m_label.get();
-    switch (m_kind) {
-    case Kind::text:
-        clicked = ImGui::ButtonEx(label.value().c_str(), frame.size);
-        break;
-    case Kind::icon: {
-        auto data = icon_data(label.value());
-        ImGui::PushFont(data.font, 0.0f);
-        clicked = ImGui::ButtonEx(data.utf8_rep.data(), frame.size);
-        ImGui::PopFont();
-        break;
-    }
-    }
+    bool clicked = std::visit(
+        [&](auto& prop) { return display_button(prop, frame.size, m_kind); },
+        m_label);
     ImGui::PopID();
     if (clicked && m_on_click) m_on_click();
 }
 
 vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
     auto& style = ImGui::GetStyle();
-    auto label = m_label.get();
-    switch (m_kind) {
-    case Kind::text: {
-        auto& label_ref = label.value();
-        vml::float2 text_size = ImGui::CalcTextSize(
-            label_ref.data(), label_ref.data() + label_ref.size(), true);
-        return text_size + 2.0f * (vml::float2)style.FramePadding;
-    }
-    case Kind::icon: {
+    if (m_label.index() == 0) {
+        auto label = std::get<0>(m_label).get();
+        switch (m_kind) {
+        case Kind::text: {
+            auto& label_ref = label.value();
+            vml::float2 text_size = ImGui::CalcTextSize(
+                label_ref.data(), label_ref.data() + label_ref.size(), true);
+            return text_size + 2.0f * (vml::float2)style.FramePadding;
+        }
+        case Kind::icon: {
+            float y = ImGui::GetFontSize();
+            float x = 1.5f * y;
+            return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
+        }
+        }
+    } else {
         float y = ImGui::GetFontSize();
         float x = 1.5f * y;
         return vml::float2{x, y} + 2.0f * (vml::float2)style.FramePadding;
-    }
     }
 }
 
@@ -195,6 +224,12 @@ Owner<ButtonView> ui::icon_button(Property<std::string const> icon_name,
                                   std::function<void()> action) {
     return allocate<ButtonView>(std::move(icon_name), std::move(action),
                                 ButtonView::Kind::icon);
+}
+
+Owner<ButtonView> ui::button(Property<Icon const> icon,
+                             std::function<void()> action) {
+    return allocate<ButtonView>(std::move(icon), std::move(action),
+                                ButtonView::Kind{});
 }
 
 CheckboxView::CheckboxView(Property<bool>&& state)

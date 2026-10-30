@@ -5,6 +5,7 @@
 #include <mosaic/service/dispatcher.h>
 #include <mosaic/service/event_system.h>
 #include <mosaic/service/font_manager.h>
+#include <mosaic/service/icon_manager.h>
 #include <mosaic/service/thread_pool.h>
 
 namespace mosaic {
@@ -23,6 +24,8 @@ public:
 
     FontManager& font_manager() { return m_font_manager; }
 
+    IconManager& icon_manager() { return m_icon_manager; }
+
 private:
     friend struct internal::ApplicationImpl;
 
@@ -30,6 +33,7 @@ private:
     WorkDispatcher m_dispatcher;
     std::shared_ptr<EventSystem> m_event_system;
     FontManager m_font_manager;
+    IconManager m_icon_manager;
 };
 
 } // namespace mosaic

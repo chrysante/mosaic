@@ -24,6 +24,7 @@
 #include "gui/appearance_internal.h"
 #include "gui/font.h"
 #include "service/event_system.h" // IWYU pragma: keep
+#include "service/icon_manager.h"
 #include "service/service_context.h"
 #include "support/json_support.h"
 #include "support/logger.h"
@@ -144,6 +145,7 @@ ApplicationImpl::ApplicationImpl(Application& app)
     , run_mode_controller(*this)
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager(),
+                 .icon_manager = service_context.icon_manager(),
                  .run_mode_controller = run_mode_controller}
     , panel_manager(service_context)
 #ifndef NDEBUG
@@ -160,7 +162,6 @@ void ApplicationImpl::init() {
     init_platform();
     create_main_window();
     imgui_init();
-    init_font();
 }
 
 namespace {
@@ -290,12 +291,6 @@ void ApplicationImpl::imgui_init() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
 
-    auto& fm = app.service_context().font_manager();
-    fm.set_font_atlas(io.Fonts);
-    // Hard-code this here for now
-    ImGui::GetStyle().FontSizeBase = 17;
-    update_style(/* force: */ true);
-
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.UserData = &ui_context;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -304,22 +299,25 @@ void ApplicationImpl::imgui_init() {
     io.ConfigDockingTransparentPayload = true;
     io.IniFilename = nullptr;
 
-    init_font();
+    auto& fm = app.service_context().font_manager();
+    fm.set_font_atlas(io.Fonts);
+    init_font(17);
+    load_default_icons(service_context.icon_manager());
+    update_style(/* force: */ true);
+
     imgui_init_platform();
     ImGui::LoadIniSettingsFromDisk(imgui_ini_file().c_str());
     load_app_settings_from_disk();
 }
 
-void ApplicationImpl::init_font() {
+void ApplicationImpl::init_font(float base_size_absolute) {
     FontDesc desc = {.weight = FontWeight::regular, .style = FontStyle::roman};
-    FontContext font_ctx{
-        .desc = desc,
-        .size = ImGui::GetStyle().FontSizeBase,
-        .font = service_context.font_manager().get_font(font_ctx.desc)};
+    FontContext font_ctx{.desc = desc, .size = base_size_absolute};
     ui_context.font_stack.push(font_ctx);
-
     auto& io = ImGui::GetIO();
-    io.FontDefault = ui_context.font_stack.top().font;
+    io.FontDefault = service_context.font_manager().get_font(desc);
+    auto& style = ImGui::GetStyle();
+    style.FontSizeBase = base_size_absolute;
 }
 
 void ApplicationImpl::imgui_begin_frame() {

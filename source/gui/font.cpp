@@ -15,10 +15,8 @@ FontContext ui::get_current_font() {
 
 static void push_font_impl(FontDesc desc, float size_absolute) {
     auto& ui_context = get_current_ui_context();
-    auto& font_manager = ui_context.font_manager;
-    auto& font_stack = ui_context.font_stack;
-    auto* font = font_manager.get_font(desc);
-    font_stack.push({.desc = desc, .size = size_absolute, .font = font});
+    ui_context.font_stack.push({.desc = desc, .size = size_absolute});
+    auto* font = ui_context.font_manager.get_font(desc);
     ImGui::PushFont(font, size_absolute);
 }
 

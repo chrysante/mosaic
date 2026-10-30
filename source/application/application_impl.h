@@ -56,7 +56,7 @@ struct internal::ApplicationImpl {
     void deserialize_settings(nlohmann::json const&);
 
     void imgui_init();
-    void init_font();
+    void init_font(float base_size_absolute);
     void imgui_begin_frame();
     void imgui_copy_item_hovered_to_windows();
     void imgui_end_frame();

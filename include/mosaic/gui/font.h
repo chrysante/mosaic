@@ -6,10 +6,6 @@
 #include <utl/overload.hpp>
 #include <utl/scope_guard.hpp>
 
-// ImGui font type. Forward declare this here so we don't need to include
-// imgui.h
-struct ImFont;
-
 namespace mosaic {
 
 enum class FontWeight {
@@ -40,7 +36,6 @@ struct FontContext {
     FontDesc desc;
     /// Absolute size
     float size;
-    ImFont* font;
 };
 
 struct FontModifier {
@@ -102,6 +97,10 @@ template <> struct std::hash<mosaic::FontDesc> {
 // =============================================================================
 
 // TODO: Rework the whole icon system
+
+// ImGui font type. Forward declare this here so we don't need to include
+// imgui.h
+struct ImFont;
 
 namespace mosaic {
 

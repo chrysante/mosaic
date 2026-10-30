@@ -217,6 +217,7 @@ target_sources(mosaic PRIVATE
     source/gui/containers.cpp
     source/gui/dockspace.cpp
     source/gui/font.cpp
+    source/gui/icon.cpp
     source/gui/layout.cpp
     source/gui/panel.cpp
     source/gui/panel_demo.cpp
@@ -240,6 +241,7 @@ target_sources(mosaic PRIVATE
     source/service/event_receiver.cpp
     source/service/event_system.cpp
     source/service/font_manager.cpp
+    source/service/icon_manager.cpp
     source/service/service_context.cpp
     source/service/thread_pool.cpp
     source/support/json_support.cpp

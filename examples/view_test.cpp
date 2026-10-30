@@ -1,12 +1,15 @@
 #include "view_test.h"
-#include "mosaic/gui/font.h"
-#include "mosaic/gui/property_editor.h"
-#include "mosaic/gui/view.h"
-#include "mosaic/gui/view_support.h"
+
+#include <memory>
 
 #include <imgui.h>
-#include <memory>
+
 #include <mosaic/gui/containers.h>
+#include <mosaic/gui/font.h>
+#include <mosaic/gui/icon.h>
+#include <mosaic/gui/property_editor.h>
+#include <mosaic/gui/view.h>
+#include <mosaic/gui/view_support.h>
 #include <mosaic/gui/widgets.h>
 
 using namespace mosaic;
@@ -165,11 +168,11 @@ Owner<View> make_header(TestState const& state) {
 
 Owner<View> make_basic_widgets(TestState& state) {
     auto actions = hstack({
-                       icon_button("plus-circled",
-                                   [&state] {
-                                       ++state.counter;
-                                       state.message = "Counter incremented";
-                                   }) |
+                       button(lucide_icon("circle-plus"),
+                              [&state] {
+                                  ++state.counter;
+                                  state.message = "Counter incremented";
+                              }) |
                            enabled(bind(&state.buttons_enabled)) | vfill,
                        button("Reset", [&state] { state = TestState{}; }) |
                            enabled(bind(&state.buttons_enabled)) |

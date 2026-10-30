@@ -3,9 +3,11 @@
 #include <cfloat>
 #include <functional>
 #include <string>
+#include <variant>
 
 #include <vml/vml.hpp>
 
+#include <mosaic/gui/icon.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
 #include <mosaic/support/memory.h>
@@ -78,18 +80,21 @@ MOSAIC_EXPORT Owner<TextInputView> text_input(std::string* buffer,
 // =============================================================================
 
 class MOSAIC_EXPORT ButtonView : public View {
+    using Label =
+        std::variant<Property<std::string const>, Property<Icon const>>;
+
 public:
     enum class Kind { text, icon };
 
-    explicit ButtonView(Property<std::string const>&& label,
-                        std::function<void()>&& on_click, Kind kind);
+    explicit ButtonView(Label&& label, std::function<void()>&& on_click,
+                        Kind kind);
 
 private:
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Kind m_kind;
-    Property<std::string const> m_label;
+    Label m_label;
     std::function<void()> m_on_click;
 };
 
@@ -99,6 +104,9 @@ MOSAIC_EXPORT Owner<ButtonView> button(Property<std::string const> label,
 MOSAIC_EXPORT Owner<ButtonView>
 icon_button(Property<std::string const> icon_name,
             std::function<void()> action = {});
+
+MOSAIC_EXPORT Owner<ButtonView> button(Property<Icon const> icon,
+                                       std::function<void()> action = {});
 
 // =============================================================================
 // Checkbox

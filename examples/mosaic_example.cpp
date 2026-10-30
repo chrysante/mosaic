@@ -15,6 +15,7 @@
 #include <mosaic/gui/containers.h>
 #include <mosaic/gui/dockspace.h>
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/icon.h>
 #include <mosaic/gui/layout.h>
 #include <mosaic/gui/panel.h>
 #include <mosaic/gui/panel_manager.h>
@@ -64,7 +65,7 @@ public:
 
 private:
     Owner<ui::View> make_toolbar() {
-        return ui::toolbar({ui::icon_button("link"),
+        return ui::toolbar({ui::button(ui::lucide_icon("link")),
                             ui::slider<int>(ui::bind(&num_columns), 1, 10) |
                                 ui::fixed_width(100)});
     }
@@ -211,27 +212,27 @@ public:
             .command = [this] { dockspace.toggle_menubar(); }
         });
         dockspace.set_left_toolbar(ui::toolbar({
-            ui::icon_button("plus", [this] { 
+            ui::button(ui::lucide_icon("square-plus"), [this] { 
                 text = "Clicked toolbar button"; 
             }),
             ui::spacer(), 
-            ui::icon_button("play", [this] { text = "Clicked toolbar button"; })
+            ui::button(ui::lucide_icon("play"), [this] { text = "Clicked toolbar button"; })
         }));
         dockspace.set_center_toolbar(ui::toolbar({
-            ui::icon_button("attention", [this] { show_demo_window = true; }) |
+            ui::button(ui::lucide_icon("info"), [this] { show_demo_window = true; }) |
                 ui::enabled(ui::computed([this] { return !show_demo_window; })),
             ui::spacer(),
             ui::button("Other Button"),
-            ui::icon_button("search")
+            ui::button(ui::lucide_icon("search"))
         }));
         dockspace.set_right_toolbar(ui::toolbar({
-            ui::icon_button("bell", [this] { 
+            ui::button(ui::lucide_icon("bell"), [this] { 
                 event_emitter.publish(PanelManager::OpenCommand{
                     .name = "ExamplePanel"
                 });
             }),
             ui::spacer(),
-            ui::icon_button("plus", [this] { 
+            ui::button(ui::lucide_icon("layers-plus"), [this] { 
                 event_emitter.publish(PanelManager::OpenCommand{
                     .name = "MosaicDemoPanel"
                 });

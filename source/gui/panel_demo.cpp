@@ -78,13 +78,13 @@ Owner<ui::View> DemoPanel::make_toolbar() const {
                 ImGui::Button("Hello");
             }),
 #endif
-        ui::icon_button("heart"),
+        ui::button(ui::lucide_icon("heart")),
         ui::vseparator(),
         ui::label(ui::computed([] -> std::string { 
             return ImGui::IsKeyDown(ImGuiKey_Space) ? "Space down" : 
                                                       "Space not down";
         })),
-        ui::icon_button("star"),
+        ui::button(ui::lucide_icon("star")),
 #if 0
         CustomToolbarElement([](vml::float2 size) {
             auto* DL = ImGui::GetWindowDrawList();
