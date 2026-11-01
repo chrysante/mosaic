@@ -3,9 +3,7 @@
 ## High priority
 - [x] Fix binding classes, allow returning references via std::reference_wrapper from computed properties
 - [x] Rework view measurement using size constraints 
-- [ ] Add transparent view wrappers for tooltips and decoration
-- [ ] Rewrite properties UI using the new `View` API
-- [ ] Make `View` tree less static/more dynamic
+- [ ] Rewrite logger to use std::print-style formatting
 
 ## Bugs
 When a window is moved and released above a foreign window with another application window underneath, the window is set transparent for one frame, making it flash
@@ -13,6 +11,10 @@ When a window is moved and released above a foreign window with another applicat
 
 ## Improvements
 - [ ] Make `WorkDispatcher::on_main_thread()` run the callback directly if called on the main thread.
+- [ ] Rework the state saving mechanism and clarify the semantics. There should probably be multiple kinds of state savings like config, documents, ...
+- [ ] Add transparent view wrappers for tooltips and decoration
+- [ ] Rewrite properties UI using the new `View` API
+- [ ] Make `View` tree less static/more dynamic
 
 ## Technical debt
 - [ ] Clean up `Panel`, `PanelRenderer` and `PanelManager` classes
