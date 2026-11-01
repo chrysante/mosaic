@@ -8,6 +8,7 @@
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/icon.h>
 #include <mosaic/gui/property_editor.h>
+#include <mosaic/gui/style.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
 #include <mosaic/gui/widgets.h>
@@ -184,7 +185,8 @@ Owner<View> make_basic_widgets(TestState& state) {
                            state.message = "Counter incremented";
                        }) |
                     enabled(bind(&state.buttons_enabled)) | vfill,
-                button("Reset", [&state] { state = TestState{}; }) |
+                button("Reset", [&state] { state = TestState{}; },
+                       {.color = &get_global_style2().color.control_accent}) |
                     enabled(bind(&state.buttons_enabled)) |
                     font({
                         .weight_offset = 3,

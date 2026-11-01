@@ -197,7 +197,8 @@ class ExampleApp : public Application {
 public:
     ExampleApp()
         : event_receiver(service_context().make_event_receiver())
-        , event_emitter(service_context().make_event_emitter()) {
+        , event_emitter(service_context().make_event_emitter())
+        , style_editor(service_context().style_system()) {
         // clang-format off
         command_palette().add({
             .name = "My Command",

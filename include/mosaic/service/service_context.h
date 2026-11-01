@@ -6,6 +6,7 @@
 #include <mosaic/service/event_system.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/icon_manager.h>
+#include <mosaic/service/style_system.h>
 #include <mosaic/service/thread_pool.h>
 
 namespace mosaic {
@@ -26,6 +27,8 @@ public:
 
     IconManager& icon_manager() { return m_icon_manager; }
 
+    StyleSystem& style_system() { return m_style_system; }
+
 private:
     friend struct internal::ApplicationImpl;
 
@@ -34,6 +37,7 @@ private:
     std::shared_ptr<EventSystem> m_event_system;
     FontManager m_font_manager;
     IconManager m_icon_manager;
+    StyleSystem m_style_system;
 };
 
 } // namespace mosaic

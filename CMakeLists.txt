@@ -227,7 +227,9 @@ target_sources(mosaic PRIVATE
     source/gui/property_editor.cpp
     source/gui/ui_context.cpp
     source/gui/run_mode_controller.cpp
+    source/gui/style.cpp
     source/gui/style_editor.cpp
+    source/gui/style_desc.cpp
     source/gui/toolbar.cpp
     source/gui/view.cpp
     source/gui/view_debugger.cpp
@@ -241,6 +243,7 @@ target_sources(mosaic PRIVATE
     source/service/font_manager.cpp
     source/service/icon_manager.cpp
     source/service/service_context.cpp
+    source/service/style_system.cpp
     source/service/thread_pool.cpp
     source/support/json_support.cpp
     source/support/logger.cpp

@@ -48,6 +48,8 @@ struct internal::ApplicationImpl {
     virtual void shutdown_platform() = 0;
     virtual void create_main_window_platform(Window&) = 0;
 
+    void restore_config();
+
     void save_settings_update();
     void save_app_settings_to_disk();
     void load_app_settings_from_disk();

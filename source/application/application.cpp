@@ -157,11 +157,18 @@ ApplicationImpl::ApplicationImpl(Application& app)
 ApplicationImpl::~ApplicationImpl() = default;
 
 void ApplicationImpl::init() {
+    // Init fundamental systems
     input_callback_id = register_global_input_callback(
         std::bind_front(&ApplicationImpl::on_input, this));
     init_platform();
     create_main_window();
     imgui_init();
+
+    // Restore config state
+    restore_config();
+
+    // Init higher-level systems
+    service_context.style_system().init();
 }
 
 namespace {
@@ -200,6 +207,11 @@ static std::filesystem::path imgui_ini_file() {
 
 static std::filesystem::path config_json_file() {
     return config_directory() / "config.json";
+}
+
+void ApplicationImpl::restore_config() {
+    ImGui::LoadIniSettingsFromDisk(imgui_ini_file().c_str());
+    load_app_settings_from_disk();
 }
 
 void ApplicationImpl::save_settings_update() {
@@ -262,7 +274,8 @@ namespace config_key {
 
 static constexpr std::string_view application = "application";
 static constexpr std::string_view window_geometry = "window_geometry";
-static constexpr std::string_view views = "views";
+static constexpr std::string_view panels = "panels";
+static constexpr std::string_view style = "style";
 
 } // namespace config_key
 
@@ -271,8 +284,8 @@ nlohmann::json ApplicationImpl::serialize_settings() {
     object[config_key::application] = app.save_settings();
     if (auto* main_window = app.main_window())
         object[config_key::window_geometry] = main_window->geometry();
-    object[config_key::views] = panel_manager.save_settings();
-
+    object[config_key::panels] = panel_manager.save_settings();
+    object[config_key::style] = service_context.style_system().save_config();
     return object;
 }
 
@@ -282,8 +295,10 @@ void ApplicationImpl::deserialize_settings(nlohmann::json const& base) {
     if (auto geo = json_find<WindowGeometry>(base, config_key::window_geometry))
         if (auto* main_window = app.main_window())
             main_window->set_geometry(geo.value());
-    if (auto* settings = json_find(base, config_key::views))
+    if (auto* settings = json_find(base, config_key::panels))
         panel_manager.load_settings(*settings);
+    if (auto* config = json_find(base, config_key::style))
+        service_context.style_system().load_config(*config);
 }
 
 void ApplicationImpl::imgui_init() {
@@ -306,8 +321,6 @@ void ApplicationImpl::imgui_init() {
     update_style(/* force: */ true);
 
     imgui_init_platform();
-    ImGui::LoadIniSettingsFromDisk(imgui_ini_file().c_str());
-    load_app_settings_from_disk();
 }
 
 void ApplicationImpl::init_font(float base_size_absolute) {

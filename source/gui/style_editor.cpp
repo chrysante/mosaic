@@ -1,286 +1,163 @@
 #include "gui/style_editor.h"
 
+#include <filesystem>
+#include <fstream>
 #include <memory>
-#include <span>
-#include <string>
 
 #include <imgui.h>
-#include <imgui_internal.h>
-#include <vml/vml.hpp>
+#include <nlohmann/json.hpp>
 
-#include "gui/layout.h"
+#include "application/resource_util.h"
+#include "gui/containers.h"
+#include "gui/icon.h"
+#include "gui/property_editor.h"
+#include "gui/style.h"
+#include "gui/style_desc.h"
+#include "gui/toolbar.h"
+#include "gui/view_support.h"
+#include "gui/widgets.h"
+#include "nlohmann/json_fwd.hpp"
+#include "service/style_system.h"
+#include "support/logger.h"
+#include "support/memory.h"
 
 using namespace mosaic;
+using namespace ui;
 
-// =============================================================================
-// Color types
-// =============================================================================
-struct StyleColor;
-
-struct ModulatedColor {
-    StyleColor const* source = nullptr;
-    float saturation_factor = 1;
-    float value_factor = 1;
-    float hue_shift = 0;
-
-    vml::float4 eval() const;
-};
-
-struct StyleColor {
-    enum class Type { mod_color, raw_color };
-
-    vml::float4 eval() const;
-
-    std::string name;
-    Type type;
-    ModulatedColor mod_color;
-    vml::float4 raw_color = {};
-};
-
-vml::float4 ModulatedColor::eval() const {
-    if (!source) return {};
-    vml::float4 hsva = vml::rgba_to_hsva(source->eval());
-    hsva.hue = +std::fmod(hsva.hue + hue_shift, 1.0f);
-    hsva.saturation *= saturation_factor;
-    hsva.value *= value_factor;
-    return vml::clamp(vml::hsva_to_rgba(hsva), {0.0f, 0.0f, 0.0f, 0.0f},
-                      {1.0f, 1.0f, 1.0f, 1.0f});
-}
-
-vml::float4 StyleColor::eval() const {
-    switch (type) {
-    case Type::mod_color:
-        return mod_color.eval();
-    case Type::raw_color:
-        return raw_color;
-    }
-}
-
-// =============================================================================
-// Color editors
-// =============================================================================
-
-static void
-draw_color_edit_mod(StyleColor& color,
-                    utl::function_view<void(StyleColor const*&)> source_combo) {
-    auto& mod_color = color.mod_color;
-    char const* preview =
-        mod_color.source ? mod_color.source->name.c_str() : "(None)";
-    ui::item("Source", [&] {
-        if (ImGui::BeginCombo("##source", preview)) {
-            source_combo(mod_color.source);
-            ImGui::EndCombo();
-        }
-    });
-    ui::item("Hue Shift", [&] {
-        ImGui::SliderFloat("##hue-shift", &mod_color.hue_shift, -1.0f, 1.0f,
-                           "%.3f");
-    });
-    ui::item("Saturation", [&] {
-        ImGui::SliderFloat("##saturation", &mod_color.saturation_factor, 0.0f,
-                           2.0f, "%.3f");
-    });
-    ui::item("Value", [&] {
-        ImGui::SliderFloat("##value", &mod_color.value_factor, 0.0f, 2.0f,
-                           "%.3f");
-    });
-}
-
-static void draw_color_edit_raw(StyleColor& color) {
-    ui::item("", [&] {
-        auto flags =
-            ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf;
-        ImGui::ColorEdit4("##raw", color.raw_color.data(), flags);
-    });
-}
-
-namespace {
-struct StyleColorEditOptions { bool edit_name = true; };
-} // namespace
-
-static void
-draw_color_edit(int id, StyleColor& color,
-                utl::function_view<void(StyleColor const*&)> source_combo,
-                StyleColorEditOptions options = {}) {
-    ui::section(color.name.c_str());
-    ImGui::PushID(id);
-    // Shared properties.
-    ui::item("Preview", [&] {
-        ImGui::ColorButton("##preview", color.eval(),
-                           ImGuiColorEditFlags_AlphaPreviewHalf,
-                           {ImGui::CalcItemWidth(), 24.0f});
-    });
-    if (options.edit_name)
-        ui::item("Name", [&] { ImGui::InputText("##name", &color.name); });
-    int type = static_cast<int>(color.type);
-    char const* types[] = {"Modulated", "Raw"};
-    ui::item("Type", [&] {
-        if (ImGui::Combo("##type", &type, types, IM_ARRAYSIZE(types)))
-            color.type = static_cast<StyleColor::Type>(type);
-    });
-    switch (color.type) {
-    case StyleColor::Type::mod_color:
-        draw_color_edit_mod(color, source_combo);
-        break;
-    case StyleColor::Type::raw_color:
-        draw_color_edit_raw(color);
-        break;
-    }
-    ImGui::PopID();
-}
-
-// =============================================================================
-// Style editor infrastructure
-// =============================================================================
-
-struct OutputFields {};
-
-struct StyleEditData {
-    StyleEditData() {
-#define MOSAIC_STYLE_COLOR(color_name, category)                               \
-    output_colors.push_back({.name = #color_name});
-#include <mosaic/gui/style.def>
+struct mosaic::internal::StyleEditorImpl {
+    StyleEditorImpl(StyleSystem& style_system)
+        : style_system(style_system)
+        , style_desc(style_system.active_style())
+        , style_type(style_system.active_style_type()) {
+        init();
     }
 
-    std::string name;
+    void init();
 
-    std::vector<std::unique_ptr<StyleColor>> primary_colors;
-    std::vector<std::unique_ptr<StyleColor>> secondary_colors;
-    std::vector<StyleColor> output_colors;
+    void save();
+    void save_as();
+    void apply() { style_system.set_style(style_desc); }
+
+    void save_style(std::filesystem::path path, StyleDesc style);
+
+    Property<vml::float4> bind_color(ColorDesc& desc) {
+        return computed(
+            [&desc] -> vml::float4 {
+                return ImGui::ColorConvertU32ToFloat4(desc.value);
+            },
+            [&](vml::float4 new_value) {
+                desc.value = ImGui::ColorConvertFloat4ToU32(new_value);
+                apply();
+            });
+    }
+
+    Property<float> bind_float(float& value) {
+        return computed([&value] { return value; },
+                        [&](float new_value) {
+                            value = new_value;
+                            apply();
+                        });
+    }
+
+    Owner<View> mod_edit(std::string name, ColorModifier& light,
+                         ColorModifier& dark) {
+        auto two_slider = [this](auto& light, auto& dark) {
+            return hstack({slider<float>(bind_float(light), 0.0f, 4.0f),
+                           slider<float>(bind_float(dark), 0.0f, 4.0f)}) |
+                   hfill;
+        };
+        return vstack(
+                   {property(name + ".Saturation",
+                             two_slider(light.saturation_scale,
+                                        dark.saturation_scale)),
+                    property(name + ".Value",
+                             two_slider(light.value_scale, dark.value_scale)),
+                    property(name + ".Alpha", two_slider(light.alpha_scale,
+                                                         dark.alpha_scale))}) |
+               hfill;
+    }
+
+    Owner<View> field(std::string name, ControlColorDesc& light,
+                      ControlColorDesc& dark) {
+        auto two_color = hstack({color_edit(bind_color(light.base)),
+                                 color_edit(bind_color(dark.base))}) |
+                         hfill;
+        return property(std::move(name),
+                        vstack({
+                            property("Base", std::move(two_color)),
+                            mod_edit("Hovered", light.hovered, dark.hovered),
+                            mod_edit("Active", light.active, dark.active),
+                        }) | hfill);
+    }
+
+    Owner<View> colors(StyleDesc::Colors* colors) {
+        return section({field("Control", colors[0].control, colors[1].control),
+                        field("Control Accent", colors[0].control_accent,
+                              colors[1].control_accent)});
+    }
+
+    StyleSystem& style_system;
+    std::string open_file_path;
+    StyleDesc style_desc;
+    StyleType style_type;
+    Owner<ui::View> view;
 };
 
-struct StyleEditor::Impl { std::unique_ptr<StyleEditData> style, new_style; };
+using mosaic::internal::StyleEditorImpl;
 
-StyleEditor::StyleEditor()
-    : m_impl(std::make_unique<Impl>()) {}
+void StyleEditorImpl::init() {
+    auto style_type_combo =
+        combo(computed([&] { return (int)style_type; },
+                       [&](int new_value) {
+                           style_type = (StyleType)new_value;
+                           style_system.set_style_type(style_type);
+                       }),
+              computed([&] -> std::string {
+                  return style_type == StyleType::light ? "Light" : "Dark";
+              }),
+              std::vector<std::string>{"Light", "Dark"}) |
+        hfill_intrin;
+    auto toolbar =
+        ui::toolbar({button("Save", [this] { save(); }),
+                     button("Save As...", [&] { save_as(); }), spacer(),
+                     label(computed([&] {
+                         return style_system.active_style_path().string();
+                     })),
+                     spacer(), std::move(style_type_combo)}) |
+        fixed_height(38);
+    ui::internal::set_toolbar_padding(toolbar.get(), {6.0f, 6.0f, 6.0f, 6.0f});
+
+    auto editor_view = vscroll({colors(style_desc.color)});
+    view = vstack({std::move(toolbar), std::move(editor_view)}) | hfill | vfill;
+}
+
+void StyleEditorImpl::save() {
+    save_style(style_system.active_style_path(), style_desc);
+}
+
+void StyleEditorImpl::save_as() {
+    show_save_panel([&, style_desc = style_desc](std::filesystem::path path) {
+        save_style(path, style_desc);
+    });
+}
+
+void StyleEditorImpl::save_style(std::filesystem::path path, StyleDesc style) {
+    std::ofstream file(path);
+    if (!file) {
+        Logger::error("Failed to save style file");
+        return;
+    }
+    nlohmann::json j = style;
+    file << j;
+    Logger::info("Successfully saved style file");
+}
+
+StyleEditor::StyleEditor(StyleSystem& style_system)
+    : m_impl(std::make_unique<internal::StyleEditorImpl>(style_system)) {}
 
 StyleEditor::~StyleEditor() = default;
 
-void StyleEditor::new_style_modal() {
-    ImGui::SetNextWindowSize({500, 400});
-    auto flags = ImGuiWindowFlags_NoResize;
-    if (!ImGui::BeginPopupModal("New Style", nullptr, flags)) return;
-    assert(m_impl->new_style);
-    ui::begin_properties("new-style");
-    ui::item(
-        "Name", [&] { ImGui::InputText("##name", &m_impl->new_style->name); },
-        [&] {
-            ImGui::BeginGroup();
-            if (ImGui::Button("Cancel")) {
-                m_impl->new_style.reset();
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Create")) {
-                m_impl->style = std::move(m_impl->new_style);
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndGroup();
-        });
-    ui::end_properties();
-    ImGui::EndPopup();
-}
-
-void StyleEditor::empty_editor() {
-    if (ImGui::Button("New Style...")) {
-        m_impl->new_style = std::make_unique<StyleEditData>();
-        ImGui::OpenPopup("New Style");
-    }
-    new_style_modal();
-}
-
-static void header(char const* title,
-                   std::vector<std::unique_ptr<StyleColor>>& colors) {
-    auto cp = ImGui::GetCursorScreenPos();
-    ImVec2 size = {60,
-                   ImGui::GetFontSize() + 2 * ImGui::GetStyle().FramePadding.y};
-    float width = ImGui::GetContentRegionAvail().x;
-    ImVec2 pos = {cp.x + width - size.x, cp.y};
-    ImGui::SetCursorScreenPos(pos);
-    bool pressed = ImGui::ButtonEx("[+]", size);
-    if (pressed) ImGui::OpenPopup("##new-color-popup");
-    ImGui::SetNextWindowSize({500, 400});
-    auto flags = ImGuiWindowFlags_NoResize;
-    if (ImGui::BeginPopupModal("##new-color-popup", nullptr, flags)) {
-        ui::begin_properties("new-color-props");
-        static char buf[256];
-        ui::item(
-            "Name", [&] { ImGui::InputText("##name", buf, sizeof buf); },
-            [&] {
-                ImGui::BeginGroup();
-                if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
-                ImGui::SameLine();
-                if (ImGui::Button("Create")) {
-                    colors.push_back(
-                        std::make_unique<StyleColor>(StyleColor{.name = buf}));
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::EndGroup();
-            });
-        ui::end_properties();
-        ImGui::EndPopup();
-    }
-
-    ImGui::SetCursorScreenPos(cp);
-    ImGui::Text("%s", title);
-}
-
-static void primary_colors(StyleEditData& style) {
-    ui::begin_properties("primary-colors");
-
-    auto source_combo = [&](StyleColor const*&) {};
-    for (int id = 0; auto& color : style.primary_colors)
-        draw_color_edit(id++, *color, source_combo);
-    ui::end_properties();
-}
-
-static void
-source_combo_list(StyleColor const*& source,
-                  std::span<std::unique_ptr<StyleColor> const> colors) {
-    for (auto& color : colors) {
-        bool is_selected = color.get() == source;
-        if (ImGui::Selectable(color->name.c_str(), is_selected))
-            source = color.get();
-        if (is_selected) ImGui::SetItemDefaultFocus();
-    }
-}
-
-static void secondary_colors(StyleEditData& style) {
-    ui::begin_properties("secondary-colors");
-    auto source_combo = [&](StyleColor const*& source) {
-        source_combo_list(source, style.primary_colors);
-    };
-    for (int id = 0; auto& color : style.secondary_colors)
-        draw_color_edit(id++, *color, source_combo);
-    ui::end_properties();
-}
-
-static void output_colors(StyleEditData& style) {
-    ui::begin_properties("output-colors");
-    auto source_combo = [&](StyleColor const*& source) {
-        source_combo_list(source, style.primary_colors);
-        source_combo_list(source, style.secondary_colors);
-    };
-    for (int id = 0; auto& color : style.output_colors)
-        draw_color_edit(id++, color, source_combo, {.edit_name = false});
-    ui::end_properties();
-}
-
 void StyleEditor::draw() {
-    if (!m_impl->style) {
-        empty_editor();
-        return;
-    }
-    auto& style = *m_impl->style;
-    ui::ColumnLayout colums[] = {
-        {.header = [&] { header("Primary Colors", style.primary_colors); },
-         .content = [&] { primary_colors(style); },
-         .min_width = 200.0f},
-        {.header = [&] { header("Secondary Colors", style.secondary_colors); },
-         .content = [&] { secondary_colors(style); },
-         .min_width = 200.0f},
-        {.header = "Output Colors",
-         .content = [&] { output_colors(style); },
-         .min_width = 200.0f}};
-    ui::columns("style_editor_columns", colums);
+    m_impl->view->display(
+        {ImGui::GetCursorScreenPos(), ImGui::GetContentRegionAvail()});
 }

@@ -264,16 +264,19 @@ struct ButtonView : View {
     using Label =
         std::variant<Property<std::string const>, Property<Icon const>>;
 
-    explicit ButtonView(Label&& label, std::function<void()>&& on_click)
+    explicit ButtonView(Label&& label, std::function<void()>&& on_click,
+                        ButtonOptions&& options)
         : View({SizeSpec::fit(), SizeSpec::fit()})
         , label(std::move(label))
-        , on_click(std::move(on_click)) {}
+        , on_click(std::move(on_click))
+        , options(std::move(options)) {}
 
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Label label;
     std::function<void()> on_click;
+    ButtonOptions options;
 };
 
 } // namespace
@@ -298,8 +301,16 @@ void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
+    if (options.color) {
+        ImGui::PushStyleColor(ImGuiCol_Button, options.color->base.value);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                              options.color->hovered.value);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                              options.color->active.value);
+    }
     bool clicked = std::visit(
         [&](auto& prop) { return display_button(prop, frame.size); }, label);
+    if (options.color) ImGui::PopStyleColor(3);
     ImGui::PopID();
     if (clicked && on_click) on_click();
 }
@@ -325,13 +336,15 @@ vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
 }
 
 Owner<View> ui::button(Property<std::string const> label,
-                       std::function<void()> on_click) {
-    return allocate<ButtonView>(std::move(label), std::move(on_click));
+                       std::function<void()> on_click, ButtonOptions options) {
+    return allocate<ButtonView>(std::move(label), std::move(on_click),
+                                std::move(options));
 }
 
 Owner<View> ui::button(Property<Icon const> icon,
                        std::function<void()> action) {
-    return allocate<ButtonView>(std::move(icon), std::move(action));
+    return allocate<ButtonView>(std::move(icon), std::move(action),
+                                ButtonOptions{});
 }
 
 // =============================================================================

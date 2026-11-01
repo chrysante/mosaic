@@ -1,24 +1,22 @@
-#include <memory>
-
-#include <mosaic/gui/style.h>
+#include <mosaic/gui/style_desc.h>
+#include <mosaic/gui/view.h>
 #include <mosaic/support/export.h>
 
 namespace mosaic {
 
+class StyleSystem;
+
+namespace internal { struct StyleEditorImpl; }
+
 class MOSAIC_EXPORT StyleEditor {
 public:
-    StyleEditor();
+    explicit StyleEditor(StyleSystem& style_system);
     ~StyleEditor();
 
     void draw();
 
 private:
-    struct Impl;
-
-    void empty_editor();
-    void new_style_modal();
-
-    std::unique_ptr<Impl> m_impl;
+    std::unique_ptr<internal::StyleEditorImpl> m_impl;
 };
 
 } // namespace mosaic
