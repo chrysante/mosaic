@@ -201,7 +201,8 @@ public:
     static constexpr SizeSpec2 default_size_requirement = {SizeSpec::fit(),
                                                            SizeSpec::fit()};
 
-    explicit SwitchView(Property<Index> index, ViewContainer<>&& children);
+    explicit SwitchView(Property<Index const> index,
+                        ViewContainer<>&& children);
 
     ViewContainer<>& children() { return m_children; }
     ViewContainer<> const& children() const { return m_children; }
@@ -211,19 +212,20 @@ private:
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
     bool do_is_leaf() const override { return false; }
 
-    Property<Index> m_index;
+    Property<Index const> m_index;
     ViewContainer<> m_children;
 };
 
 using ConditionalView = SwitchView<bool>;
 
-MOSAIC_EXPORT Owner<ConditionalView> if_view(Property<bool> condition,
+MOSAIC_EXPORT Owner<ConditionalView> if_view(Property<bool const> condition,
                                              Owner<View> then_view);
 
-MOSAIC_EXPORT Owner<ConditionalView>
-if_view(Property<bool> condition, Owner<View> then_view, Owner<View> else_view);
+MOSAIC_EXPORT Owner<ConditionalView> if_view(Property<bool const> condition,
+                                             Owner<View> then_view,
+                                             Owner<View> else_view);
 
-MOSAIC_EXPORT Owner<SwitchView<>> switch_view(Property<int> index,
+MOSAIC_EXPORT Owner<SwitchView<>> switch_view(Property<int const> index,
                                               ViewContainer<> cases);
 
 template <std::size_t N>

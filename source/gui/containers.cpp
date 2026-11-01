@@ -602,7 +602,8 @@ Owner<ColumnView> ui::columns(Array<Column> columns) {
 }
 
 template <typename Index>
-SwitchView<Index>::SwitchView(Property<Index> index, ViewContainer<>&& children)
+SwitchView<Index>::SwitchView(Property<Index const> index,
+                              ViewContainer<>&& children)
     : View(default_size_requirement)
     , m_index(std::move(index))
     , m_children(std::move(children)) {}
@@ -645,13 +646,13 @@ struct NullView : View {
 
 } // namespace
 
-Owner<ConditionalView> ui::if_view(Property<bool> condition,
+Owner<ConditionalView> ui::if_view(Property<bool const> condition,
                                    Owner<View> then_view) {
     return if_view(std::move(condition), std::move(then_view),
                    allocate<NullView>());
 }
 
-Owner<ConditionalView> ui::if_view(Property<bool> condition,
+Owner<ConditionalView> ui::if_view(Property<bool const> condition,
                                    Owner<View> then_view,
                                    Owner<View> else_view) {
     return allocate<ConditionalView>(
@@ -659,7 +660,7 @@ Owner<ConditionalView> ui::if_view(Property<bool> condition,
         ViewContainer<>({std::move(else_view), std::move(then_view)}));
 }
 
-Owner<SwitchView<>> ui::switch_view(Property<int> index,
+Owner<SwitchView<>> ui::switch_view(Property<int const> index,
                                     ViewContainer<> cases) {
     return allocate<SwitchView<>>(std::move(index), std::move(cases));
 }
