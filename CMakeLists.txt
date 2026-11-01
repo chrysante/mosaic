@@ -269,6 +269,7 @@ target_sources(mosaic PRIVATE
     source/gui/appearance_macos.mm
     source/imgui/imgui_impl_mosaic_macos.mm
     source/imgui/imgui_impl_mosaic_metal.mm
+    source/support/file_dialog_macos.mm
 )
 target_compile_options(mosaic PRIVATE
     $<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>
