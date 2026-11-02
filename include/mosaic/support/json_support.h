@@ -32,6 +32,12 @@ std::optional<T> json_find(nlohmann::json const& json, std::string_view key) {
     }
 }
 
+template <typename T>
+T json_find(nlohmann::json const& json, std::string_view key,
+            T const& default_value) {
+    return json_find<T>(json, key).value_or(default_value);
+}
+
 } // namespace mosaic
 
 // =============================================================================

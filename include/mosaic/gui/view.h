@@ -3,6 +3,7 @@
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/font.h>
+#include <mosaic/gui/style.h>
 #include <mosaic/gui/view_support.h>
 #include <mosaic/support/export.h>
 
@@ -73,6 +74,10 @@ struct FrameAction {
     float thickness;
     Owner<View> operator()(Owner<View>) const;
 };
+struct ControlColorAction {
+    ControlColor const* color_override;
+    Owner<View> operator()(Owner<View>) const;
+};
 } // namespace internal
 
 inline ViewPipeAdapter<internal::EnabledAction>
@@ -87,5 +92,13 @@ inline ViewPipeAdapter<internal::FontModAction> font(FontModifier font_mod) {
 inline ViewPipeAdapter<internal::FrameAction> framed(float thickness = 1.0f) {
     return ViewPipeAdapter{ui::internal::FrameAction{thickness}};
 }
+
+inline ViewPipeAdapter<internal::ControlColorAction>
+control_color(ControlColor const* color) {
+    return ViewPipeAdapter{ui::internal::ControlColorAction{color}};
+}
+
+ViewPipeAdapter<internal::ControlColorAction>
+control_color(StyleColorControl color);
 
 } // namespace mosaic::ui

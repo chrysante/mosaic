@@ -185,14 +185,14 @@ Owner<View> make_basic_widgets(TestState& state) {
                            state.message = "Counter incremented";
                        }) |
                     enabled(bind(&state.buttons_enabled)) | vfill,
-                button("Reset", [&state] { state = TestState{}; },
-                       {.color = &get_global_style2().color.control_accent}) |
+                button("Reset", [&state] { state = TestState{}; }) |
                     enabled(bind(&state.buttons_enabled)) |
                     font({
                         .weight_offset = 3,
                         .style_override = FontStyle::monospaced,
                         .size_scale = 2.0f,
-                    }),
+                    }) |
+                    control_color(StyleColorControl::accent),
                 make_counter_text(state) | vcenter,
                 icon(lucide_icon("hospital")) | font({.size_scale = 3.0f}),
                 icon(lucide_icon("this icon does not exist")),

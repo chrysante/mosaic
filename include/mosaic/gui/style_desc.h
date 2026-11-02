@@ -4,6 +4,9 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include <mosaic/gui/style.h>
+#include <mosaic/support/enum.h>
+
 namespace mosaic {
 
 struct ColorModifier {
@@ -25,9 +28,11 @@ void from_json(nlohmann::json const&, ColorDesc&);
 void to_json(nlohmann::json&, ColorDesc const&);
 
 struct ControlColorDesc {
-    ColorDesc base;
-    ColorModifier hovered;
-    ColorModifier active;
+    ColorDesc background;
+    ColorDesc background_hovered;
+    ColorDesc background_active;
+    ColorDesc border;
+    ColorDesc text;
 };
 
 void from_json(nlohmann::json const&, ControlColorDesc&);
@@ -35,12 +40,8 @@ void to_json(nlohmann::json&, ControlColorDesc const&);
 
 // Style description that is user editable and stored to disk
 struct StyleDesc {
-    struct Colors {
-        ControlColorDesc control;
-        ControlColorDesc control_accent;
-
-        ColorDesc window_background;
-    } color[2];
+    EnumArray<StyleColor, ColorDesc> color[2];
+    EnumArray<StyleColorControl, ControlColorDesc> control_color[2];
 };
 
 void from_json(nlohmann::json const&, StyleDesc&);

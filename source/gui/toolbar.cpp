@@ -4,6 +4,7 @@
 #include <vml/vml.hpp>
 
 #include "gui/containers.h"
+#include "gui/style.h"
 #include "gui/view_support.h"
 
 using namespace mosaic;
@@ -17,15 +18,11 @@ struct ToolbarView : View {
         , stack(hstack(std::move(elements), Alignment::mid)) {}
 
     void do_display(Rect frame) override {
-        ImGui::PushStyleColor(ImGuiCol_Border, 0);
-        ImGui::PushStyleColor(ImGuiCol_BorderShadow, 0);
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(255, 255, 255, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              IM_COL32(255, 255, 255, 32));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              IM_COL32(255, 255, 255, 48));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 20.0f);
         ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, 12.0f);
+        push_style_control_color(
+            StyleColorControl::Default,
+            get_global_style2().control_color[StyleColorControl::toolbar]);
 
         frame.size.x -= padding.left + padding.right;
         frame.size.y -= padding.top + padding.bottom;
@@ -34,7 +31,7 @@ struct ToolbarView : View {
         stack->display(frame);
 
         ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(5);
+        pop_style_control_color();
     }
 
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override {

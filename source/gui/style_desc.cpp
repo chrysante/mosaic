@@ -2,7 +2,10 @@
 
 #include <sstream>
 
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
+
+#include "support/json_support.h"
 
 using namespace mosaic;
 
@@ -33,14 +36,22 @@ void mosaic::to_json(nlohmann::json& j, ColorDesc const& v) {
 }
 
 void mosaic::from_json(nlohmann::json const& j, ControlColorDesc& v) {
-    v.base = j.at("base").get<ColorDesc>();
-    v.hovered = j.value("hovered", ColorModifier{});
-    v.active = j.value("active", ColorModifier{});
+    v.background = json_find(j, "background", ColorDesc{});
+    v.background_hovered = json_find(j, "background_hovered", ColorDesc{});
+    v.background_active = json_find(j, "background_active", ColorDesc{});
+    v.border = json_find(j, "border", ColorDesc{});
+    v.text = json_find(j, "text", ColorDesc{});
 }
 
 void mosaic::to_json(nlohmann::json& j, ControlColorDesc const& v) {
-    j = nlohmann::json{
-        {"base", v.base}, {"hovered", v.hovered}, {"active", v.active}};
+    j = nlohmann::json{{
+                           "background",
+                           v.background,
+                       },
+                       {"background_hovered", v.background_hovered},
+                       {"background_active", v.background_active},
+                       {"border", v.border},
+                       {"text", v.text}};
 }
 
 void mosaic::from_json(nlohmann::json const& j, StyleDesc& v) {
@@ -50,21 +61,35 @@ void mosaic::from_json(nlohmann::json const& j, StyleDesc& v) {
             302, "color must be an array of exactly 2 elements", &j);
     for (std::size_t i = 0; i < 2; ++i) {
         auto const& c = colors[i];
-        v.color[i].control = c.at("control").get<ControlColorDesc>();
-        v.color[i].control_accent =
-            c.at("control_accent").get<ControlColorDesc>();
-        v.color[i].window_background =
-            c.at("window_background").get<ColorDesc>();
+        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
+            StyleColor index = (StyleColor)j;
+            std::string name(magic_enum::enum_name(index));
+            v.color[i][index] = json_find(c, name, ColorDesc{});
+        }
+        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
+            StyleColorControl index = (StyleColorControl)j;
+            std::string name(magic_enum::enum_name(index));
+            v.control_color[i][index] = json_find(c, name, ControlColorDesc{});
+        }
     }
 }
 
 void mosaic::to_json(nlohmann::json& j, StyleDesc const& v) {
-    j = nlohmann::json::object();
-    j["color"] = nlohmann::json::array();
+    auto color_array = nlohmann::json::array();
     for (std::size_t i = 0; i < 2; ++i) {
-        auto const& c = v.color[i];
-        j["color"].push_back({{"control", c.control},
-                              {"control_accent", c.control_accent},
-                              {"window_background", c.window_background}});
+        auto colors = nlohmann::json::object();
+        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
+            StyleColor index = (StyleColor)j;
+            std::string name(magic_enum::enum_name(index));
+            colors[name] = v.color[i][index];
+        }
+        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
+            StyleColorControl index = (StyleColorControl)j;
+            std::string name(magic_enum::enum_name(index));
+            colors[name] = v.control_color[i][index];
+        }
+        color_array.push_back(std::move(colors));
     }
+    j = nlohmann::json::object();
+    j["color"] = std::move(color_array);
 }

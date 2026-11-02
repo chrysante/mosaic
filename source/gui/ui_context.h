@@ -12,6 +12,7 @@ namespace mosaic {
 
 class FontManager;
 class IconManager;
+class StyleSystem;
 class RunModeController;
 
 struct UIContext {
@@ -19,6 +20,7 @@ struct UIContext {
     FontManager& font_manager;
     utl::hashmap<std::string, IconId> lucide_icon_table;
     IconManager& icon_manager;
+    StyleSystem& style_system;
     RunModeController& run_mode_controller;
 };
 

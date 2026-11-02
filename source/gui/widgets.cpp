@@ -11,8 +11,8 @@
 #include <utl/scope_guard.hpp>
 #include <variant>
 
-#include "gui/containers.h"
 #include "gui/icon.h"
+#include "gui/style.h"
 #include "gui/view_support.h"
 
 using namespace mosaic;
@@ -27,6 +27,23 @@ static bool positive(vml::float2 size) {
 static bool non_negative(vml::float2 size) {
     return size.map([](auto v) { return v >= 0.0f; }).all();
 }
+
+static void push_control_colors() {
+    auto& color = get_global_style2().control_color[StyleColorControl::Default];
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, color.background.value);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                          color.background_hovered.value);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                          color.background_active.value);
+    ImGui::PushStyleColor(ImGuiCol_Button, color.background.value);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                          color.background_hovered.value);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, color.background_active.value);
+    ImGui::PushStyleColor(ImGuiCol_Border, color.border.value);
+    ImGui::PushStyleColor(ImGuiCol_Text, color.text.value);
+}
+
+static void pop_control_colors() { ImGui::PopStyleColor(8); }
 
 template <typename Callback>
 static decltype(auto) with_widget_size(vml::float2 size, Callback&& callback) {
@@ -185,12 +202,14 @@ void TextInputView::do_display(Rect frame) {
     assert(options.num_lines >= 1);
     ImGui::PushID(this);
     ImGui::SetCursorScreenPos(frame.origin);
+    push_control_colors();
     if (options.num_lines == 1) {
         ImGui::SetNextItemWidth(frame.size.x);
         ImGui::InputText("##text-input", buffer);
     } else {
         ImGui::InputTextMultiline("##text-input", buffer, frame.size);
     }
+    pop_control_colors();
     ImGui::PopID();
 }
 
@@ -264,19 +283,16 @@ struct ButtonView : View {
     using Label =
         std::variant<Property<std::string const>, Property<Icon const>>;
 
-    explicit ButtonView(Label&& label, std::function<void()>&& on_click,
-                        ButtonOptions&& options)
+    explicit ButtonView(Label&& label, std::function<void()>&& on_click)
         : View({SizeSpec::fit(), SizeSpec::fit()})
         , label(std::move(label))
-        , on_click(std::move(on_click))
-        , options(std::move(options)) {}
+        , on_click(std::move(on_click)) {}
 
     void do_display(Rect frame) override;
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const override;
 
     Label label;
     std::function<void()> on_click;
-    ButtonOptions options;
 };
 
 } // namespace
@@ -301,16 +317,10 @@ void ButtonView::do_display(Rect frame) {
     if (!positive(frame.size)) return;
     ImGui::SetCursorScreenPos(frame.origin);
     ImGui::PushID(this);
-    if (options.color) {
-        ImGui::PushStyleColor(ImGuiCol_Button, options.color->base.value);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              options.color->hovered.value);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              options.color->active.value);
-    }
+    push_control_colors();
     bool clicked = std::visit(
         [&](auto& prop) { return display_button(prop, frame.size); }, label);
-    if (options.color) ImGui::PopStyleColor(3);
+    pop_control_colors();
     ImGui::PopID();
     if (clicked && on_click) on_click();
 }
@@ -336,15 +346,13 @@ vml::float2 ButtonView::do_calc_intrinsic_size(vml::float2) const {
 }
 
 Owner<View> ui::button(Property<std::string const> label,
-                       std::function<void()> on_click, ButtonOptions options) {
-    return allocate<ButtonView>(std::move(label), std::move(on_click),
-                                std::move(options));
+                       std::function<void()> on_click) {
+    return allocate<ButtonView>(std::move(label), std::move(on_click));
 }
 
 Owner<View> ui::button(Property<Icon const> icon,
                        std::function<void()> action) {
-    return allocate<ButtonView>(std::move(icon), std::move(action),
-                                ButtonOptions{});
+    return allocate<ButtonView>(std::move(icon), std::move(action));
 }
 
 // =============================================================================
@@ -442,8 +450,10 @@ void ComboView::do_display(Rect frame) {
         ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding,
                              2.0f * style.FramePadding.x);
         int combo_flags = translate_combo_flags(options);
+        push_control_colors();
         bool open =
             ImGui::BeginCombo("##combo", preview.value().c_str(), combo_flags);
+        pop_control_colors();
         ImGui::PopStyleVar();
         if (open) {
             int selection = this->selection.materialize();
@@ -569,6 +579,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
     T value = state.materialize();
     ScalarType const min = this->min.materialize();
     ScalarType const max = this->max.materialize();
+    push_control_colors();
     bool changed = with_widget_size(frame.size, [&] {
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::PushID(this);
@@ -583,6 +594,7 @@ template <typename T> void SliderView<T>::do_display(Rect frame) {
                                         num_components, &min, &max,
                                         options.format, flags);
     });
+    pop_control_colors();
     if (changed) state.set(value);
 }
 
@@ -691,6 +703,7 @@ static int translate_color_edit_flags(ColorEditOptions const& options) {
 template <std::size_t N> void ColorEditView<N>::do_display(Rect frame) {
     if (!non_negative(frame.size)) return;
     ColorType value = state.materialize();
+    push_control_colors();
     bool changed = with_widget_size(frame.size, [&] {
         ImGui::SetCursorScreenPos(frame.origin);
         ImGui::PushID(this);
@@ -700,6 +713,7 @@ template <std::size_t N> void ColorEditView<N>::do_display(Rect frame) {
             return ImGui::ColorEdit3("##color-edit", value.data(), flags);
         else return ImGui::ColorEdit4("##color-edit", value.data(), flags);
     });
+    pop_control_colors();
     if (changed) state.set(value);
 }
 

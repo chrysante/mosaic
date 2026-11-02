@@ -12,10 +12,13 @@
 
 using namespace mosaic;
 
-static void apply_style(StyleType type, StyleDesc const& style) {
-    auto& g_style = get_global_style_write();
-    g_style = compute_from_desc(style, type);
-    apply_to_imgui(g_style);
+void StyleSystem::apply_style(StyleType type, StyleDesc const& style_desc) {
+    assert(
+        m_active_style_context.stacks_empty() &&
+        "Must only do this when style mod stack is empty. Otherwise pops will override the modifications here.");
+    m_active_style_context.m_style = m_active_style_ref =
+        compute_from_desc(style_desc, type);
+    apply_to_imgui(m_active_style_ref);
 }
 
 void StyleSystem::init() {
@@ -35,8 +38,8 @@ void StyleSystem::load_style(std::filesystem::path path) {
     nlohmann::json object;
     try {
         file >> object;
-        m_active_style = object.get<StyleDesc>();
-
+        m_active_style_desc = object.get<StyleDesc>();
+        apply_style(m_active_style_type, m_active_style_desc);
     } catch (nlohmann::json::exception const& e) {
         Logger::error("Failed to parse style file: {} ({})",
                       m_active_style_path.string(), e.what());
@@ -46,12 +49,18 @@ void StyleSystem::load_style(std::filesystem::path path) {
 
 void StyleSystem::set_style_type(StyleType type) {
     m_active_style_type = type;
-    apply_style(m_active_style_type, m_active_style);
+    apply_style(m_active_style_type, m_active_style_desc);
 }
 
 void StyleSystem::set_style(StyleDesc style_desc) {
-    m_active_style = style_desc;
-    apply_style(m_active_style_type, m_active_style);
+    m_active_style_desc = style_desc;
+    apply_style(m_active_style_type, m_active_style_desc);
+}
+
+void StyleSystem::set_style(StyleDesc style_desc, StyleType style_type) {
+    m_active_style_desc = style_desc;
+    m_active_style_type = style_type;
+    apply_style(m_active_style_type, m_active_style_desc);
 }
 
 nlohmann::json StyleSystem::save_config() const {

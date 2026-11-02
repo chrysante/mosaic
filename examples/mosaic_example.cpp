@@ -248,6 +248,8 @@ private:
             if (ImGui::Button("Application Settings")) show_app_settings = true;
             if (ImGui::Button("Properties Test")) show_properties_test = true;
             if (ImGui::Button("Style Editor")) show_style_editor = true;
+            if (ImGui::Button("ImGui Style Editor"))
+                show_imgui_style_editor = true;
             if (ImGui::Button("View Test")) show_view_test = true;
             if (ImGui::Button("View Test 2")) ui_test.show();
         }
@@ -268,6 +270,11 @@ private:
             if (visible) style_editor.draw();
             ImGui::End();
         }
+        if (show_imgui_style_editor) {
+            if (ImGui::Begin("ImGui Style Editor", &show_imgui_style_editor))
+                ImGui::ShowStyleEditor();
+            ImGui::End();
+        }
         if (show_view_test) display_view_test(&show_view_test);
         ui_test.display();
     }
@@ -280,6 +287,7 @@ private:
     bool show_app_settings = false;
     bool show_properties_test = false;
     bool show_style_editor = false;
+    bool show_imgui_style_editor = false;
     UiTest ui_test;
     bool show_view_test = false;
     StyleEditor style_editor;

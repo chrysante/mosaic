@@ -146,6 +146,7 @@ ApplicationImpl::ApplicationImpl(Application& app)
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager(),
                  .icon_manager = service_context.icon_manager(),
+                 .style_system = service_context.style_system(),
                  .run_mode_controller = run_mode_controller}
     , panel_manager(service_context)
 #ifndef NDEBUG

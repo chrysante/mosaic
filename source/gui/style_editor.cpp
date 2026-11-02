@@ -5,18 +5,17 @@
 #include <memory>
 
 #include <imgui.h>
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 
 #include "application/resource_util.h"
 #include "gui/containers.h"
-#include "gui/icon.h"
 #include "gui/property_editor.h"
 #include "gui/style.h"
 #include "gui/style_desc.h"
 #include "gui/toolbar.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
-#include "nlohmann/json_fwd.hpp"
 #include "service/style_system.h"
 #include "support/logger.h"
 #include "support/memory.h"
@@ -24,10 +23,28 @@
 using namespace mosaic;
 using namespace ui;
 
+namespace {
+
+struct DeferQueue {
+    void defer(std::function<void()> f) {
+        dispatch_items.push_back(std::move(f));
+    }
+
+    void pump() {
+        for (auto& f : dispatch_items)
+            f();
+        dispatch_items.clear();
+    }
+
+    std::vector<std::function<void()>> dispatch_items;
+};
+
+} // namespace
+
 struct mosaic::internal::StyleEditorImpl {
     StyleEditorImpl(StyleSystem& style_system)
         : style_system(style_system)
-        , style_desc(style_system.active_style())
+        , style_desc(style_system.active_style_desc())
         , style_type(style_system.active_style_type()) {
         init();
     }
@@ -36,7 +53,10 @@ struct mosaic::internal::StyleEditorImpl {
 
     void save();
     void save_as();
-    void apply() { style_system.set_style(style_desc); }
+    void apply() {
+        defer_queue.defer(
+            [this] { style_system.set_style(style_desc, style_type); });
+    }
 
     void save_style(std::filesystem::path path, StyleDesc style);
 
@@ -51,6 +71,17 @@ struct mosaic::internal::StyleEditorImpl {
             });
     }
 
+    Property<vml::float3> bind_modifier(ColorModifier& mod) {
+        return computed(
+            [&mod] -> vml::float3 {
+                return {mod.saturation_scale, mod.value_scale, mod.alpha_scale};
+            },
+            [&](vml::float3 new_value) {
+                mod = {new_value.x, new_value.y, new_value.z};
+                apply();
+            });
+    }
+
     Property<float> bind_float(float& value) {
         return computed([&value] { return value; },
                         [&](float new_value) {
@@ -61,46 +92,72 @@ struct mosaic::internal::StyleEditorImpl {
 
     Owner<View> mod_edit(std::string name, ColorModifier& light,
                          ColorModifier& dark) {
-        auto two_slider = [this](auto& light, auto& dark) {
-            return hstack({slider<float>(bind_float(light), 0.0f, 4.0f),
-                           slider<float>(bind_float(dark), 0.0f, 4.0f)}) |
-                   hfill;
-        };
-        return vstack(
-                   {property(name + ".Saturation",
-                             two_slider(light.saturation_scale,
-                                        dark.saturation_scale)),
-                    property(name + ".Value",
-                             two_slider(light.value_scale, dark.value_scale)),
-                    property(name + ".Alpha", two_slider(light.alpha_scale,
-                                                         dark.alpha_scale))}) |
-               hfill;
+        return property(
+            name, hstack({
+                      slider<vml::float3>(bind_modifier(light), 0.0f, 1.0f),
+                      slider<vml::float3>(bind_modifier(dark), 0.0f, 1.0f),
+                  }) | hfill);
+    }
+
+    Owner<View> field(std::string name, ColorDesc& light, ColorDesc& dark) {
+        return property(std::move(name),
+                        hstack({color_edit(bind_color(light)),
+                                color_edit(bind_color(dark))}) |
+                            hfill);
     }
 
     Owner<View> field(std::string name, ControlColorDesc& light,
                       ControlColorDesc& dark) {
-        auto two_color = hstack({color_edit(bind_color(light.base)),
-                                 color_edit(bind_color(dark.base))}) |
-                         hfill;
-        return property(std::move(name),
-                        vstack({
-                            property("Base", std::move(two_color)),
-                            mod_edit("Hovered", light.hovered, dark.hovered),
-                            mod_edit("Active", light.active, dark.active),
-                        }) | hfill);
+        auto two_color = [this](auto& light, auto& dark) {
+            return hstack({color_edit(bind_color(light)),
+                           color_edit(bind_color(dark))}) |
+                   hfill;
+        };
+        return property(
+            std::move(name),
+            vstack({property("Background",
+                             two_color(light.background, dark.background)),
+                    property("Background Hovered",
+                             two_color(light.background_hovered,
+                                       dark.background_hovered)),
+                    property("Background Active",
+                             two_color(light.background_active,
+                                       dark.background_active)),
+                    property("Border", two_color(light.border, dark.border)),
+                    property("Text", two_color(light.text, dark.text))}) |
+                hfill);
     }
 
-    Owner<View> colors(StyleDesc::Colors* colors) {
-        return section({field("Control", colors[0].control, colors[1].control),
-                        field("Control Accent", colors[0].control_accent,
-                              colors[1].control_accent)});
+    Owner<View> editor_view() {
+        ViewContainer<> base_colors, control_colors;
+
+        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
+            StyleColor index = (StyleColor)j;
+            std::string name(magic_enum::enum_name(index));
+            base_colors.push_back(field(name, style_desc.color[0][index],
+                                        style_desc.color[1][index]));
+        }
+
+        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
+            StyleColorControl index = (StyleColorControl)j;
+            std::string name(magic_enum::enum_name(index));
+            control_colors.push_back(field(name,
+                                           style_desc.control_color[0][index],
+                                           style_desc.control_color[1][index]));
+        }
+
+        return vscroll({section("Base Colors", std::move(base_colors)),
+                        section("Control Colors", std::move(control_colors))});
     }
+
+    void update() { defer_queue.pump(); }
 
     StyleSystem& style_system;
     std::string open_file_path;
     StyleDesc style_desc;
     StyleType style_type;
     Owner<ui::View> view;
+    DeferQueue defer_queue;
 };
 
 using mosaic::internal::StyleEditorImpl;
@@ -110,7 +167,7 @@ void StyleEditorImpl::init() {
         combo(computed([&] { return (int)style_type; },
                        [&](int new_value) {
                            style_type = (StyleType)new_value;
-                           style_system.set_style_type(style_type);
+                           apply();
                        }),
               computed([&] -> std::string {
                   return style_type == StyleType::light ? "Light" : "Dark";
@@ -126,9 +183,7 @@ void StyleEditorImpl::init() {
                      spacer(), std::move(style_type_combo)}) |
         fixed_height(38);
     ui::internal::set_toolbar_padding(toolbar.get(), {6.0f, 6.0f, 6.0f, 6.0f});
-
-    auto editor_view = vscroll({colors(style_desc.color)});
-    view = vstack({std::move(toolbar), std::move(editor_view)}) | hfill | vfill;
+    view = vstack({std::move(toolbar), editor_view()}) | hfill | vfill;
 }
 
 void StyleEditorImpl::save() {
@@ -160,4 +215,5 @@ StyleEditor::~StyleEditor() = default;
 void StyleEditor::draw() {
     m_impl->view->display(
         {ImGui::GetCursorScreenPos(), ImGui::GetContentRegionAvail()});
+    m_impl->update();
 }

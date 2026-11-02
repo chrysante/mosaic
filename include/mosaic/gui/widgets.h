@@ -43,11 +43,8 @@ MOSAIC_EXPORT Owner<View> text_input(std::string* buffer,
 
 MOSAIC_EXPORT Owner<View> icon(Property<Icon const> icon);
 
-struct ButtonOptions { ControlColor const* color = nullptr; };
-
 MOSAIC_EXPORT Owner<View> button(Property<std::string const> label,
-                                 std::function<void()> action = {},
-                                 ButtonOptions options = {});
+                                 std::function<void()> action = {});
 
 MOSAIC_EXPORT Owner<View> button(Property<Icon const> icon,
                                  std::function<void()> action = {});
