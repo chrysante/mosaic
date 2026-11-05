@@ -316,6 +316,11 @@ void Window::platform_constructor(WindowDesc const& desc) {
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
         window.window = this;
+        if (Window* parent = desc.parent_window) {
+            MosaicWindow* native_parent =
+                GET_WINDOW_IMPL(*parent).native_window;
+            [native_parent addChildWindow:window ordered:NSWindowAbove];
+        }
         NSRect content_rect = [window contentRectForFrameRect:frame];
         MosaicView* content_view = [[MosaicView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,

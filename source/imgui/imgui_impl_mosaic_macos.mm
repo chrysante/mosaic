@@ -574,6 +574,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
     // We can create multi-viewports on the Platform side (optional)
     io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;
+    io.BackendFlags |= ImGuiBackendFlags_HasParentViewport;
     io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport;
 
     auto& main_window = *app.main_window();
@@ -1263,6 +1264,11 @@ static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
         if (!have_deco) return none;
         return resizable | closable | minimizable | zoomable;
     }();
+    auto* parent_window = [&] -> mosaic::Window* {
+        ImGuiViewport* parent_viewport = viewport->ParentViewport;
+        if (!parent_viewport) return nullptr;
+        return (mosaic::Window*)parent_viewport->PlatformHandle;
+    }();
     mosaic::WindowStyle style = {
         .decoration = decoration,
         .capabilities = capabilities,
@@ -1276,6 +1282,7 @@ static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
             .focusable = (flags & ImGuiViewportFlags_NoFocusOnClick) == 0,
             .focused = (flags & ImGuiViewportFlags_NoFocusOnAppearing) == 0,
             .topmost = (flags & ImGuiViewportFlags_TopMost) != 0,
+            .parent_window = parent_window,
             .style = style};
 }
 

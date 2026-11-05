@@ -7,6 +7,8 @@
 
 namespace mosaic {
 
+class Window;
+
 enum class WindowDecoration {
     none,
     normal,
@@ -71,6 +73,8 @@ struct WindowDesc {
 
     /// Whether the window should stay above normal windows.
     bool topmost = false;
+
+    Window* parent_window = nullptr;
 
     WindowStyle style;
 };
