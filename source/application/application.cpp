@@ -148,7 +148,7 @@ ApplicationImpl::ApplicationImpl(Application& app)
                  .icon_manager = service_context.icon_manager(),
                  .style_system = service_context.style_system(),
                  .run_mode_controller = run_mode_controller}
-    , panel_manager(service_context)
+    , tool_manager(service_context)
 #ifndef NDEBUG
     , debugger(std::make_unique<ApplicationDebugger>(app))
 #endif
@@ -275,7 +275,7 @@ namespace config_key {
 
 static constexpr std::string_view application = "application";
 static constexpr std::string_view window_geometry = "window_geometry";
-static constexpr std::string_view panels = "panels";
+static constexpr std::string_view tools = "tools";
 static constexpr std::string_view style = "style";
 
 } // namespace config_key
@@ -285,7 +285,7 @@ nlohmann::json ApplicationImpl::serialize_settings() {
     object[config_key::application] = app.save_settings();
     if (auto* main_window = app.main_window())
         object[config_key::window_geometry] = main_window->geometry();
-    object[config_key::panels] = panel_manager.save_settings();
+    object[config_key::tools] = tool_manager.save_config();
     object[config_key::style] = service_context.style_system().save_config();
     return object;
 }
@@ -296,8 +296,8 @@ void ApplicationImpl::deserialize_settings(nlohmann::json const& base) {
     if (auto geo = json_find<WindowGeometry>(base, config_key::window_geometry))
         if (auto* main_window = app.main_window())
             main_window->set_geometry(geo.value());
-    if (auto* settings = json_find(base, config_key::panels))
-        panel_manager.load_settings(*settings);
+    if (auto* config = json_find(base, config_key::tools))
+        tool_manager.load_config(*config);
     if (auto* config = json_find(base, config_key::style))
         service_context.style_system().load_config(*config);
 }

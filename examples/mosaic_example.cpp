@@ -17,9 +17,6 @@
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/icon.h>
 #include <mosaic/gui/layout.h>
-#include <mosaic/gui/panel.h>
-#include <mosaic/gui/panel_manager.h>
-#include <mosaic/gui/panel_registry.h>
 #include <mosaic/gui/run_mode_controller.h>
 #include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
@@ -38,6 +35,7 @@ static void display_properties_test(bool* open);
 static void draw_test_properties(char const* str_id);
 static void display_view_test(bool* open);
 
+#if 0
 static bool SliderFloatOnRelease(const char* label, float* value, float min,
                                  float max, const char* format = "%.3f",
                                  ImGuiSliderFlags flags = 0) {
@@ -192,6 +190,7 @@ private:
 };
 
 MOSAIC_REGISTER_VIEW(ExamplePanel, {.name = "ExamplePanel"})
+#endif
 
 class ExampleApp : public Application {
 public:
@@ -225,17 +224,9 @@ public:
             ui::button(ui::lucide_icon("search"))
         }));
         dockspace.set_right_toolbar(ui::toolbar({
-            ui::button(ui::lucide_icon("bell"), [this] { 
-                event_emitter.publish(PanelManager::OpenCommand{
-                    .name = "ExamplePanel"
-                });
-            }),
+            ui::button(ui::lucide_icon("bell")),
             ui::spacer(),
-            ui::button(ui::lucide_icon("layers-plus"), [this] { 
-                event_emitter.publish(PanelManager::OpenCommand{
-                    .name = "MosaicDemoPanel"
-                });
-            })
+            ui::button(ui::lucide_icon("layers-plus"))
         }));
         // clang-format on
     }

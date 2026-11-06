@@ -1,5 +1,6 @@
 #pragma once
 
+#include "service/service_context.h"
 #include <any>
 #include <concepts>
 #include <memory>
@@ -16,7 +17,7 @@ enum class ToolOpenPolicy { open, open_or_find };
 
 class ToolManager {
 public:
-    ToolManager();
+    explicit ToolManager(ServiceContext& service_context);
     ~ToolManager();
 
     template <typename ToolId, typename ToolData>
@@ -30,9 +31,9 @@ public:
 
     void update();
 
-    nlohmann::json save_settings() const;
+    nlohmann::json save_config() const;
 
-    void load_settings(nlohmann::json const&);
+    void load_config(nlohmann::json const&);
 
 private:
     std::unique_ptr<internal::ToolManagerImpl> m_impl;

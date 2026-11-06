@@ -14,6 +14,7 @@
 #include "gui/panel.h"
 #include "gui/panel_manager.h"
 #include "gui/toolbar.h"
+#include "gui/view.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -88,9 +89,7 @@ void PanelRenderer::begin_frame() {
 }
 
 static std::string make_imgui_id(Panel const& view) {
-    auto id = utl::strcat(view.title(), "###", view.type_name(), "_",
-                          view.panel_id().instance);
-    return id;
+    return utl::strcat(view.title(), "##", (void const*)&view);
 }
 
 static ui::Rect compute_toolbar_frame(RuntimePanelState state) {
@@ -122,8 +121,6 @@ static void display_toolbar(ui::View* toolbar, ui::Rect frame,
     auto* DL = ImGui::GetWindowDrawList();
     DL->AddRectFilled(line_min, line_max,
                       ImGui::GetColorU32(ImGuiCol_Separator));
-    ImGui::SetCursorScreenPos(
-        {frame.origin.x, frame.origin.y + frame.size.y + separator_size});
     if (state.frame.docked || state.persistent.window_dragging) {
         ImRect toolbar_rect(frame.origin, frame.origin + frame.size);
         dock_titlebar_behaviour(toolbar_rect, state.persistent.window_dragging);
@@ -148,14 +145,15 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     }
 
     ImGui::SetNextWindowClass(&window_class);
+#if 0
     ImGui::SetNextWindowSizeConstraints(panel.panel_class().min_size,
                                         {FLT_MAX, FLT_MAX});
     ImGui::SetNextWindowPos(panel.panel_class().default_position,
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(panel.panel_class().default_size,
                              ImGuiCond_FirstUseEver);
-    vml::float2 window_padding = panel.padding();
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, window_padding);
+#endif
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     std::string imgui_id = make_imgui_id(panel);
     bool open_state = true;
     bool visible = ImGui::Begin(imgui_id.c_str(), &open_state, flags);
@@ -165,19 +163,18 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     auto& state = update_and_get_runtime_state(panel);
     if (!visible) return {};
     if (!uses_toolbar) {
-        float title_height = ImGui::GetCurrentWindowRead()->TitleBarHeight;
-        vml::float2 content_pos = float2{0.0f, title_height};
-        ImGui::SetCursorPos(content_pos + window_padding);
-        panel.display();
+        vml::float2 cursor_pos = ImGui::GetCursorScreenPos();
+        vml::float2 size = ImGui::GetContentRegionAvail();
+        if (auto* view = panel.view()) view->display({cursor_pos, size});
     } else {
-        auto toolbar_frame = compute_toolbar_frame(state);
-        float total_height =
+        ui::Rect toolbar_frame = compute_toolbar_frame(state);
+        float toolbar_height =
             toolbar_frame.size.y + ImGui::GetStyle().SeparatorSize;
         vml::float2 content_pos = {ImGui::GetWindowPos().x,
-                                   toolbar_frame.origin.y + total_height};
-        ImGui::SetCursorScreenPos(content_pos + window_padding);
-        // ImGui::Dummy({});
-        panel.display();
+                                   toolbar_frame.origin.y + toolbar_height};
+        vml::float2 size = ImGui::GetContentRegionAvail();
+        size.y -= toolbar_height;
+        if (auto* view = panel.view()) view->display({content_pos, size});
         if (auto* toolbar = panel.toolbar())
             display_toolbar(toolbar, toolbar_frame, state);
     }

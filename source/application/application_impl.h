@@ -12,6 +12,7 @@
 #include "gui/ui_context.h"
 #include "service/event_receiver.h"
 #include "service/service_context.h"
+#include "tool/tool_manager.h"
 
 #define APPLICATION_IMPL_TYPE ApplicationImpl
 
@@ -87,6 +88,7 @@ struct internal::ApplicationImpl {
     int input_callback_id = 0;
     CommandPalette command_palette;
     PanelManager panel_manager;
+    ToolManager tool_manager;
 #ifndef NDEBUG
     std::unique_ptr<ApplicationDebugger> debugger;
 #endif

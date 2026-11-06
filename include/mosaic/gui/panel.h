@@ -1,42 +1,24 @@
 #pragma once
 
-#include <any>
 #include <string>
 
-#include <nlohmann/json_fwd.hpp>
-#include <vml/vml.hpp>
-
-#include <mosaic/gui/command_palette.h>
-#include <mosaic/gui/panel_id.h>
-#include <mosaic/gui/view.h>
-#include <mosaic/service/event_emitter.h>
-#include <mosaic/service/event_receiver.h>
 #include <mosaic/support/memory.h>
 
 namespace mosaic {
 
-class ServiceContext;
 class PanelManager;
-class PanelRegistryEntry;
 class PanelRenderer;
-struct InputEvent;
+namespace ui { class View; }
 
-class Panel {
+class Panel final {
 public:
-    virtual ~Panel() = default;
+    ~Panel();
 
     Panel(Panel const&) = delete;
     Panel& operator=(Panel const&) = delete;
 
-    PanelClass const& panel_class() const { return *panel_id().panel_class; }
-
-    PanelId const& panel_id() const { return m_panel_id; }
-
-    std::string const& type_name() const { return panel_class().name; }
-
     /// User-visible title.
     std::string const& title() const { return m_title; }
-
     void set_title(std::string title) { m_title = std::move(title); }
 
     bool hidden() const { return m_hidden; }
@@ -44,8 +26,6 @@ public:
     void toggle_hidden() { set_hidden(!hidden()); }
 
     bool maximized() const { return m_maximized; }
-    /// These are semantic operations. PanelManager/renderer performs the
-    /// actual platform/ImGui work.
     void set_maximized(bool value) { m_maximized = value; }
     void maximize() { set_maximized(true); }
     void restore() { set_maximized(false); }
@@ -54,81 +34,32 @@ public:
     bool close_requested() const { return m_close_requested; }
     void request_close() { m_close_requested = true; }
 
-    bool focused() const { return m_runtime.focused; }
+    bool focused() const { return m_focused; }
     void take_focus() { m_focus_requested = true; }
 
-    /// Padding used by the ImGui renderer.
-    vml::float2 padding() const;
-
-    /// Use a negative value for the default value
-    void set_padding(vml::float2 padding) { m_padding = padding; }
-
-    void set_bg_color(std::optional<vml::float4> color) { m_bg_color = color; }
-
-    std::optional<vml::float4> const& bg_color() const { return m_bg_color; }
-
-    CommandPalette const& command_palette() const { return m_command_palette; }
-
-    /// Converts between the screen-space and view-space coordinate systems.
-    vml::float2 screen_space_to_view_space(vml::float2 p) const;
-    vml::float2 view_space_to_screen_space(vml::float2 p) const;
-
-    void send_data(std::any data) { receive_data(std::move(data)); }
-
+    ui::View* view() const { return m_view.get(); }
     ui::View* toolbar() const { return m_toolbar.get(); }
 
-protected:
-    Panel() = default;
+    void set_toolbar(Owner<ui::View> toolbar);
 
-    CommandPalette& command_palette_write() { return m_command_palette; }
-
-    void set_toolbar(Owner<ui::View> toolbar) {
-        m_toolbar = std::move(toolbar);
-    }
+    void set_view(Owner<ui::View> view);
 
 private:
     friend class PanelManager;
-    friend class PanelRegistryEntry;
     friend class PanelRenderer;
 
-    struct RuntimeState {
-        bool focused = false;
-        bool hovered = false;
-    };
+    Panel();
+    static std::unique_ptr<Panel> create_panel();
 
-    void initialize(PanelId panel_id, ServiceContext& services);
-    void destroy();
-
-    void set_focused_from_renderer(bool value) { m_runtime.focused = value; }
-
-    /// Called once after construction and framework initialization.
-    virtual void on_create() {}
-    /// Called once before destruction.
-    virtual void on_destroy() {}
-    /// Called every frame while the view is visible.
-    virtual void display() = 0;
-
-    virtual nlohmann::json save_settings() const;
-    virtual void load_settings(nlohmann::json const&) {}
-
-    virtual void receive_data(std::any) {}
-
-    PanelId m_panel_id;
     std::string m_title;
     bool m_hidden = false;
     bool m_maximized = false;
-    vml::float2 m_padding = {-1.0f, -1.0f};
-    std::optional<vml::float4> m_bg_color;
-
     bool m_close_requested = false;
     bool m_focus_requested = false;
-
-    ServiceContext* m_services = nullptr;
-    EventReceiver m_event_receiver;
-    EventEmitter m_event_emitter;
-    CommandPalette m_command_palette;
+    bool m_focused = false;
+    bool m_hovered = false;
     Owner<ui::View> m_toolbar;
-    RuntimeState m_runtime;
+    Owner<ui::View> m_view;
 };
 
 } // namespace mosaic

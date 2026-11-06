@@ -4,6 +4,7 @@
 #include <cassert>
 #include <functional>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 
@@ -14,13 +15,21 @@
 
 namespace mosaic {
 
+class ServiceContext;
 class Tool;
 
 template <typename... Setters> using ToolAssocData = std::tuple<Setters...>;
 
-struct ToolRegistryEntry {
-    std::function<Owner<Tool>()> factory;
-    std::function<void(Tool&, std::any)> data_setter;
+class ToolRegistryEntry {
+public:
+    virtual ~ToolRegistryEntry() = default;
+
+    virtual ToolClass const* tool_class() const = 0;
+
+    virtual Owner<Tool> create(std::uint64_t instance_id,
+                               ServiceContext& service_context) const = 0;
+
+    virtual void set_data(Tool& tool, std::any data) const = 0;
 };
 
 class ToolRegistry {
@@ -30,11 +39,14 @@ public:
     void register_tool(std::function<Owner<Tool>()> factory,
                        ToolAssocData<Setters...> actions = {});
 
-    ToolRegistryEntry* find_entry(ToolClass const* tool_class);
+    ToolRegistryEntry const* find_entry(ToolClass const* tool_class) const;
+
+    ToolRegistryEntry const* find_entry(std::string name) const;
 
 private:
     utl::hashmap<ToolClass const*, std::unique_ptr<ToolRegistryEntry>>
         m_entries;
+    utl::hashmap<std::string, ToolClass const*> m_name_map;
 };
 
 ToolRegistry& get_global_tool_registry();
@@ -76,18 +88,42 @@ void mosaic::ToolRegistry::register_tool(
     ToolAssocData<Setters...> data_setters) {
     static constexpr std::size_t num_actions = sizeof...(Setters);
     [&]<std::size_t... I>(std::index_sequence<I...>) {
-        auto data_setter = [data_setters](Tool& tool, std::any data) {
-            auto* derived = dynamic_cast<ToolType*>(&tool);
-            assert(derived);
-            bool success =
-                (... || internal::try_set_tool_data(
-                            *derived, std::get<I>(data_setters), data));
-            assert(success);
+        struct RegEntryImpl final : ToolRegistryEntry {
+            explicit RegEntryImpl(std::function<Owner<Tool>()> factory,
+                                  ToolAssocData<Setters...> data_setters)
+                : factory(std::move(factory))
+                , data_setters(std::move(data_setters)) {}
+
+            ToolClass const* tool_class() const override {
+                return &ToolId::tool_class;
+            }
+
+            Owner<Tool> create(std::uint64_t instance_id,
+                               ServiceContext& service_context) const override {
+                auto tool = factory();
+                tool->m_tool_id = {&ToolId::tool_class, instance_id};
+                tool->m_service_context = &service_context;
+                return tool;
+            }
+
+            void set_data(Tool& tool, std::any data) const override {
+                auto* derived = dynamic_cast<ToolType*>(&tool);
+                assert(derived);
+                bool success =
+                    (... || internal::try_set_tool_data(
+                                *derived, std::get<I>(data_setters), data));
+                assert(success);
+            }
+
+            std::function<Owner<Tool>()> factory;
+            ToolAssocData<Setters...> data_setters;
         };
-        auto entry = allocate<ToolRegistryEntry>(
-            ToolRegistryEntry{std::move(factory), std::move(data_setter)});
+
+        auto entry =
+            allocate<RegEntryImpl>(std::move(factory), std::move(data_setters));
         ToolClass const* tool_class = &ToolId::tool_class;
-        auto [itr, success] = m_entries.emplace(tool_class, std::move(entry));
+        bool success = m_entries.emplace(tool_class, std::move(entry)).second;
+        success &= m_name_map.emplace(tool_class->name, tool_class).second;
         assert(success);
     }(std::make_index_sequence<num_actions>{});
 }
