@@ -16,6 +16,7 @@
 #include <utl/vector.hpp>
 #include <vml/vml.hpp>
 
+#include <mosaic/support/geometry.h>
 #include <mosaic/support/memory.h>
 
 namespace mosaic::ui {
@@ -76,17 +77,6 @@ constexpr auto operator|(ViewPipeAdapter<Action1> adapter1,
 // =============================================================================
 // Layout primitives
 // =============================================================================
-
-struct Rect {
-    // The top-left corner of the rectangle (by convention)
-    vml::float2 min() const { return origin; }
-
-    // The bottom-right corner of the rectangle (by convention)
-    vml::float2 max() const { return origin + size; }
-
-    vml::float2 origin;
-    vml::float2 size;
-};
 
 /// Determines the starting size used when allocating space to a fill child.
 ///

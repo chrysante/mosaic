@@ -14,6 +14,7 @@
 #include "gui/panel.h"
 #include "gui/toolbar.h"
 #include "gui/view.h"
+#include "support/geometry.h"
 
 using namespace mosaic;
 using namespace vml::short_types;
@@ -91,7 +92,7 @@ static std::string make_imgui_id(Panel const& view) {
     return utl::strcat(view.title(), "##", (void const*)&view);
 }
 
-static ui::Rect compute_toolbar_frame(RuntimePanelState state) {
+static Rect compute_toolbar_frame(RuntimePanelState state) {
     auto* imgui_window = ImGui::GetCurrentWindowRead();
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
@@ -108,7 +109,7 @@ static ui::Rect compute_toolbar_frame(RuntimePanelState state) {
     };
 }
 
-static void display_toolbar(ui::View* toolbar, ui::Rect frame,
+static void display_toolbar(ui::View* toolbar, Rect frame,
                             RuntimePanelState state) {
     ui::internal::set_toolbar_padding(toolbar, {6.0f, 6.0f, 6.0f, 6.0f});
     toolbar->display(frame);
@@ -166,7 +167,7 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
         vml::float2 size = ImGui::GetContentRegionAvail();
         if (auto* view = panel.view()) view->display({cursor_pos, size});
     } else {
-        ui::Rect toolbar_frame = compute_toolbar_frame(state);
+        Rect toolbar_frame = compute_toolbar_frame(state);
         float toolbar_height =
             toolbar_frame.size.y + ImGui::GetStyle().SeparatorSize;
         vml::float2 content_pos = {ImGui::GetWindowPos().x,

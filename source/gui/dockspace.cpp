@@ -252,13 +252,12 @@ static utl::small_vector<float, 2> find_toolbar_splits(Window& window,
     }
 }
 
-static void draw_toolbars(ui::Rect frame,
-                          std::span<ui::View* const, 3> toolbars,
+static void draw_toolbars(Rect frame, std::span<ui::View* const, 3> toolbars,
                           std::span<float const> widths) {
     vml::float2 pos_offset1 = {widths[0], 0.0f};
     vml::float2 pos_offset2 = {widths[0] + widths[1], 0.0f};
 
-    ui::Rect toolbar_frames[3] = {
+    Rect toolbar_frames[3] = {
         {frame.origin, {widths[0], frame.size.y}},
         {frame.origin + pos_offset1, {widths[1], frame.size.y}},
         {frame.origin + pos_offset2, {widths[2], frame.size.y}}};
@@ -267,7 +266,7 @@ static void draw_toolbars(ui::Rect frame,
         toolbars[i]->display(toolbar_frames[i]);
 }
 
-static void toolbar_layout_one(ui::Rect frame,
+static void toolbar_layout_one(Rect frame,
                                std::span<ui::View* const, 3> toolbars,
                                std::span<float const> splits) {
     assert(splits.empty());
@@ -277,7 +276,7 @@ static void toolbar_layout_one(ui::Rect frame,
     draw_toolbars(frame, toolbars, {{t0_width, t1_width, t2_width}});
 }
 
-static void toolbar_layout_two(ui::Rect frame,
+static void toolbar_layout_two(Rect frame,
                                std::span<ui::View* const, 3> toolbars,
                                std::span<float const> splits) {
     assert(splits.size() == 1);
@@ -300,7 +299,7 @@ static void toolbar_layout_two(ui::Rect frame,
     }
 }
 
-static void toolbar_layout_three(ui::Rect frame,
+static void toolbar_layout_three(Rect frame,
                                  std::span<ui::View* const, 3> toolbars,
                                  std::span<float const> splits) {
     assert(splits.size() == 2);
@@ -345,8 +344,8 @@ static void toolbar_window(float2 position, float2 size,
     ImGui::PopStyleVar();
     if (!open) return;
 
-    ui::Rect frame = {{position.x + insets[0], position.y},
-                      {size.x - insets[0] - insets[1], size.y}};
+    Rect frame = {{position.x + insets[0], position.y},
+                  {size.x - insets[0] - insets[1], size.y}};
 
     // Window content
     auto padding = dockspace_resolve_toolbar_padding();
