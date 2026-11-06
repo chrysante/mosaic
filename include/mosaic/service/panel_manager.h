@@ -9,6 +9,7 @@ struct InputEvent;
 class Panel;
 class PanelRenderer;
 class PanelHandle;
+struct PanelGeometry;
 
 class PanelManager {
 public:
@@ -25,7 +26,7 @@ public:
     Panel* focused_panel() { return m_focused_panel; }
     Panel const* focused_panel() const { return m_focused_panel; }
 
-    PanelHandle create_panel();
+    PanelHandle create_panel(PanelGeometry initial_geometry);
 
 #ifndef NDEBUG
     void draw_debugger();

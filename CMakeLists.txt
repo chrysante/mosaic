@@ -244,6 +244,7 @@ target_sources(mosaic PRIVATE
     source/service/service_context.cpp
     source/service/style_system.cpp
     source/service/thread_pool.cpp
+    source/support/geometry.cpp
     source/support/json_support.cpp
     source/support/logger.cpp
     source/tool/demo_tool.cpp

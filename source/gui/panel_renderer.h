@@ -26,7 +26,7 @@ public:
 
 private:
     RuntimePanelState& runtime_state(Panel const& panel);
-    RuntimePanelState& update_and_get_runtime_state(Panel const& panel);
+    RuntimePanelState& update_and_get_runtime_state(Panel& panel);
 
     utl::hashmap<Panel const*, RuntimePanelState> m_runtime;
     utl::hashset<ImGuiViewport const*> m_viewports_with_native_toolbar;

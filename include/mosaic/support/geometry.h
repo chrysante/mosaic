@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nlohmann/json_fwd.hpp>
 #include <vml/vml.hpp>
 
 namespace mosaic {
@@ -14,5 +15,8 @@ struct Rect {
     vml::float2 origin;
     vml::float2 size;
 };
+
+void to_json(nlohmann::json&, Rect const&);
+void from_json(nlohmann::json const&, Rect&);
 
 } // namespace mosaic

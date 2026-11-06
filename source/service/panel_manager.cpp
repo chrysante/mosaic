@@ -71,7 +71,7 @@ bool PanelManager::on_input(InputEvent& event) {
     return false;
 }
 
-PanelHandle PanelManager::create_panel() {
-    m_panels.push_back(Panel::create_panel());
+PanelHandle PanelManager::create_panel(PanelGeometry initial_geometry) {
+    m_panels.push_back(Panel::create_panel(initial_geometry));
     return PanelHandle(m_panels.back().get());
 }

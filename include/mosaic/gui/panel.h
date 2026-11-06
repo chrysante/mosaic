@@ -1,7 +1,12 @@
 #pragma once
 
+#include <cfloat>
 #include <string>
 
+#include <nlohmann/json_fwd.hpp>
+#include <vml/vml.hpp>
+
+#include <mosaic/support/geometry.h>
 #include <mosaic/support/memory.h>
 
 namespace mosaic {
@@ -12,6 +17,22 @@ namespace ui { class View; }
 namespace internal { struct PanelDeleter; }
 
 class PanelHandle;
+
+struct PanelSizeConstraints {
+    vml::float2 min_size = {300.0f, 300.0f};
+    vml::float2 max_size = {FLT_MAX, FLT_MAX};
+};
+
+void to_json(nlohmann::json&, PanelSizeConstraints const&);
+void from_json(nlohmann::json const&, PanelSizeConstraints&);
+
+struct PanelGeometry {
+    Rect frame = {.origin = {500.0f, 500.0f}, .size = {800.0f, 600.0f}};
+    PanelSizeConstraints size_constraints;
+};
+
+void to_json(nlohmann::json&, PanelGeometry const&);
+void from_json(nlohmann::json const&, PanelGeometry&);
 
 class Panel final {
 public:
@@ -47,14 +68,21 @@ public:
 
     void set_view(Owner<ui::View> view);
 
+    PanelSizeConstraints const& size_constraints() const {
+        return m_geometry.size_constraints;
+    }
+
+    PanelGeometry const& geometry() const { return m_geometry; }
+
 private:
     friend class PanelManager;
     friend class PanelRenderer;
     friend struct mosaic::internal::PanelDeleter;
 
-    Panel();
-    static std::unique_ptr<Panel> create_panel();
+    explicit Panel(PanelGeometry initial_geometry);
+    static std::unique_ptr<Panel> create_panel(PanelGeometry initial_geometry);
 
+    PanelGeometry m_geometry;
     std::string m_title;
     bool m_hidden = false;
     bool m_maximized = false;

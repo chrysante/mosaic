@@ -59,7 +59,7 @@ static void dock_titlebar_behaviour(ImRect toolbar_bb, bool& dragging) {
 }
 
 struct mosaic::RuntimePanelState {
-    struct Frame {
+    struct Transient {
         bool focused = false;
         bool hovered = false;
         bool docked = false;
@@ -67,7 +67,7 @@ struct mosaic::RuntimePanelState {
 
         //
         bool docked_last_frame = false;
-    } frame;
+    } transient;
 
     struct Persistent {
         bool apply_initial_geometry = true;
@@ -81,9 +81,9 @@ PanelRenderer::~PanelRenderer() = default;
 
 void PanelRenderer::begin_frame() {
     for (auto& [view, state] : m_runtime) {
-        bool docked_last_frame = state.frame.docked;
-        state.frame = {};
-        state.frame.docked_last_frame = docked_last_frame;
+        bool docked_last_frame = state.transient.docked;
+        state.transient = {};
+        state.transient.docked_last_frame = docked_last_frame;
     }
     m_viewports_with_native_toolbar.clear();
 }
@@ -97,7 +97,7 @@ static Rect compute_toolbar_frame(RuntimePanelState state) {
     auto* window = get_window_from_viewport(imgui_window->Viewport);
     float width = imgui_window->Size.x;
     float offset_y = ImGui::GetCursorPosY() - imgui_window->WindowPadding.y;
-    if (!window || !state.frame.wants_native_toolbar) {
+    if (!window || !state.transient.wants_native_toolbar) {
         return {{imgui_window->Pos.x, imgui_window->Pos.y + offset_y},
                 {width, 38.0f}};
     }
@@ -121,7 +121,7 @@ static void display_toolbar(ui::View* toolbar, Rect frame,
     auto* DL = ImGui::GetWindowDrawList();
     DL->AddRectFilled(line_min, line_max,
                       ImGui::GetColorU32(ImGuiCol_Separator));
-    if (state.frame.docked || state.persistent.window_dragging) {
+    if (state.transient.docked || state.persistent.window_dragging) {
         ImRect toolbar_rect(frame.origin, frame.origin + frame.size);
         dock_titlebar_behaviour(toolbar_rect, state.persistent.window_dragging);
     }
@@ -140,19 +140,16 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     if (uses_toolbar) {
         flags |= ImGuiWindowFlags_NoTitleBar;
         auto const& state = runtime_state(panel);
-        if (!state.frame.docked_last_frame && !state.persistent.window_dragging)
+        if (!state.transient.docked_last_frame &&
+            !state.persistent.window_dragging)
             flags |= ImGuiWindowFlags_NoMove;
     }
-
     ImGui::SetNextWindowClass(&window_class);
-#if 0
-    ImGui::SetNextWindowSizeConstraints(panel.panel_class().min_size,
-                                        {FLT_MAX, FLT_MAX});
-    ImGui::SetNextWindowPos(panel.panel_class().default_position,
-                            ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(panel.panel_class().default_size,
-                             ImGuiCond_FirstUseEver);
-#endif
+    auto const& geometry = panel.geometry();
+    ImGui::SetNextWindowSizeConstraints(geometry.size_constraints.min_size,
+                                        geometry.size_constraints.max_size);
+    ImGui::SetNextWindowPos(geometry.frame.origin, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(geometry.frame.size, ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     std::string imgui_id = make_imgui_id(panel);
     bool open_state = true;
@@ -178,26 +175,28 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
         if (auto* toolbar = panel.toolbar())
             display_toolbar(toolbar, toolbar_frame, state);
     }
-    return {.focused = state.frame.focused};
+    return {.focused = state.transient.focused};
 }
 
 // This must be called after ImGui::Begin()
-RuntimePanelState&
-PanelRenderer::update_and_get_runtime_state(Panel const& panel) {
+RuntimePanelState& PanelRenderer::update_and_get_runtime_state(Panel& panel) {
     auto& state = runtime_state(panel);
     // This is the first point at which the ImGuiWindow belongs to us.
     auto* imgui_window = ImGui::GetCurrentWindowRead();
+    panel.m_geometry.frame.origin = imgui_window->Pos;
+    panel.m_geometry.frame.size = imgui_window->Size;
     auto* viewport = imgui_window->Viewport;
-    auto& frame = state.frame;
-    frame.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
-                    !ImGui::FindBlockingModal(imgui_window);
-    frame.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
-    frame.docked = imgui_window->DockIsActive;
+    auto& transient = state.transient;
+    transient.focused =
+        ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
+        !ImGui::FindBlockingModal(imgui_window);
+    transient.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+    transient.docked = imgui_window->DockIsActive;
     bool in_main_viewport = viewport == ImGui::GetMainViewport();
-    frame.wants_native_toolbar =
+    transient.wants_native_toolbar =
         !in_main_viewport && imgui_window == imgui_window->Viewport->Window &&
         panel.toolbar() != nullptr;
-    if (frame.wants_native_toolbar)
+    if (transient.wants_native_toolbar)
         m_viewports_with_native_toolbar.insert(viewport);
     return state;
 }
