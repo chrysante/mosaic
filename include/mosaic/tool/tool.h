@@ -11,10 +11,11 @@ namespace mosaic {
 
 class ServiceContext;
 class ToolManager;
+class PanelHandle;
 
 class Tool {
 public:
-    virtual ~Tool() = default;
+    virtual ~Tool();
 
     ToolId tool_id() const { return m_tool_id; }
 
@@ -26,7 +27,7 @@ public:
     CommandPalette const& command_palette() const { return m_command_palette; }
 
 protected:
-    Tool() = default;
+    Tool();
 
     CommandPalette& command_palette_write() { return m_command_palette; }
 
@@ -50,6 +51,7 @@ private:
     ToolId m_tool_id;
     ServiceContext* m_service_context = nullptr;
     CommandPalette m_command_palette;
+    std::vector<PanelHandle> m_panels;
 };
 
 } // namespace mosaic

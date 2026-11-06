@@ -1,4 +1,4 @@
-#include "gui/panel_manager.h"
+#include "service/panel_manager.h"
 
 #include <imgui.h>
 
@@ -69,4 +69,9 @@ bool PanelManager::on_input(InputEvent& event) {
 
     (void)event;
     return false;
+}
+
+PanelHandle PanelManager::create_panel() {
+    m_panels.push_back(Panel::create_panel());
+    return PanelHandle(m_panels.back().get());
 }

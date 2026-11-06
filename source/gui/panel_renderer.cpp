@@ -12,7 +12,6 @@
 #include "application/window.h"
 #include "application/window_desc.h"
 #include "gui/panel.h"
-#include "gui/panel_manager.h"
 #include "gui/toolbar.h"
 #include "gui/view.h"
 
@@ -159,7 +158,7 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     bool visible = ImGui::Begin(imgui_id.c_str(), &open_state, flags);
     utl::scope_guard guard = [] { ImGui::End(); };
     ImGui::PopStyleVar();
-    if (!open_state) panel.request_close();
+    if (!open_state) panel.m_close_requested = true;
     auto& state = update_and_get_runtime_state(panel);
     if (!visible) return {};
     if (!uses_toolbar) {

@@ -6,6 +6,7 @@
 #include <mosaic/service/event_system.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/icon_manager.h>
+#include <mosaic/service/panel_manager.h>
 #include <mosaic/service/style_system.h>
 #include <mosaic/service/thread_pool.h>
 
@@ -23,6 +24,8 @@ public:
 
     EventEmitter make_event_emitter();
 
+    PanelManager& panel_manager() { return m_panel_manager; }
+
     FontManager& font_manager() { return m_font_manager; }
 
     IconManager& icon_manager() { return m_icon_manager; }
@@ -35,6 +38,7 @@ private:
     ThreadPool m_thread_pool;
     WorkDispatcher m_dispatcher;
     std::shared_ptr<EventSystem> m_event_system;
+    PanelManager m_panel_manager;
     FontManager m_font_manager;
     IconManager m_icon_manager;
     StyleSystem m_style_system;

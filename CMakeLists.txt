@@ -221,7 +221,6 @@ target_sources(mosaic PRIVATE
     source/gui/layout.cpp
     source/gui/panel.cpp
     source/gui/panel_demo.cpp
-    source/gui/panel_manager.cpp
     source/gui/panel_renderer.cpp
     source/gui/property_editor.cpp
     source/gui/ui_context.cpp
@@ -241,6 +240,7 @@ target_sources(mosaic PRIVATE
     source/service/event_system.cpp
     source/service/font_manager.cpp
     source/service/icon_manager.cpp
+    source/service/panel_manager.cpp
     source/service/service_context.cpp
     source/service/style_system.cpp
     source/service/thread_pool.cpp

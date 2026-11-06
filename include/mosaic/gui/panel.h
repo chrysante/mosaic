@@ -9,6 +9,9 @@ namespace mosaic {
 class PanelManager;
 class PanelRenderer;
 namespace ui { class View; }
+namespace internal { struct PanelDeleter; }
+
+class PanelHandle;
 
 class Panel final {
 public:
@@ -47,6 +50,7 @@ public:
 private:
     friend class PanelManager;
     friend class PanelRenderer;
+    friend struct mosaic::internal::PanelDeleter;
 
     Panel();
     static std::unique_ptr<Panel> create_panel();
@@ -63,3 +67,13 @@ private:
 };
 
 } // namespace mosaic
+
+struct mosaic::internal::PanelDeleter {
+    void operator()(Panel* panel) const { panel->m_close_requested = true; }
+};
+
+class mosaic::PanelHandle
+    : public std::unique_ptr<Panel, mosaic::internal::PanelDeleter> {
+public:
+    using unique_ptr::unique_ptr;
+};

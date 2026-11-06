@@ -8,10 +8,7 @@ namespace mosaic {
 struct InputEvent;
 class Panel;
 class PanelRenderer;
-
-namespace internal { struct PanelDeleter; }
-
-using PanelHandle = std::unique_ptr<Panel, internal::PanelDeleter>;
+class PanelHandle;
 
 class PanelManager {
 public:

@@ -368,7 +368,8 @@ void ApplicationImpl::on_input(InputEventUnion const& event) {
 void ApplicationImpl::do_frame() {
     service_context.m_dispatcher.process_main_thread_tasks();
     app.frame();
-    panel_manager.display();
+    tool_manager.update();
+    service_context.panel_manager().display();
 #ifndef NDEBUG
     debugger->display();
 #endif
