@@ -12,4 +12,6 @@ struct ToolId {
     std::uint64_t instance = -1;
 };
 
+enum class ToolOpenPolicy { open, open_or_find };
+
 }; // namespace mosaic

@@ -233,6 +233,7 @@ target_sources(mosaic PRIVATE
     source/gui/view_debugger.cpp
     source/gui/view_support.cpp
     source/gui/widgets.cpp
+    source/service/command_system.cpp
     source/service/completion.cpp
     source/service/dispatcher.cpp
     source/service/event_emitter.cpp

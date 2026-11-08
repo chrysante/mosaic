@@ -27,14 +27,27 @@ void mosaic::from_json(nlohmann::json const& j, PanelGeometry& v) {
     v.frame = json_find(j, "frame", v.frame);
 }
 
-Panel::Panel(PanelGeometry initial_geometry)
-    : m_geometry(initial_geometry) {}
-
-std::unique_ptr<Panel> Panel::create_panel(PanelGeometry initial_geometry) {
-    return std::unique_ptr<Panel>(new Panel(initial_geometry));
+void Panel::request_close() {
+    if (m_delegate) m_close_requested = m_delegate->on_close_request();
+    else m_close_requested = true;
 }
 
-Panel::~Panel() = default;
+void Panel::command_close() { m_close_requested = true; }
+
+Panel::Panel(PanelDesc const& desc, std::unique_ptr<PanelDelegate> delegate)
+    : m_geometry(desc.geometry)
+    , m_title(desc.title)
+    , m_delegate(std::move(delegate)) {}
+
+std::unique_ptr<Panel>
+Panel::create_panel(PanelDesc const& desc,
+                    std::unique_ptr<PanelDelegate> delegate) {
+    return std::unique_ptr<Panel>(new Panel(desc, std::move(delegate)));
+}
+
+Panel::~Panel() {
+    if (m_delegate) m_delegate->on_destroy();
+}
 
 void Panel::set_toolbar(Owner<ui::View> toolbar) {
     m_toolbar = std::move(toolbar);

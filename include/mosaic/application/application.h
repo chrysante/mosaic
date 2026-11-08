@@ -12,6 +12,7 @@ namespace mosaic {
 class CommandPalette;
 class Input;
 class ServiceContext;
+class ToolManager;
 class Window;
 
 namespace internal { struct ApplicationImpl; }
@@ -41,6 +42,9 @@ public:
 
     /// \returns the applications service context
     ServiceContext& service_context();
+
+    /// \returns the applications tool manager
+    ToolManager& tool_manager();
 
     /// \returns the applications input manager
     Input& input();

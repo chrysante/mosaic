@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <mosaic/service/command_system.h>
 #include <mosaic/service/dispatcher.h>
 #include <mosaic/service/event_system.h>
 #include <mosaic/service/font_manager.h>
@@ -16,13 +17,13 @@ namespace internal { struct ApplicationImpl; }
 
 class ServiceContext {
 public:
-    ServiceContext();
-
     WorkDispatcher& dispatcher() { return m_dispatcher; }
 
     EventReceiver make_event_receiver();
 
     EventEmitter make_event_emitter();
+
+    CommandSystem& command_system() { return m_command_system; }
 
     PanelManager& panel_manager() { return m_panel_manager; }
 
@@ -33,11 +34,14 @@ public:
     StyleSystem& style_system() { return m_style_system; }
 
 private:
+    ServiceContext();
+
     friend struct internal::ApplicationImpl;
 
     ThreadPool m_thread_pool;
     WorkDispatcher m_dispatcher;
     std::shared_ptr<EventSystem> m_event_system;
+    CommandSystem m_command_system;
     PanelManager m_panel_manager;
     FontManager m_font_manager;
     IconManager m_icon_manager;

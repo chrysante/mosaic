@@ -1,6 +1,7 @@
 #include "service/panel_manager.h"
 
 #include <imgui.h>
+#include <utl/vector.hpp>
 
 #include "application/input_event.h"
 #include "gui/panel.h"
@@ -18,16 +19,20 @@ PanelManager::PanelManager()
 PanelManager::~PanelManager() = default;
 
 void PanelManager::process_deferred_operations() {
-    std::erase_if(m_panels, [](auto& p) { return p->close_requested(); });
+    std::erase_if(m_panels, [](auto& p) { return p->m_close_requested; });
 }
 
 void PanelManager::display() {
     process_deferred_operations();
+    utl::small_vector<Panel*> panels;
+    panels.reserve(m_panels.size());
+    for (auto& panel : m_panels)
+        panels.push_back(panel.get());
     renderer->begin_frame();
     m_focused_panel = nullptr;
-    for (auto& panel : m_panels) {
+    for (Panel* panel : panels) {
         auto result = renderer->render_panel(*panel);
-        if (result.focused) m_focused_panel = panel.get();
+        if (result.focused) m_focused_panel = panel;
     }
     renderer->end_frame();
     process_deferred_operations();
@@ -71,7 +76,13 @@ bool PanelManager::on_input(InputEvent& event) {
     return false;
 }
 
-PanelHandle PanelManager::create_panel(PanelGeometry initial_geometry) {
-    m_panels.push_back(Panel::create_panel(initial_geometry));
-    return PanelHandle(m_panels.back().get());
+Handle<Panel>
+PanelManager::create_panel(PanelDesc const& desc,
+                           std::unique_ptr<PanelDelegate> delegate) {
+    m_panels.push_back(Panel::create_panel(desc, std::move(delegate)));
+    auto* panel = m_panels.back().get();
+    return make_handle<Panel>(panel, [](Panel* panel) {
+        panel->command_close();
+        panel->m_delegate = nullptr;
+    });
 }

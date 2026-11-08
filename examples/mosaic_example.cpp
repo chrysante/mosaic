@@ -1,4 +1,3 @@
-#include "mosaic/gui/view_support.h"
 #include <cfloat>
 #include <string>
 
@@ -25,6 +24,7 @@
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
+#include <mosaic/tool/demo_tool.h>
 
 #include "view_test.h"
 
@@ -214,7 +214,9 @@ public:
                 text = "Clicked toolbar button"; 
             }),
             ui::spacer(), 
-            ui::button(ui::lucide_icon("play"), [this] { text = "Clicked toolbar button"; })
+            ui::button(ui::lucide_icon("play"), [this] { 
+                text = "Clicked toolbar button";
+            })
         }));
         dockspace.set_center_toolbar(ui::toolbar({
             ui::button(ui::lucide_icon("info"), [this] { show_demo_window = true; }) |
@@ -226,7 +228,11 @@ public:
         dockspace.set_right_toolbar(ui::toolbar({
             ui::button(ui::lucide_icon("bell")),
             ui::spacer(),
-            ui::button(ui::lucide_icon("layers-plus"))
+            ui::button(ui::lucide_icon("layers-plus"), [this]{
+                service_context().command_system()
+                    .submit(demo_tool_open_command(ToolOpenPolicy::open, 
+                                                   {.message="Hello World"}));
+            })
         }));
         // clang-format on
     }

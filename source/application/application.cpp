@@ -23,6 +23,7 @@
 #include "application/window_impl.h"
 #include "gui/appearance_internal.h"
 #include "gui/font.h"
+#include "service/command_system.h"
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/icon_manager.h"
 #include "service/service_context.h"
@@ -122,6 +123,8 @@ Window const* Application::main_window() const {
 ServiceContext& Application::service_context() {
     return m_impl->service_context;
 }
+
+ToolManager& Application::tool_manager() { return m_impl->tool_manager; }
 
 Input& Application::input() { return m_impl->input; }
 
@@ -370,6 +373,7 @@ void ApplicationImpl::do_frame() {
     app.frame();
     tool_manager.update();
     service_context.panel_manager().display();
+    service_context.command_system().process(app);
 #ifndef NDEBUG
     debugger->display();
 #endif

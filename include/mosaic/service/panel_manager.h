@@ -3,13 +3,15 @@
 #include <memory>
 #include <vector>
 
+#include <mosaic/support/memory.h>
+
 namespace mosaic {
 
 struct InputEvent;
 class Panel;
 class PanelRenderer;
-class PanelHandle;
-struct PanelGeometry;
+class PanelDelegate;
+struct PanelDesc;
 
 class PanelManager {
 public:
@@ -26,7 +28,8 @@ public:
     Panel* focused_panel() { return m_focused_panel; }
     Panel const* focused_panel() const { return m_focused_panel; }
 
-    PanelHandle create_panel(PanelGeometry initial_geometry);
+    Handle<Panel> create_panel(PanelDesc const& desc,
+                               std::unique_ptr<PanelDelegate> delegate);
 
 #ifndef NDEBUG
     void draw_debugger();

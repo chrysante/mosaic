@@ -1,9 +1,15 @@
 #include "tool/tool_manager.h"
 
 #include <concepts>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/scope_guard.hpp>
+
+#ifndef NDEBUG
+#include <imgui.h>
+#endif
 
 #include "service/service_context.h"
 #include "support/json_support.h"
@@ -11,20 +17,26 @@
 #include "support/memory.h"
 #include "tool/tool.h"
 #include "tool/tool_registry.h"
-#include "utl/scope_guard.hpp"
 
 using namespace mosaic;
 
 using ToolMap = utl::hashmap<std::uint64_t, Owner<Tool>>;
 
-struct internal::ToolManagerImpl {
-    ToolManagerImpl(ServiceContext& service_context)
+struct ToolManager::Impl {
+    Impl(ServiceContext& service_context)
         : service_context(service_context) {}
 
-    void for_each_tool(std::invocable<Tool&> auto&& callback) {
+    void for_each_tool(std::invocable<ToolClass const*, std::uint64_t,
+                                      Tool&> auto&& callback) {
         for (auto& [tool_class, map] : tools)
             for (auto& [instance, tool] : map)
-                callback(*tool);
+                std::invoke(callback, tool_class, instance, *tool);
+    }
+
+    void for_each_tool(std::invocable<Tool&> auto&& callback) {
+        for_each_tool([&](ToolClass const*, std::uint64_t, Tool& tool) {
+            std::invoke(callback, tool);
+        });
     }
 
     std::uint64_t new_instance_id(ToolClass const* tool_class) const;
@@ -32,21 +44,25 @@ struct internal::ToolManagerImpl {
     Tool* find_open_tool(ToolClass const* tool_class);
     Tool* open_new_tool(ToolClass const* tool_class);
     Tool* find_by_id(ToolId tool_id);
+    Tool* create_tool(ToolRegistryEntry const& entry,
+                      std::uint64_t instance_id);
+    void kill_tool(ToolClass const*, std::uint64_t instance_id);
+    void defer(std::function<void()> operation);
+    void process_deferred_operations();
 
     ServiceContext& service_context;
     utl::hashmap<ToolClass const*, ToolMap> tools;
     bool in_update = false;
+    std::vector<std::function<void()>> deferred_operations, def_op_back_buffer;
 };
 
-using internal::ToolManagerImpl;
-
 ToolManager::ToolManager(ServiceContext& service_context)
-    : m_impl(std::make_unique<ToolManagerImpl>(service_context)) {}
+    : m_impl(std::make_unique<Impl>(service_context)) {}
 
 ToolManager::~ToolManager() = default;
 
 std::uint64_t
-ToolManagerImpl::new_instance_id(ToolClass const* tool_class) const {
+ToolManager::Impl::new_instance_id(ToolClass const* tool_class) const {
     auto map_itr = tools.find(tool_class);
     if (map_itr == tools.end()) return 0;
     auto& map = map_itr->second;
@@ -56,7 +72,7 @@ ToolManagerImpl::new_instance_id(ToolClass const* tool_class) const {
     return id;
 }
 
-Tool* ToolManagerImpl::insert_tool(ToolId tool_id, Owner<Tool> tool) {
+Tool* ToolManager::Impl::insert_tool(ToolId tool_id, Owner<Tool> tool) {
     assert(tool != nullptr);
     auto* result = tool.get();
     auto [_, success] =
@@ -65,27 +81,26 @@ Tool* ToolManagerImpl::insert_tool(ToolId tool_id, Owner<Tool> tool) {
     return result;
 }
 
-Tool* ToolManagerImpl::find_open_tool(ToolClass const* tool_class) {
+Tool* ToolManager::Impl::find_open_tool(ToolClass const* tool_class) {
     auto itr = tools.find(tool_class);
     if (itr == tools.end()) return nullptr;
     auto& list = itr->second;
     return list.empty() ? nullptr : list.begin()->second.get();
 }
 
-Tool* ToolManagerImpl::open_new_tool(ToolClass const* tool_class) {
+Tool* ToolManager::Impl::open_new_tool(ToolClass const* tool_class) {
     auto& registry = get_global_tool_registry();
     auto* entry = registry.find_entry(tool_class);
     if (!entry) {
         Logger::error("Cannot open tool: does not exist");
         return nullptr;
     }
-    std::uint64_t instance = new_instance_id(tool_class);
-    auto tool = entry->create(instance, service_context);
-    auto tool_id = tool->tool_id();
-    return insert_tool(tool_id, std::move(tool));
+    Tool* tool = create_tool(*entry, new_instance_id(tool_class));
+    tool->on_create();
+    return tool;
 }
 
-Tool* ToolManagerImpl::find_by_id(ToolId tool_id) {
+Tool* ToolManager::Impl::find_by_id(ToolId tool_id) {
     auto map_itr = tools.find(tool_id.tool_class);
     if (map_itr == tools.end()) return nullptr;
     auto& map = map_itr->second;
@@ -93,8 +108,36 @@ Tool* ToolManagerImpl::find_by_id(ToolId tool_id) {
     return itr != map.end() ? itr->second.get() : nullptr;
 }
 
-void ToolManager::open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
-                            std::any data) {
+Tool* ToolManager::Impl::create_tool(ToolRegistryEntry const& entry,
+                                     std::uint64_t instance_id) {
+    auto tool = entry.create(instance_id, service_context);
+    auto tool_id = tool->tool_id();
+    return insert_tool(tool_id, std::move(tool));
+}
+
+void ToolManager::Impl::kill_tool(ToolClass const* tool_class,
+                                  std::uint64_t instance_id) {
+    auto map_itr = tools.find(tool_class);
+    assert(map_itr != tools.end());
+    auto& map = map_itr->second;
+    bool success = map.erase(instance_id) == 1;
+    assert(success);
+    if (map.empty()) tools.erase(map_itr);
+}
+
+void ToolManager::Impl::defer(std::function<void()> operation) {
+    deferred_operations.push_back(std::move(operation));
+}
+
+void ToolManager::Impl::process_deferred_operations() {
+    std::swap(deferred_operations, def_op_back_buffer);
+    for (auto& operation : def_op_back_buffer)
+        operation();
+    def_op_back_buffer.clear();
+}
+
+Tool* ToolManager::open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
+                             std::any data) {
     assert(!m_impl->in_update &&
            "Must not call ToolManager::open_tool() in the update loop");
     auto* tool = [&] {
@@ -113,12 +156,22 @@ void ToolManager::open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
         assert(entry);
         entry->set_data(*tool, std::move(data));
     }
+    return tool;
 }
 
 void ToolManager::update() {
+    m_impl->process_deferred_operations();
     m_impl->in_update = true;
-    utl::scope_guard update_end = [&] { m_impl->in_update = false; };
-    m_impl->for_each_tool([](Tool& tool) { tool.update(); });
+    m_impl->for_each_tool(
+        [&](ToolClass const* tool_class, std::uint64_t instance, Tool& tool) {
+            tool.update();
+            if (tool.m_kill_requested)
+                m_impl->defer([tool_class, instance, this] {
+                    m_impl->kill_tool(tool_class, instance);
+                });
+        });
+    m_impl->in_update = false;
+    m_impl->process_deferred_operations();
 }
 
 static nlohmann::json serialize(ToolId const& tool_id) {
@@ -188,10 +241,37 @@ void ToolManager::load_config(nlohmann::json const& root) {
                 "Failed to deserialize tool: instance ID already taken");
             continue;
         }
-        auto tool =
-            registry_entry->create(tool_id.instance, m_impl->service_context);
+        Tool* tool = m_impl->create_tool(*registry_entry, tool_id.instance);
         if (auto* state = json_find(node, config_key::state))
             tool->load_config(*state);
-        m_impl->insert_tool(tool_id, std::move(tool));
+        tool->on_create();
     }
 }
+
+#ifndef NDEBUG
+void ToolManager::draw_debugger() {
+    for (auto& [tool_class, map] : m_impl->tools) {
+        if (!ImGui::TreeNodeEx(tool_class->name.c_str(),
+                               ImGuiTreeNodeFlags_DefaultOpen))
+            continue;
+        for (auto& [instance, tool] : map) {
+            if (!tool) {
+                ImGui::BulletText("[%u] NULL", (unsigned)instance);
+                continue;
+            }
+            ImGui::PushID(static_cast<int>(instance));
+            ImGui::Bullet();
+            ImGui::SameLine();
+            ImGui::Text("[%u]", (unsigned)instance);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%p)", static_cast<void const*>(tool.get()));
+            ImGui::SameLine();
+            if (ImGui::Button("Kill"))
+                m_impl->defer(
+                    [=, this] { m_impl->kill_tool(tool_class, instance); });
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+}
+#endif // NDEBUG

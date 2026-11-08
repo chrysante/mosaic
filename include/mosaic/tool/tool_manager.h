@@ -1,6 +1,5 @@
 #pragma once
 
-#include "service/service_context.h"
 #include <any>
 #include <concepts>
 #include <memory>
@@ -11,9 +10,8 @@
 
 namespace mosaic {
 
-namespace internal { struct ToolManagerImpl; }
-
-enum class ToolOpenPolicy { open, open_or_find };
+class ServiceContext;
+class Tool;
 
 class ToolManager {
 public:
@@ -21,13 +19,13 @@ public:
     ~ToolManager();
 
     template <typename ToolId, typename ToolData>
-    requires std::same_as<typename ToolData::ToolId, ToolId> void
+    requires std::same_as<typename ToolData::ToolId, ToolId> Tool*
     open_tool(ToolOpenPolicy policy, std::any data) {
-        open_tool(&ToolId::tool_class, policy, std::move(data));
+        return open_tool(&ToolId::tool_class, policy, std::move(data));
     }
 
-    void open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
-                   std::any data);
+    Tool* open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
+                    std::any data = {});
 
     void update();
 
@@ -35,8 +33,14 @@ public:
 
     void load_config(nlohmann::json const&);
 
+#ifndef NDEBUG
+    void draw_debugger();
+#endif // NDEBUG
+
 private:
-    std::unique_ptr<internal::ToolManagerImpl> m_impl;
+    struct Impl;
+
+    std::unique_ptr<Impl> m_impl;
 };
 
 } // namespace mosaic

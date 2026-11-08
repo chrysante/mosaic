@@ -5,13 +5,14 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <mosaic/gui/command_palette.h>
+#include <mosaic/service/application_command.h>
 #include <mosaic/tool/tool_class.h>
+#include <mosaic/tool/tool_registry.h>
 
 namespace mosaic {
 
 class ServiceContext;
 class ToolManager;
-class PanelHandle;
 
 class Tool {
 public:
@@ -25,6 +26,8 @@ public:
     }
 
     CommandPalette const& command_palette() const { return m_command_palette; }
+
+    void request_kill() { m_kill_requested = true; }
 
 protected:
     Tool();
@@ -50,8 +53,26 @@ private:
 
     ToolId m_tool_id;
     ServiceContext* m_service_context = nullptr;
+    bool m_kill_requested = false;
     CommandPalette m_command_palette;
-    std::vector<PanelHandle> m_panels;
 };
+
+namespace internal {
+Tool* create_tool(Application& app, ToolClass const* tool_class,
+                  ToolOpenPolicy policy);
+}
+
+template <typename ToolType, std::invocable<ToolType&> Callback>
+ApplicationCommand make_tool_open_command(ToolOpenPolicy policy,
+                                          Callback callback) {
+    return ApplicationCommand::create(
+        [policy, callback = std::move(callback)](Application& app) {
+            Tool* t = mosaic::internal::create_tool(app, &ToolType::tool_class,
+                                                    policy);
+            auto* tool = dynamic_cast<ToolType*>(t);
+            assert(tool);
+            callback(*tool);
+        });
+}
 
 } // namespace mosaic

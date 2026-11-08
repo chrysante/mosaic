@@ -34,8 +34,7 @@ public:
 
 class ToolRegistry {
 public:
-    template <typename ToolType, typename ToolId = ToolType::ToolId,
-              typename... Setters>
+    template <typename ToolType, typename... Setters>
     void register_tool(std::function<Owner<Tool>()> factory,
                        ToolAssocData<Setters...> actions = {});
 
@@ -82,7 +81,7 @@ bool try_set_tool_data(ToolType& tool, Action& action, std::any& data) {
 }
 } // namespace mosaic::internal
 
-template <typename ToolType, typename ToolId, typename... Setters>
+template <typename ToolType, typename... Setters>
 void mosaic::ToolRegistry::register_tool(
     std::function<Owner<Tool>()> factory,
     ToolAssocData<Setters...> data_setters) {
@@ -95,13 +94,13 @@ void mosaic::ToolRegistry::register_tool(
                 , data_setters(std::move(data_setters)) {}
 
             ToolClass const* tool_class() const override {
-                return &ToolId::tool_class;
+                return &ToolType::tool_class;
             }
 
             Owner<Tool> create(std::uint64_t instance_id,
                                ServiceContext& service_context) const override {
                 auto tool = factory();
-                tool->m_tool_id = {&ToolId::tool_class, instance_id};
+                tool->m_tool_id = {&ToolType::tool_class, instance_id};
                 tool->m_service_context = &service_context;
                 return tool;
             }
@@ -121,7 +120,7 @@ void mosaic::ToolRegistry::register_tool(
 
         auto entry =
             allocate<RegEntryImpl>(std::move(factory), std::move(data_setters));
-        ToolClass const* tool_class = &ToolId::tool_class;
+        ToolClass const* tool_class = &ToolType::tool_class;
         bool success = m_entries.emplace(tool_class, std::move(entry)).second;
         success &= m_name_map.emplace(tool_class->name, tool_class).second;
         assert(success);

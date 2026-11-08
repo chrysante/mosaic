@@ -19,6 +19,7 @@
 #include "gui/view_debugger.h"
 #include "service/panel_manager.h"
 #include "support/enum.h"
+#include "tool/tool_manager.h"
 
 using namespace mosaic;
 
@@ -80,6 +81,8 @@ void ApplicationDebugger::display_debuggers() {
         if (ImGui::CollapsingHeader("Windows")) draw_window_debugger();
         if (ImGui::CollapsingHeader("Input Events")) draw_event_debugger();
         if (ImGui::CollapsingHeader("Input")) draw_input_debugger();
+        if (ImGui::CollapsingHeader("Tool Manager"))
+            GET_APP_IMPL(app).tool_manager.draw_debugger();
         if (ImGui::CollapsingHeader("Panel Manager"))
             GET_APP_IMPL(app).service_context.panel_manager().draw_debugger();
         if (ImGui::CollapsingHeader("Frame Scheduler"))

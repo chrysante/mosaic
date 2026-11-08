@@ -14,9 +14,6 @@ namespace mosaic {
 class PanelManager;
 class PanelRenderer;
 namespace ui { class View; }
-namespace internal { struct PanelDeleter; }
-
-class PanelHandle;
 
 struct PanelSizeConstraints {
     vml::float2 min_size = {300.0f, 300.0f};
@@ -33,6 +30,18 @@ struct PanelGeometry {
 
 void to_json(nlohmann::json&, PanelGeometry const&);
 void from_json(nlohmann::json const&, PanelGeometry&);
+
+struct PanelDesc {
+    PanelGeometry geometry;
+    std::string title;
+};
+
+class PanelDelegate {
+public:
+    virtual ~PanelDelegate() = default;
+    virtual void on_destroy() {}
+    virtual bool on_close_request() { return true; }
+};
 
 class Panel final {
 public:
@@ -55,8 +64,11 @@ public:
     void restore() { set_maximized(false); }
     void toggle_maximized() { set_maximized(!maximized()); }
 
-    bool close_requested() const { return m_close_requested; }
-    void request_close() { m_close_requested = true; }
+    /// Request the panel to close. Delegate is asked for confirmation
+    void request_close();
+
+    /// Command the panel to close. Delegate is not asked for confirmation
+    void command_close();
 
     bool focused() const { return m_focused; }
     void take_focus() { m_focus_requested = true; }
@@ -77,10 +89,12 @@ public:
 private:
     friend class PanelManager;
     friend class PanelRenderer;
-    friend struct mosaic::internal::PanelDeleter;
 
-    explicit Panel(PanelGeometry initial_geometry);
-    static std::unique_ptr<Panel> create_panel(PanelGeometry initial_geometry);
+    explicit Panel(PanelDesc const& desc,
+                   std::unique_ptr<PanelDelegate> delegate);
+    static std::unique_ptr<Panel>
+    create_panel(PanelDesc const& desc,
+                 std::unique_ptr<PanelDelegate> delegate);
 
     PanelGeometry m_geometry;
     std::string m_title;
@@ -92,16 +106,7 @@ private:
     bool m_hovered = false;
     Owner<ui::View> m_toolbar;
     Owner<ui::View> m_view;
+    std::unique_ptr<PanelDelegate> m_delegate;
 };
 
 } // namespace mosaic
-
-struct mosaic::internal::PanelDeleter {
-    void operator()(Panel* panel) const { panel->m_close_requested = true; }
-};
-
-class mosaic::PanelHandle
-    : public std::unique_ptr<Panel, mosaic::internal::PanelDeleter> {
-public:
-    using unique_ptr::unique_ptr;
-};

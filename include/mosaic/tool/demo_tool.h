@@ -2,18 +2,14 @@
 
 #include <string>
 
+#include <mosaic/service/application_command.h>
 #include <mosaic/tool/tool_class.h>
 
 namespace mosaic {
 
-struct DemoToolId {
-    static inline ToolClass const tool_class = {.name = "DemoTool"};
-};
+struct DemoToolOpenData { std::string message; };
 
-struct DemoToolOpenData {
-    using ToolId = DemoToolId;
-
-    std::string message;
-};
+ApplicationCommand demo_tool_open_command(ToolOpenPolicy policy,
+                                          DemoToolOpenData open_data);
 
 } // namespace mosaic
