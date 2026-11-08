@@ -136,27 +136,17 @@ void ToolManager::Impl::process_deferred_operations() {
     def_op_back_buffer.clear();
 }
 
-Tool* ToolManager::open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
-                             std::any data) {
+Tool* ToolManager::open_tool(ToolClass const* tool_class,
+                             ToolOpenPolicy policy) {
     assert(!m_impl->in_update &&
            "Must not call ToolManager::open_tool() in the update loop");
-    auto* tool = [&] {
-        switch (policy) {
-        case ToolOpenPolicy::open:
-            return m_impl->open_new_tool(tool_class);
-        case ToolOpenPolicy::open_or_find:
-            if (auto* result = m_impl->find_open_tool(tool_class))
-                return result;
-            return m_impl->open_new_tool(tool_class);
-        }
-    }();
-    if (tool && data.has_value()) {
-        auto& registry = get_global_tool_registry();
-        auto* entry = registry.find_entry(tool_class);
-        assert(entry);
-        entry->set_data(*tool, std::move(data));
+    switch (policy) {
+    case ToolOpenPolicy::open:
+        return m_impl->open_new_tool(tool_class);
+    case ToolOpenPolicy::open_or_find:
+        if (auto* result = m_impl->find_open_tool(tool_class)) return result;
+        return m_impl->open_new_tool(tool_class);
     }
-    return tool;
 }
 
 void ToolManager::update() {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <any>
-#include <concepts>
 #include <memory>
 
 #include <nlohmann/json_fwd.hpp>
@@ -18,14 +16,7 @@ public:
     explicit ToolManager(ServiceContext& service_context);
     ~ToolManager();
 
-    template <typename ToolId, typename ToolData>
-    requires std::same_as<typename ToolData::ToolId, ToolId> Tool*
-    open_tool(ToolOpenPolicy policy, std::any data) {
-        return open_tool(&ToolId::tool_class, policy, std::move(data));
-    }
-
-    Tool* open_tool(ToolClass const* tool_class, ToolOpenPolicy policy,
-                    std::any data = {});
+    Tool* open_tool(ToolClass const* tool_class, ToolOpenPolicy policy);
 
     void update();
 

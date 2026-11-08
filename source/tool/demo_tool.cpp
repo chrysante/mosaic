@@ -54,10 +54,7 @@ ToolClass const DemoTool::tool_class = {.name = "DemoTool"};
 
 UTL_STATIC_INIT {
     get_global_tool_registry().register_tool<DemoTool>(
-        [] { return allocate<DemoTool>(); },
-        ToolAssocData([](DemoTool& tool, DemoToolOpenData open_data) {
-            tool.message = std::move(open_data).message;
-        }));
+        [] { return allocate<DemoTool>(); });
 };
 
 void DemoTool::on_create() {
