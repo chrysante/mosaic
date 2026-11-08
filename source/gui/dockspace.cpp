@@ -282,7 +282,7 @@ static void toolbar_layout_two(Rect frame,
     assert(splits.size() == 1);
 
     float split = splits.front();
-    if (split >= 0.5f * frame.size.x) {
+    if (split >= frame.origin.x + 0.5f * frame.size.x) {
         // Left section is big
         float t0_width =
             toolbars[0]->calc_intrinsic_size({-1.0f, frame.size.y}).x;
