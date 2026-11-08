@@ -154,37 +154,6 @@ TEST_CASE("main-thread work queued during processing is deferred",
     REQUIRE(values == std::vector<int>{1, 2, 3});
 }
 
-TEST_CASE("main-thread waitable completion becomes ready after execution",
-          "[dispatcher][main-thread][completion]") {
-    DispatcherFixture fixture;
-    bool executed = false;
-    Completion completion =
-        fixture.dispatcher.on_main_thread_waitable([&] { executed = true; });
-    REQUIRE(completion);
-    REQUIRE_FALSE(completion.ready());
-    REQUIRE_FALSE(executed);
-    fixture.dispatcher.process_main_thread_tasks();
-    REQUIRE(executed);
-    REQUIRE(completion.ready());
-    completion.wait();
-}
-
-TEST_CASE("multiple main-thread waitable completions remain independent",
-          "[dispatcher][main-thread][completion]") {
-    DispatcherFixture fixture;
-    int count = 0;
-    Completion first =
-        fixture.dispatcher.on_main_thread_waitable([&] { count += 1; });
-    Completion second =
-        fixture.dispatcher.on_main_thread_waitable([&] { count += 1; });
-    REQUIRE_FALSE(first.ready());
-    REQUIRE_FALSE(second.ready());
-    fixture.dispatcher.process_main_thread_tasks();
-    REQUIRE(first.ready());
-    REQUIRE(second.ready());
-    REQUIRE(count == 2);
-}
-
 // ============================================================================
 // parallel_for
 // ============================================================================

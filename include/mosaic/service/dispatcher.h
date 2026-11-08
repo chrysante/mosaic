@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -37,14 +38,11 @@ class MOSAIC_EXPORT WorkDispatcher {
     using CompletionStatePool = dispatcher_impl::CompletionStatePool;
 
 public:
-    explicit WorkDispatcher(
-        ThreadPool& pool, std::size_t completion_states_per_page = 256) noexcept
+    explicit WorkDispatcher(ThreadPool& pool) noexcept
         : m_pool(pool)
-        , m_completion_pool(completion_states_per_page) {}
+        , m_main_thread_id(std::this_thread::get_id()) {}
 
-    ~WorkDispatcher() noexcept {
-        shutdown();
-    }
+    ~WorkDispatcher() noexcept { shutdown(); }
 
     WorkDispatcher(const WorkDispatcher&) = delete;
     WorkDispatcher& operator=(const WorkDispatcher&) = delete;
@@ -85,33 +83,24 @@ public:
         return Completion(std::move(completion));
     }
 
+    /// Execute \p function on the main thread.
+    ///
+    /// If this is called from the main thread, the function is invoked
+    /// immediately. Otherwise it will be passed to `on_main_thread_defer()`.
+    template <std::invocable F> void on_main_thread(F&& function) {
+        if (is_main_thread()) std::invoke(std::forward<F>(function));
+        else on_main_thread_defer(std::forward<F>(function));
+    }
+
     /// Queue work for execution by process_main_thread_tasks().
     ///
     /// Work submitted while process_main_thread_tasks() is executing is
     /// deferred until the next call.
-    template <std::invocable F> void on_main_thread(F&& function) {
+    template <std::invocable F> void on_main_thread_defer(F&& function) {
+        // TODO: notify the main thread somehow to run a frame (process the
+        // queue)
         std::lock_guard lock(m_main_mutex);
         m_main_thread_queue.emplace_back(std::forward<F>(function));
-    }
-
-    /// Queue work for the main thread and obtain a completion object.
-    ///
-    /// The returned Completion becomes ready after the queued function has
-    /// executed.
-    template <typename F> Completion on_main_thread_waitable(F&& function) {
-        CompletionStateHandle completion = acquire_completion(1);
-        CompletionStateHandle queued = completion;
-        {
-            std::lock_guard lock(m_main_mutex);
-            using Function = std::decay_t<F>;
-            m_main_thread_queue.emplace_back(
-                [fn = Function(std::forward<F>(function)),
-                 queued = std::move(queued)]() mutable noexcept {
-                    std::invoke(fn);
-                    queued.state()->complete_one();
-                });
-        }
-        return Completion(std::move(completion));
     }
 
     /// Execute the main-thread work that was queued before this call began.
@@ -119,6 +108,7 @@ public:
     /// Work queued by tasks executed during this call is deliberately left
     /// for the next call.
     void process_main_thread_tasks() noexcept {
+        assert(is_main_thread());
         std::deque<std::function<void()>> queue;
         {
             std::lock_guard lock(m_main_mutex);
@@ -254,9 +244,14 @@ private:
             });
     }
 
+    bool is_main_thread() const {
+        return std::this_thread::get_id() == m_main_thread_id;
+    }
+
     ThreadPool& m_pool;
     CompletionStatePool m_completion_pool;
     std::mutex m_main_mutex;
+    std::thread::id m_main_thread_id;
     std::deque<std::function<void()>> m_main_thread_queue;
 };
 

@@ -10,7 +10,7 @@ When a window is moved and released above a foreign window with another applicat
 
 
 ## Improvements
-- [ ] Make `WorkDispatcher::on_main_thread()` run the callback directly if called on the main thread.
+- [x] Make `WorkDispatcher::on_main_thread()` run the callback directly if called on the main thread.
 - [ ] Rework the state saving mechanism and clarify the semantics. There should probably be multiple kinds of state savings like config, documents, ...
 - [ ] Add transparent view wrappers for tooltips and decoration
 - [ ] Rewrite properties UI using the new `View` API
