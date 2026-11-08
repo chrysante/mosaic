@@ -5,9 +5,11 @@
 
 #include "application/debug_settings.h"
 #include "gui/font.h"
+#include "gui/run_mode_controller.h"
 #include "gui/style.h"
 #include "gui/view_debugger.h"
 #include "gui/view_support.h"
+#include "gui/widgets.h"
 #include "support/memory.h"
 
 using namespace mosaic;
@@ -62,6 +64,18 @@ struct DecoratorView : View {
 
         wrapped->display(frame);
 
+        if (tooltip_content) {
+            using namespace std::chrono_literals;
+            if (ImGui::IsItemHovered())
+                get_run_mode_controller().run_continuously_for(200ms);
+            if (ImGui::BeginItemTooltip()) {
+                vml::float2 size =
+                    tooltip_content->calc_intrinsic_size({-1.0f, 1 - 1.0f});
+                vml::float2 pos = ImGui::GetCursorScreenPos();
+                tooltip_content->display({pos, size});
+                ImGui::EndTooltip();
+            }
+        }
         if (control_color_override) pop_style_control_color();
         if (font_mod) pop_font();
         if (disabled) ImGui::EndDisabled();
@@ -83,6 +97,7 @@ struct DecoratorView : View {
 
     Property<bool const> is_enabled = true;
     std::optional<FontModifier> font_mod;
+    Owner<View> tooltip_content;
     float frame_thickness = 0.0f;
     ControlColor const* control_color_override;
 
@@ -120,4 +135,15 @@ ui::control_color(StyleColorControl color) {
     // FIXME: Clarify the semantics. Should we take the color from the current
     // style or the reference/base style?
     return control_color(&get_global_style2().control_color[color]);
+}
+
+Owner<View> ui::internal::TooltipAction::operator()(Owner<View> in) && {
+    auto wrapper = make_wrapper<DecoratorView>(std::move(in));
+    wrapper->tooltip_content = std::move(content);
+    return wrapper;
+}
+
+ViewPipeAdapter<ui::internal::TooltipAction>
+ui::tooltip(Property<std::string const> text) {
+    return tooltip(ui::text(std::move(text)));
 }

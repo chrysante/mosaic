@@ -7,6 +7,7 @@
 #include "gui/panel.h"
 #include "gui/property_editor.h"
 #include "gui/toolbar.h"
+#include "gui/view.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
 #include "service/panel_manager.h"
@@ -72,7 +73,8 @@ Owner<ui::View> DemoTool::make_view() {
     // clang-format off
     return ui::vscroll({
         ui::section("Misc", {
-            ui::property("", ui::button("Kill", [this] { request_kill(); })),
+            ui::property("", ui::button("Kill", [this] { request_kill(); }) |
+                             ui::tooltip("Immediately kill the tool")),
             ui::property("Allow Close", ui::checkbox(ui::bind(&allow_close))),
         })
     });

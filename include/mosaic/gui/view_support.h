@@ -56,9 +56,20 @@ constexpr auto operator|(ViewPtr&& view,
 }
 
 template <PointerLike<View> ViewPtr, typename Action>
+constexpr auto operator|(ViewPtr&& view, ViewPipeAdapter<Action>&& adapter) {
+    return std::invoke(std::move(adapter).action, std::forward<ViewPtr>(view));
+}
+
+template <PointerLike<View> ViewPtr, typename Action>
 constexpr ViewPtr& operator|=(ViewPtr& view,
                               ViewPipeAdapter<Action> const& adapter) {
     return view = std::invoke(adapter.action, std::move(view));
+}
+
+template <PointerLike<View> ViewPtr, typename Action>
+constexpr ViewPtr& operator|=(ViewPtr& view,
+                              ViewPipeAdapter<Action>&& adapter) {
+    return view = std::invoke(std::move(adapter).action, std::move(view));
 }
 
 template <typename Action1, typename Action2>

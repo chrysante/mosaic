@@ -78,27 +78,41 @@ struct ControlColorAction {
     ControlColor const* color_override;
     Owner<View> operator()(Owner<View>) const;
 };
+struct TooltipAction {
+    Owner<View> content;
+    Owner<View> operator()(Owner<View>) &&;
+};
 } // namespace internal
 
-inline ViewPipeAdapter<internal::EnabledAction>
+inline ViewPipeAdapter<ui::internal::EnabledAction>
 enabled(Property<bool const> is_enabled) {
     return ViewPipeAdapter{ui::internal::EnabledAction{std::move(is_enabled)}};
 }
 
-inline ViewPipeAdapter<internal::FontModAction> font(FontModifier font_mod) {
+inline ViewPipeAdapter<ui::internal::FontModAction>
+font(FontModifier font_mod) {
     return ViewPipeAdapter{ui::internal::FontModAction{font_mod}};
 }
 
-inline ViewPipeAdapter<internal::FrameAction> framed(float thickness = 1.0f) {
+inline ViewPipeAdapter<ui::internal::FrameAction>
+framed(float thickness = 1.0f) {
     return ViewPipeAdapter{ui::internal::FrameAction{thickness}};
 }
 
-inline ViewPipeAdapter<internal::ControlColorAction>
+inline ViewPipeAdapter<ui::internal::ControlColorAction>
 control_color(ControlColor const* color) {
     return ViewPipeAdapter{ui::internal::ControlColorAction{color}};
 }
 
-ViewPipeAdapter<internal::ControlColorAction>
+ViewPipeAdapter<ui::internal::ControlColorAction>
 control_color(StyleColorControl color);
+
+ViewPipeAdapter<ui::internal::TooltipAction>
+tooltip(Property<std::string const> text);
+
+inline ViewPipeAdapter<ui::internal::TooltipAction>
+tooltip(Owner<View> content) {
+    return ViewPipeAdapter{ui::internal::TooltipAction{std::move(content)}};
+}
 
 } // namespace mosaic::ui
