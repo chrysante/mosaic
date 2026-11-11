@@ -13,7 +13,18 @@ template <typename T, typename... Args> Owner<T> allocate(Args&&... args) {
 
 template <typename T> class Handle {
 public:
+    struct ControlBlock {
+        explicit ControlBlock(T* ptr, std::function<void(T*)>&& destroy)
+            : ptr(ptr)
+            , destroy(std::move(destroy)) {}
+
+        T* ptr = nullptr;
+        std::function<void(T*)> destroy;
+    };
+
     Handle() = default;
+    explicit Handle(std::shared_ptr<ControlBlock> c)
+        : m_control_block(std::move(c)) {}
     Handle(Handle&&) = default;
     Handle& operator=(Handle&&) = default;
     ~Handle() noexcept { destroy(); }
@@ -32,18 +43,6 @@ public:
 private:
     template <typename U>
     friend Handle<U> make_handle(U* ptr, std::function<void(U*)> destroy);
-
-    struct ControlBlock {
-        explicit ControlBlock(T* ptr, std::function<void(T*)>&& destroy)
-            : ptr(ptr)
-            , destroy(std::move(destroy)) {}
-
-        T* ptr = nullptr;
-        std::function<void(T*)> destroy;
-    };
-
-    explicit Handle(std::shared_ptr<ControlBlock> c)
-        : m_control_block(std::move(c)) {}
 
     std::shared_ptr<ControlBlock> m_control_block;
 };

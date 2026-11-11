@@ -1,5 +1,6 @@
 #include "gui/panel_renderer.h"
 
+#include <cstdio>
 #include <string>
 
 #include <imgui.h>
@@ -9,6 +10,7 @@
 #include <utl/utility.hpp>
 #include <vml/vml.hpp>
 
+#include "application/debug_settings.h"
 #include "application/window.h"
 #include "application/window_desc.h"
 #include "gui/panel.h"
@@ -60,6 +62,7 @@ static void dock_titlebar_behaviour(ImRect toolbar_bb, bool& dragging) {
 
 struct mosaic::RuntimePanelState {
     struct Transient {
+        Window* window;
         bool focused = false;
         bool hovered = false;
         bool docked = false;
@@ -133,6 +136,23 @@ static ImGuiWindowClass window_class = [] {
     return window_class;
 }();
 
+#ifndef NDEBUG
+static void draw_debug_overlay(vml::float2 position,
+                               PanelGeometry const& geometry,
+                               Window const* window) {
+    vml::float2 window_pos =
+        window ? (vml::float2)window->position() : vml::float2(-1.0f, -1.0f);
+    char buffer[256];
+    std::snprintf(
+        buffer, sizeof buffer,
+        "Position: %.1f, %.1f\nSize: %.1f, %.1f\nWindowPos: %.1f, %.1f",
+        geometry.frame.origin.x, geometry.frame.origin.y, geometry.frame.size.x,
+        geometry.frame.size.y, window_pos.x, window_pos.y);
+    ImGui::GetWindowDrawList()->AddText(position, IM_COL32(255, 0, 255, 255),
+                                        buffer);
+}
+#endif // NDEBUG
+
 PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
@@ -159,22 +179,26 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     if (!open_state) panel.request_close();
     auto& state = update_and_get_runtime_state(panel);
     if (!visible) return {};
+    vml::float2 content_pos = {0.0f, 0.0f};
     if (!uses_toolbar) {
-        vml::float2 cursor_pos = ImGui::GetCursorScreenPos();
+        content_pos = ImGui::GetCursorScreenPos();
         vml::float2 size = ImGui::GetContentRegionAvail();
-        if (auto* view = panel.view()) view->display({cursor_pos, size});
+        if (auto* view = panel.view()) view->display({content_pos, size});
     } else {
         Rect toolbar_frame = compute_toolbar_frame(state);
         float toolbar_height =
             toolbar_frame.size.y + ImGui::GetStyle().SeparatorSize;
-        vml::float2 content_pos = {ImGui::GetWindowPos().x,
-                                   toolbar_frame.origin.y + toolbar_height};
+        content_pos = {ImGui::GetWindowPos().x,
+                       toolbar_frame.origin.y + toolbar_height};
         vml::float2 size = ImGui::GetContentRegionAvail();
         size.y -= toolbar_height;
         if (auto* view = panel.view()) view->display({content_pos, size});
         if (auto* toolbar = panel.toolbar())
             display_toolbar(toolbar, toolbar_frame, state);
     }
+    if (want_debug_overlays())
+        draw_debug_overlay(content_pos, panel.geometry(),
+                           state.transient.window);
     return {.focused = state.transient.focused};
 }
 
@@ -187,6 +211,9 @@ RuntimePanelState& PanelRenderer::update_and_get_runtime_state(Panel& panel) {
     panel.m_geometry.frame.size = imgui_window->Size;
     auto* viewport = imgui_window->Viewport;
     auto& transient = state.transient;
+    transient.window = imgui_window->ViewportOwned
+                           ? (Window*)imgui_window->Viewport->PlatformHandle
+                           : nullptr;
     transient.focused =
         ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
         !ImGui::FindBlockingModal(imgui_window);

@@ -290,7 +290,7 @@ static int get_screen_height() {
     return (int)screen_frame.size.height;
 }
 
-static WindowGeometry from_appkit(NSRect rect) {
+static WindowGeometry from_appkit(NSRect const& rect) {
     int screen_height = get_screen_height();
     return {.position = {(int)rect.origin.x, screen_height -
                                                  (int)rect.origin.y -
@@ -298,7 +298,7 @@ static WindowGeometry from_appkit(NSRect rect) {
             .size = {(int)rect.size.width, (int)rect.size.height}};
 }
 
-static NSRect to_appkit(WindowGeometry geometry) {
+static NSRect to_appkit(WindowGeometry const& geometry) {
     int screen_height = get_screen_height();
     return NSMakeRect(
         (CGFloat)geometry.position.x,
@@ -310,18 +310,20 @@ void Window::platform_constructor(WindowDesc const& desc) {
     @autoreleasepool {
         NSRect frame = to_appkit(desc.geometry);
         auto style_mask = to_ns_style_mask(desc.style);
+        NSRect content_rect = [NSWindow contentRectForFrameRect:frame
+                                                      styleMask:style_mask];
         MosaicWindow* window =
-            [[MosaicWindow alloc] initWithContentRect:frame
+            [[MosaicWindow alloc] initWithContentRect:content_rect
                                             styleMask:style_mask
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
         window.window = this;
+        window.tabbingMode = NSWindowTabbingModeDisallowed;
         if (Window* parent = desc.parent_window) {
             MosaicWindow* native_parent =
                 GET_WINDOW_IMPL(*parent).native_window;
             [native_parent addChildWindow:window ordered:NSWindowAbove];
         }
-        NSRect content_rect = [window contentRectForFrameRect:frame];
         MosaicView* content_view = [[MosaicView alloc]
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
                                      content_rect.size.height)];

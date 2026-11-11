@@ -24,7 +24,7 @@ void to_json(nlohmann::json&, PanelSizeConstraints const&);
 void from_json(nlohmann::json const&, PanelSizeConstraints&);
 
 struct PanelGeometry {
-    Rect frame = {.origin = {500.0f, 500.0f}, .size = {800.0f, 600.0f}};
+    Rect frame = {.origin = {500.0f, 200.0f}, .size = {800.0f, 600.0f}};
     PanelSizeConstraints size_constraints;
 };
 
@@ -106,6 +106,7 @@ private:
     bool m_hovered = false;
     Owner<ui::View> m_toolbar;
     Owner<ui::View> m_view;
+    std::shared_ptr<Handle<Panel>::ControlBlock> m_control_block;
     std::unique_ptr<PanelDelegate> m_delegate;
 };
 

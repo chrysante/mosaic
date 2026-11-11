@@ -47,6 +47,7 @@ Panel::create_panel(PanelDesc const& desc,
 
 Panel::~Panel() {
     if (m_delegate) m_delegate->on_destroy();
+    if (m_control_block) m_control_block->ptr = nullptr;
 }
 
 void Panel::set_toolbar(Owner<ui::View> toolbar) {

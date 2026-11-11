@@ -6,7 +6,7 @@
 - [ ] Rewrite logger to use std::print-style formatting
 
 ## Bugs
-When a window is moved and released above a foreign window with another application window underneath, the window is set transparent for one frame, making it flash
+- [ ] When a window is moved and released above a foreign window with another application window underneath, the window is set transparent for one frame, making it flash
 
 
 ## Improvements

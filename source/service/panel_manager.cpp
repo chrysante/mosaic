@@ -1,6 +1,7 @@
 #include "service/panel_manager.h"
 
 #include <imgui.h>
+#include <memory>
 #include <utl/vector.hpp>
 
 #include "application/input_event.h"
@@ -81,8 +82,11 @@ PanelManager::create_panel(PanelDesc const& desc,
                            std::unique_ptr<PanelDelegate> delegate) {
     m_panels.push_back(Panel::create_panel(desc, std::move(delegate)));
     auto* panel = m_panels.back().get();
-    return make_handle<Panel>(panel, [](Panel* panel) {
-        panel->command_close();
-        panel->m_delegate = nullptr;
-    });
+    auto control_block =
+        std::make_shared<Handle<Panel>::ControlBlock>(panel, [](Panel* panel) {
+            panel->command_close();
+            panel->m_delegate = nullptr;
+        });
+    panel->m_control_block = control_block;
+    return Handle<Panel>(std::move(control_block));
 }

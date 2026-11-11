@@ -209,6 +209,19 @@ public:
             .key_comb = {.key = Key::F10}, 
             .command = [this] { dockspace.toggle_menubar(); }
         });
+        command_palette().add({
+            .name = "Spawn Window", 
+            .key_comb = {.key = Key::W},
+            .command = [this]{ 
+                create_window({
+                    .geometry = {
+                        .position = input().mouse_position(), 
+                        .size = {100, 100}
+                    },
+                    .title = "Spawned Window",
+                }); 
+            }
+        });
         dockspace.set_left_toolbar(ui::toolbar({
             ui::button(ui::lucide_icon("square-plus"), [this] { 
                 text = "Clicked toolbar button"; 

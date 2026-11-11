@@ -99,7 +99,7 @@ struct DecoratorView : View {
     std::optional<FontModifier> font_mod;
     Owner<View> tooltip_content;
     float frame_thickness = 0.0f;
-    ControlColor const* control_color_override;
+    ControlColor const* control_color_override = nullptr;
 
     Owner<View> wrapped;
 };

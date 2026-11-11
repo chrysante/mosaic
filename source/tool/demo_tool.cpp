@@ -61,7 +61,6 @@ UTL_STATIC_INIT {
 void DemoTool::on_create() {
     panel = service_context().panel_manager().create_panel(
         {.title = "Demo Tool"}, std::make_unique<DemoToolPanelDelegate>(this));
-    panel->set_toolbar(make_toolbar());
     panel->set_view(make_view());
 }
 
@@ -70,12 +69,18 @@ Owner<ui::View> DemoTool::make_toolbar() {
 }
 
 Owner<ui::View> DemoTool::make_view() {
+    auto using_toolbar =
+        ui::computed([this] { return panel->toolbar() != nullptr; },
+                     [this](bool new_value) {
+                         if (new_value) panel->set_toolbar(make_toolbar());
+                     });
     // clang-format off
     return ui::vscroll({
         ui::section("Misc", {
             ui::property("", ui::button("Kill", [this] { request_kill(); }) |
                              ui::tooltip("Immediately kill the tool")),
             ui::property("Allow Close", ui::checkbox(ui::bind(&allow_close))),
+            ui::property("Use Toolbar", ui::checkbox(std::move(using_toolbar))),
         })
     });
     // clang-format on
