@@ -283,6 +283,8 @@ static void forward_event(Window const* window, NSEvent* event) {
 // mosaic::Window implementation
 // =============================================================================
 
+Window::~Window() { WINDOW_IMPL.native_window.window = nullptr; }
+
 // Geometry conversion
 static int get_screen_height() {
     NSRect screen_frame = NSScreen.screens[0].frame;
@@ -318,6 +320,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
         window.window = this;
+        window.releasedWhenClosed = NO;
         window.tabbingMode = NSWindowTabbingModeDisallowed;
         if (Window* parent = desc.parent_window) {
             MosaicWindow* native_parent =

@@ -1,6 +1,5 @@
 #include "application/application.h"
 
-#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <functional>
@@ -21,6 +20,7 @@
 #include "application/window_delegate.h"
 #include "application/window_desc.h"
 #include "application/window_impl.h"
+#include "application/window_system.h"
 #include "gui/appearance_internal.h"
 #include "gui/font.h"
 #include "service/command_system.h"
@@ -72,52 +72,17 @@ Application::~Application() {
     unregister_global_input_callback(m_impl->input_callback_id);
 }
 
-namespace {
-
-struct ApplicationWindowDelegate : WindowDelegate {
-    explicit ApplicationWindowDelegate(ApplicationImpl& app_impl)
-        : app_impl(app_impl) {}
-
-    void request_frames() { app_impl.frame_scheduler->request_frames(2); }
-
-    void on_move(vml::int2) override { request_frames(); }
-    void on_resize(vml::int2) override { request_frames(); }
-    void on_focus() override { request_frames(); }
-    void on_focus_loss() override { request_frames(); }
-    bool should_close() override {
-        request_frames();
-        return true;
-    }
-    void on_destroy() override { request_frames(); }
-    void on_content_scale_change(vml::float2) override { request_frames(); }
-
-    ApplicationImpl& app_impl;
-};
-
-} // namespace
-
 Window* Application::create_window(WindowDesc const& desc) {
-    auto window = internal::WindowImpl::create_window(desc);
-    register_window_for_input(*window);
-    window->add_delegate(std::make_unique<ApplicationWindowDelegate>(*m_impl));
-    auto* result = window.get();
-    m_impl->windows.push_back(std::move(window));
-    return result;
+    return m_impl->window_system.create_window(desc);
 }
 
 void Application::destroy_window(Window* window) {
-    service_context().dispatcher().on_main_thread(
-        [impl = m_impl.get(), window] {
-            auto itr = std::ranges::find_if(
-                impl->windows, [&](auto& ptr) { return ptr.get() == window; });
-            assert(itr != impl->windows.end());
-            impl->windows.erase(itr);
-        });
+    m_impl->window_system.queue_window_destruction(window);
 }
 
 Window const* Application::main_window() const {
-    assert(!m_impl->windows.empty());
-    return m_impl->windows.front().get();
+    assert(m_impl->window_system.num_windows() > 0);
+    return m_impl->window_system.windows().front();
 }
 
 ServiceContext& Application::service_context() {
@@ -142,9 +107,25 @@ nlohmann::json Application::save_settings() const {
 // ApplicationImpl interface
 // =============================================================================
 
+namespace {
+
+struct WindowSystemDelegate final : WindowSystem::AppDelegate {
+    explicit WindowSystemDelegate(ApplicationImpl& app_impl)
+        : app_impl(app_impl) {}
+
+    void request_frames() override {
+        app_impl.frame_scheduler->request_frames(3);
+    }
+
+    ApplicationImpl& app_impl;
+};
+
+} // namespace
+
 ApplicationImpl::ApplicationImpl(Application& app)
     : app(app)
     , frame_scheduler(FrameScheduler::create([this] { run_one_frame(); }))
+    , window_system(std::make_unique<WindowSystemDelegate>(*this))
     , run_mode_controller(*this)
     , event_receiver(service_context.make_event_receiver())
     , ui_context{.font_manager = service_context.font_manager(),
@@ -189,8 +170,8 @@ struct MainWindowDelegate : WindowDelegate {
 } // namespace
 
 Window* ApplicationImpl::create_main_window() {
-    assert(windows.empty());
-    auto* window = app.create_window(
+    assert(window_system.num_windows() == 0);
+    auto* window = window_system.create_window(
         {.geometry = {.position = {200, 200}, .size = {800, 600}},
          .title = "MAIN WINDOW"});
     window->add_delegate(std::make_unique<MainWindowDelegate>(app));
@@ -345,7 +326,7 @@ void ApplicationImpl::imgui_begin_frame() {
 
 void ApplicationImpl::imgui_copy_item_hovered_to_windows() {
     bool item_hovered = ImGui::IsAnyItemHovered();
-    for (auto& window : windows)
+    for (auto* window : window_system.windows())
         internal::WindowImpl::set_titlebar_controls_hovered(*window,
                                                             item_hovered);
 }
@@ -370,6 +351,7 @@ void ApplicationImpl::on_input(InputEventUnion const& event) {
 
 void ApplicationImpl::do_frame() {
     service_context.m_dispatcher.process_main_thread_tasks();
+    window_system.update();
     app.frame();
     tool_manager.update();
     service_context.panel_manager().display();

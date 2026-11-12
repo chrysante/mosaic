@@ -1,11 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
 #include "application/application.h"
 #include "application/frame_scheduler.h"
 #include "application/input.h"
+#include "application/window_system.h"
 #include "gui/command_palette.h"
 #include "gui/run_mode_controller.h"
 #include "gui/ui_context.h"
@@ -78,8 +78,8 @@ struct internal::ApplicationImpl {
 
     Application& app;
     ServiceContext service_context;
-    std::vector<std::unique_ptr<Window>> windows;
     std::unique_ptr<FrameScheduler> frame_scheduler;
+    WindowSystem window_system;
     RunModeController run_mode_controller;
     EventReceiver event_receiver;
     UIContext ui_context;

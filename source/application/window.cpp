@@ -22,8 +22,6 @@ Window::Window(WindowDesc const& desc)
     platform_constructor(desc);
 }
 
-Window::~Window() = default;
-
 void Window::set_style(WindowStyle const& style) {
     if (m_impl->style == style) return;
     m_impl->style = style;

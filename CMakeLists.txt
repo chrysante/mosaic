@@ -212,6 +212,7 @@ target_sources(mosaic PRIVATE
     source/application/input.cpp
     source/application/input_event.cpp
     source/application/window.cpp
+    source/application/window_system.cpp
     source/gui/appearance.cpp
     source/gui/command_palette.cpp
     source/gui/containers.cpp

@@ -154,7 +154,7 @@ static void draw_window_info(Window const* window) {
 }
 
 void ApplicationDebugger::draw_window_debugger() {
-    auto const& windows = ApplicationImpl::get_impl(app).windows;
+    auto windows = ApplicationImpl::get_impl(app).window_system.windows();
     ImGui::Text("Windows");
     ImGui::SameLine();
     ImGui::TextDisabled("(%zu)", windows.size());
@@ -168,8 +168,8 @@ void ApplicationDebugger::draw_window_debugger() {
         WINDOW_TABLE(X)
 #undef X
         ImGui::TableHeadersRow();
-        for (auto& window : windows)
-            draw_window_info(window.get());
+        for (auto* window : windows)
+            draw_window_info(window);
         ImGui::EndTable();
     }
 }
