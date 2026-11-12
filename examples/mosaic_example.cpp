@@ -10,6 +10,7 @@
 #include <mosaic/application/application_settings.h>
 #include <mosaic/application/input.h>
 #include <mosaic/application/window.h>
+#include <mosaic/application/window_desc.h>
 #include <mosaic/gui/command_palette.h>
 #include <mosaic/gui/containers.h>
 #include <mosaic/gui/dockspace.h>
@@ -219,6 +220,9 @@ public:
                         .size = {100, 100}
                     },
                     .title = "Spawned Window",
+                    .style = {
+                        .decoration = WindowDecoration::none,
+                    },
                 }); 
             }
         });

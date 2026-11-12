@@ -44,8 +44,11 @@ Window* WindowSystem::create_window(WindowDesc const& desc) {
     return result;
 }
 
-void WindowSystem::queue_window_destruction(Window* window) {
-    m_to_delete.insert(window);
+void WindowSystem::destroy_window(Window* window) {
+    auto& window_impl = GET_WINDOW_IMPL(*window);
+    window_impl.order_out();
+    window_impl.for_each_delegate(
+        [&](mosaic::WindowDelegate& del) { del.on_destroy(); });
 }
 
 void WindowSystem::update() {
@@ -56,4 +59,8 @@ void WindowSystem::update() {
         m_windows.erase(itr);
     }
     m_to_delete.clear();
+}
+
+void WindowSystem::queue_window_destruction(Window* window) {
+    m_to_delete.insert(window);
 }

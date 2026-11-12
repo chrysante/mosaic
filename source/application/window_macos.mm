@@ -83,6 +83,8 @@ CAMetalLayer* WindowImplMacOS::create_metal_layer(id<MTLDevice> device,
     return layer;
 }
 
+void WindowImplMacOS::order_out() { [native_window orderOut:nil]; }
+
 // =============================================================================
 // WindowDelegateProxy
 // =============================================================================
@@ -207,13 +209,15 @@ static void handle_window_drag_end(Window& window, NSEvent* event) {
 }
 
 static void forward_event(Window const* window, NSEvent* event) {
+    assert(event);
+    if (!window) return;
     auto& handlers = GET_WINDOW_IMPL(*window).native_event_handlers;
     for (auto& handler : handlers)
         handler(event);
 }
 
 @interface MosaicView : NSView
-@property(nonatomic, assign) mosaic::Window* mosaic_window;
+@property(nonatomic, weak) MosaicWindow* mosaic_window;
 @end
 
 @implementation MosaicView
@@ -224,20 +228,22 @@ static void forward_event(Window const* window, NSEvent* event) {
     return YES;
 }
 - (void)scrollWheel:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
+    forward_event(_mosaic_window.window, event);
 }
 - (void)mouseDown:(NSEvent*)event {
-    handle_window_drag_begin(*_mosaic_window, event);
-    forward_event(_mosaic_window, event);
+    if (auto* window = _mosaic_window.window)
+        handle_window_drag_begin(*window, event);
+    forward_event(_mosaic_window.window, event);
 }
 - (void)mouseUp:(NSEvent*)event {
-    handle_window_drag_end(*_mosaic_window, event);
+    if (auto* window = _mosaic_window.window)
+        handle_window_drag_end(*window, event);
 }
 - (void)rightMouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
+    forward_event(_mosaic_window.window, event);
 }
 - (void)otherMouseDown:(NSEvent*)event {
-    forward_event(_mosaic_window, event);
+    forward_event(_mosaic_window.window, event);
 }
 - (void)keyDown:(NSEvent*)event {
     // Key events are already handled by the event monitor.
@@ -272,10 +278,12 @@ static void forward_event(Window const* window, NSEvent* event) {
 
 @implementation MosaicWindow
 - (BOOL)canBecomeKeyWindow {
-    return GET_WINDOW_IMPL(*_window).is_focusable;
+    if (_window) return GET_WINDOW_IMPL(*_window).is_focusable;
+    return NO;
 }
 - (BOOL)canBecomeMainWindow {
-    return GET_WINDOW_IMPL(*_window).is_focusable;
+    if (_window) return GET_WINDOW_IMPL(*_window).is_focusable;
+    return NO;
 }
 @end
 
@@ -283,7 +291,10 @@ static void forward_event(Window const* window, NSEvent* event) {
 // mosaic::Window implementation
 // =============================================================================
 
-Window::~Window() { WINDOW_IMPL.native_window.window = nullptr; }
+Window::~Window() {
+    WINDOW_IMPL.native_window.window = nullptr;
+    WINDOW_IMPL.delegate.window = nullptr;
+}
 
 // Geometry conversion
 static int get_screen_height() {
@@ -331,7 +342,7 @@ void Window::platform_constructor(WindowDesc const& desc) {
             initWithFrame:NSMakeRect(0, 0, content_rect.size.width,
                                      content_rect.size.height)];
         window.contentView = content_view;
-        content_view.mosaic_window = this;
+        content_view.mosaic_window = window;
         WINDOW_IMPL.native_window = window;
         WindowDelegateProxy* delegate = [[WindowDelegateProxy alloc] init];
         delegate.window = this;

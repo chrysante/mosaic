@@ -11,12 +11,20 @@
 #include "application/window.h"
 #include "application/window_impl.h"
 
+#ifdef GET_WINDOW_IMPL
+#undef GET_WINDOW_IMPL
+#endif
+
 #define GET_WINDOW_IMPL(window)                                                \
     static_cast<std::conditional_t<                                            \
         ::std::is_const_v<::std::remove_reference_t<decltype(window)>>,        \
         ::mosaic::internal::WindowImplMacOS const&,                            \
         ::mosaic::internal::WindowImplMacOS&>>(                                \
         ::mosaic::internal::WindowImpl::get_impl(window))
+
+#ifdef WINDOW_IMPL
+#undef WINDOW_IMPL
+#endif
 
 #define WINDOW_IMPL GET_WINDOW_IMPL(*this)
 
@@ -44,6 +52,8 @@ struct WindowImplMacOS : WindowImpl {
 
     static CAMetalLayer* create_metal_layer(id<MTLDevice> device,
                                             Window& window);
+
+    void order_out() override;
 
     MosaicWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;

@@ -36,14 +36,14 @@ public:
 
     Window* create_window(WindowDesc const& desc);
 
-    void queue_window_destruction(Window* window);
+    void destroy_window(Window* window);
 
     void update();
 
 private:
     struct WindowDelegate;
 
-    bool try_destroy_window(Window* window);
+    void queue_window_destruction(Window* window);
 
     std::unique_ptr<AppDelegate> m_app_delegate;
     std::vector<std::unique_ptr<Window>> m_windows;

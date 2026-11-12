@@ -6,6 +6,15 @@
 
 #include "application/window.h"
 
+#define GET_WINDOW_IMPL(window)                                                \
+    static_cast<std::conditional_t<                                            \
+        ::std::is_const_v<::std::remove_reference_t<decltype(window)>>,        \
+        ::mosaic::internal::WindowImpl const&,                                 \
+        ::mosaic::internal::WindowImpl&>>(                                     \
+        ::mosaic::internal::WindowImpl::get_impl(window))
+
+#define WINDOW_IMPL GET_WINDOW_IMPL(*this)
+
 namespace mosaic {
 
 struct internal::WindowImpl {
@@ -23,6 +32,8 @@ struct internal::WindowImpl {
         for (auto& delegate : delegates)
             action(*delegate);
     }
+
+    virtual void order_out() = 0;
 
     static WindowImpl& get_impl(Window& window) { return *window.m_impl; }
 

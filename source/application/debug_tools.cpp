@@ -114,7 +114,7 @@ struct WindowTable {
 };
 } // namespace
 
-static void draw_window_info(Window const* window) {
+static void draw_window_info(Window const* window, bool* kill_flag) {
     if (!window) {
         ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "NULL");
         return;
@@ -125,6 +125,7 @@ static void draw_window_info(Window const* window) {
     // Main row
     // -------------------------------------------------------------
     ImGui::TableNextRow();
+    ImGui::PushID(window);
     if (window->is_focused())
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
                                IM_COL32(50, 100, 180, 80));
@@ -132,6 +133,7 @@ static void draw_window_info(Window const* window) {
     ImGui::TableSetColumnIndex(WindowTable::window);
     ImGui::Text("%s", window->title().c_str());
     ImGui::TextDisabled("%p", static_cast<void const*>(window));
+    if (ImGui::SmallButton("Kill") && kill_flag) *kill_flag = true;
     if (window->is_live_moving())
         ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.5f, 1.0f), "MOVING");
     if (window->is_live_resizing())
@@ -151,13 +153,14 @@ static void draw_window_info(Window const* window) {
     debug_bool("Focusable", window->is_focusable());
     debug_bool("Focused", window->is_focused());
     ImGui::Text("Titlebar height: %.1f", window->titlebar_height());
+    ImGui::PopID();
 }
 
 void ApplicationDebugger::draw_window_debugger() {
-    auto windows = ApplicationImpl::get_impl(app).window_system.windows();
+    auto& window_system = ApplicationImpl::get_impl(app).window_system;
     ImGui::Text("Windows");
     ImGui::SameLine();
-    ImGui::TextDisabled("(%zu)", windows.size());
+    ImGui::TextDisabled("(%zu)", window_system.num_windows());
     ImGui::Separator();
     auto table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                        ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
@@ -168,8 +171,11 @@ void ApplicationDebugger::draw_window_debugger() {
         WINDOW_TABLE(X)
 #undef X
         ImGui::TableHeadersRow();
-        for (auto* window : windows)
-            draw_window_info(window);
+        for (auto* window : window_system.windows()) {
+            bool kill_flag = false;
+            draw_window_info(window, &kill_flag);
+            if (kill_flag) window_system.destroy_window(window);
+        }
         ImGui::EndTable();
     }
 }

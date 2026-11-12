@@ -77,7 +77,7 @@ Window* Application::create_window(WindowDesc const& desc) {
 }
 
 void Application::destroy_window(Window* window) {
-    m_impl->window_system.queue_window_destruction(window);
+    m_impl->window_system.destroy_window(window);
 }
 
 Window const* Application::main_window() const {
