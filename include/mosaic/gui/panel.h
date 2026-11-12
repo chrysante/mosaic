@@ -31,9 +31,16 @@ struct PanelGeometry {
 void to_json(nlohmann::json&, PanelGeometry const&);
 void from_json(nlohmann::json const&, PanelGeometry&);
 
+enum class PanelToolbarHeight { small, medium, large };
+
+struct PanelStyle {
+    PanelToolbarHeight toolbar_height = PanelToolbarHeight::medium;
+};
+
 struct PanelDesc {
     PanelGeometry geometry;
     std::string title;
+    PanelStyle style;
 };
 
 class PanelDelegate {
@@ -86,6 +93,10 @@ public:
 
     PanelGeometry const& geometry() const { return m_geometry; }
 
+    PanelStyle const& style() const { return m_style; }
+
+    void set_style(PanelStyle new_style) { m_style = new_style; }
+
 private:
     friend class PanelManager;
     friend class PanelRenderer;
@@ -98,6 +109,7 @@ private:
 
     PanelGeometry m_geometry;
     std::string m_title;
+    PanelStyle m_style;
     bool m_hidden = false;
     bool m_maximized = false;
     bool m_close_requested = false;

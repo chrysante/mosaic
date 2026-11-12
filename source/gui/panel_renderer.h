@@ -4,6 +4,9 @@
 #include <imgui_internal.h>
 #include <utl/hashtable.hpp>
 
+#include "application/window_desc.h"
+#include "gui/panel.h"
+
 namespace mosaic {
 
 class Panel;
@@ -29,7 +32,8 @@ private:
     RuntimePanelState& update_and_get_runtime_state(Panel& panel);
 
     utl::hashmap<Panel const*, RuntimePanelState> m_runtime;
-    utl::hashset<ImGuiViewport const*> m_viewports_with_native_toolbar;
+    utl::hashmap<ImGuiViewport const*, WindowTitlebarSize>
+        m_native_titlebar_size_map;
 };
 
 } // namespace mosaic

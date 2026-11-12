@@ -1,5 +1,6 @@
 #include "application/window.h"
 
+#include <CoreFoundation/CFCGTypes.h>
 #include <cassert>
 #include <ios>
 #include <memory>
@@ -18,6 +19,17 @@ using namespace vml;
 
 using internal::WindowImpl;
 using internal::WindowImplMacOS;
+
+float mosaic::window_titlebar_size(WindowTitlebarSize size) {
+    switch (size) {
+    case WindowTitlebarSize::small:
+        return 32.0f;
+    case WindowTitlebarSize::medium:
+        return 40.0f;
+    case WindowTitlebarSize::large:
+        return 52.0f;
+    }
+}
 
 // =============================================================================
 // WindowImplMacOS
@@ -83,7 +95,7 @@ CAMetalLayer* WindowImplMacOS::create_metal_layer(id<MTLDevice> device,
     return layer;
 }
 
-void WindowImplMacOS::order_out() { [native_window orderOut:nil]; }
+void WindowImplMacOS::close() { [native_window close]; }
 
 // =============================================================================
 // WindowDelegateProxy
@@ -170,7 +182,7 @@ static NSWindowStyleMask to_ns_style_mask(WindowStyle const& style) {
             style_mask |= NSWindowStyleMaskClosable;
         if (test(style.capabilities & WindowCapability::minimizable))
             style_mask |= NSWindowStyleMaskMiniaturizable;
-        if (style.large_titlebar)
+        if (style.full_size_content)
             style_mask |= NSWindowStyleMaskFullSizeContentView;
     }
     return style_mask;
@@ -408,7 +420,12 @@ bool Window::is_focused() const {
 
 float Window::titlebar_height() const {
     NSWindow* window = WINDOW_IMPL.native_window;
-    return (float)window.contentView.safeAreaInsets.top;
+    NSButton* closeButton = [window standardWindowButton:NSWindowCloseButton];
+    if (!closeButton) return 0.0f;
+    NSRect frame = [closeButton convertRect:closeButton.bounds toView:nil];
+    CGFloat pos_y = frame.origin.y + 0.5 * frame.size.height;
+    CGFloat half_height = window.frame.size.height - pos_y;
+    return 2.0f * (float)half_height;
 }
 
 vml::AABB<float, 2> Window::title_buttons_area() const {
@@ -454,12 +471,19 @@ void Window::apply_style() {
             window.titlebarAppearsTransparent = YES;
             window.titleVisibility = NSWindowTitleHidden;
         }
-        if (m_impl->style.large_titlebar) {
-            window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
-            window.toolbar = [[NSToolbar alloc] init];
-        } else {
+        switch (m_impl->style.titlebar_size) {
+        case WindowTitlebarSize::small:
             window.toolbarStyle = NSWindowToolbarStyleAutomatic;
             window.toolbar = nil;
+            break;
+        case WindowTitlebarSize::medium:
+            window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
+            window.toolbar = [[NSToolbar alloc] init];
+            break;
+        case WindowTitlebarSize::large:
+            window.toolbarStyle = NSWindowToolbarStyleUnified;
+            window.toolbar = [[NSToolbar alloc] init];
+            break;
         }
         window.hasShadow = m_impl->style.has_shadow;
     }

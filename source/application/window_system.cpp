@@ -46,7 +46,7 @@ Window* WindowSystem::create_window(WindowDesc const& desc) {
 
 void WindowSystem::destroy_window(Window* window) {
     auto& window_impl = GET_WINDOW_IMPL(*window);
-    window_impl.order_out();
+    window_impl.close();
     window_impl.for_each_delegate(
         [&](mosaic::WindowDelegate& del) { del.on_destroy(); });
 }

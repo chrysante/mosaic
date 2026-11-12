@@ -1,5 +1,6 @@
 #include "tool/demo_tool.h"
 
+#include <magic_enum/magic_enum.hpp>
 #include <utl/common.hpp>
 
 #include "gui/containers.h"
@@ -72,6 +73,20 @@ Owner<ui::View> DemoTool::make_view() {
     auto using_toolbar = ui::computed(
         [this] { return panel->toolbar() != nullptr; },
         [this](bool v) { panel->set_toolbar(v ? make_toolbar() : nullptr); });
+    auto height_selection =
+        ui::computed([this] { return (int)panel->style().toolbar_height; },
+                     [this](int new_value) {
+                         if (new_value < 0 || new_value > 3) return;
+                         auto style = panel->style();
+                         style.toolbar_height = (PanelToolbarHeight)new_value;
+                         panel->set_style(style);
+                     });
+    auto height_preview = ui::computed([this] {
+        return (std::string)magic_enum::enum_name(
+            panel->style().toolbar_height);
+    });
+    auto height_items =
+        ui::own(std::vector<std::string>{"Small", "Medium", "Large"});
     // clang-format off
     return ui::vscroll({
         ui::section("Misc", {
@@ -79,6 +94,9 @@ Owner<ui::View> DemoTool::make_view() {
                              ui::tooltip("Immediately kill the tool")),
             ui::property("Allow Close", ui::checkbox(ui::bind(&allow_close))),
             ui::property("Use Toolbar", ui::checkbox(std::move(using_toolbar))),
+            ui::property("Toolbar Height", ui::combo(std::move(height_selection), 
+                                                     std::move(height_preview),
+                                                     std::move(height_items))),
         })
     });
     // clang-format on

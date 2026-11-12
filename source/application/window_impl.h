@@ -33,7 +33,7 @@ struct internal::WindowImpl {
             action(*delegate);
     }
 
-    virtual void order_out() = 0;
+    virtual void close() = 0;
 
     static WindowImpl& get_impl(Window& window) { return *window.m_impl; }
 

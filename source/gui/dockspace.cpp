@@ -15,6 +15,7 @@
 
 #include "application/debug_settings.h"
 #include "application/window.h"
+#include "application/window_desc.h"
 #include "gui/toolbar.h"
 #include "gui/view.h"
 
@@ -56,7 +57,8 @@ static void display_toolbars(DockspaceImpl& impl, Window& window);
 void Dockspace::display(Window* window,
                         utl::function_view<void()> menubar_content) {
     if (!window) return;
-    window->set_style({.full_size_content = true, .large_titlebar = true});
+    window->set_style({.full_size_content = true,
+                       .titlebar_size = WindowTitlebarSize::medium});
     main_window(*m_impl, window->titlebar_height(), menubar_content);
     display_toolbars(*m_impl, *window);
 }

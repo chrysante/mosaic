@@ -37,6 +37,7 @@ void Panel::command_close() { m_close_requested = true; }
 Panel::Panel(PanelDesc const& desc, std::unique_ptr<PanelDelegate> delegate)
     : m_geometry(desc.geometry)
     , m_title(desc.title)
+    , m_style(desc.style)
     , m_delegate(std::move(delegate)) {}
 
 std::unique_ptr<Panel>

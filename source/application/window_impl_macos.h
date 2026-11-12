@@ -53,7 +53,7 @@ struct WindowImplMacOS : WindowImpl {
     static CAMetalLayer* create_metal_layer(id<MTLDevice> device,
                                             Window& window);
 
-    void order_out() override;
+    void close() override;
 
     MosaicWindow* native_window = nil;
     WindowDelegateProxy* delegate = nil;

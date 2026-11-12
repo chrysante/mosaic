@@ -24,6 +24,10 @@ enum class WindowCapability : unsigned {
 
 UTL_ENUM_OPERATORS(WindowCapability)
 
+enum class WindowTitlebarSize { small, medium, large };
+
+float window_titlebar_size(WindowTitlebarSize size);
+
 struct WindowStyle {
     WindowDecoration decoration = WindowDecoration::normal;
 
@@ -34,8 +38,7 @@ struct WindowStyle {
     /// Allows the content view to extend into the title bar.
     bool full_size_content = false;
 
-    /// Use the larger/unified title-bar appearance.
-    bool large_titlebar = false;
+    WindowTitlebarSize titlebar_size = WindowTitlebarSize::small;
 
     /// Use window shadow
     bool has_shadow = true;

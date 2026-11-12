@@ -1266,7 +1266,7 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
 
 mosaic::WindowStyle mosaic::make_window_style(ImGuiViewport const* viewport) {
     int flags = viewport->Flags;
-    bool have_deco = (flags & ImGuiViewportFlags_NoDecoration) != 0;
+    bool have_deco = (flags & ImGuiViewportFlags_NoDecoration) == 0;
     auto decoration =
         have_deco ? WindowDecoration::normal : WindowDecoration::none;
     auto capabilities = [&] {
@@ -1274,12 +1274,10 @@ mosaic::WindowStyle mosaic::make_window_style(ImGuiViewport const* viewport) {
         if (!have_deco) return none;
         return resizable | closable | minimizable | zoomable;
     }();
-    WindowStyle style = {
-        .decoration = decoration,
-        .capabilities = capabilities,
-        .full_size_content = true,
-        .large_titlebar = false,
-    };
+    WindowStyle style = {.decoration = decoration,
+                         .capabilities = capabilities,
+                         .full_size_content = true,
+                         .titlebar_size = WindowTitlebarSize::small};
     return style;
 }
 
