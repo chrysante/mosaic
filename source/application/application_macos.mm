@@ -49,7 +49,8 @@ int ApplicationImplMacOS::run_platform() {
 }
 
 void ApplicationImplMacOS::shutdown_platform() {
-    ImGui_Impl_Mosaic_MacOS_Shutdown();
+    ImGui_Impl_Mosaic_Metal_Shutdown();
+    imgui_impl_shutdown();
 }
 
 void ApplicationImplMacOS::create_main_window_platform(Window& window) {
@@ -57,7 +58,7 @@ void ApplicationImplMacOS::create_main_window_platform(Window& window) {
 }
 
 void ApplicationImplMacOS::imgui_init_platform() {
-    ImGui_Impl_Mosaic_MacOS_Init(app);
+    imgui_impl_init(app);
     ImGui_Impl_Mosaic_Metal_Init(device);
 }
 
@@ -75,7 +76,7 @@ void ApplicationImplMacOS::imgui_begin_frame_platform() {
     pass.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0);
     command_buffer = [command_queue commandBuffer];
     ImGui_Impl_Mosaic_Metal_NewFrame(pass);
-    ImGui_Impl_Mosaic_MacOS_NewFrame(*app.main_window());
+    imgui_impl_new_frame(*app.main_window());
     encoder = [command_buffer renderCommandEncoderWithDescriptor:pass];
 }
 

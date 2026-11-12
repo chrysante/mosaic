@@ -69,11 +69,9 @@ Owner<ui::View> DemoTool::make_toolbar() {
 }
 
 Owner<ui::View> DemoTool::make_view() {
-    auto using_toolbar =
-        ui::computed([this] { return panel->toolbar() != nullptr; },
-                     [this](bool new_value) {
-                         if (new_value) panel->set_toolbar(make_toolbar());
-                     });
+    auto using_toolbar = ui::computed(
+        [this] { return panel->toolbar() != nullptr; },
+        [this](bool v) { panel->set_toolbar(v ? make_toolbar() : nullptr); });
     // clang-format off
     return ui::vscroll({
         ui::section("Misc", {

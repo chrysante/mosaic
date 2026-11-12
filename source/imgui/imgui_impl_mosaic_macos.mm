@@ -560,7 +560,7 @@ static void install_mouse_event_handler(mosaic::Window& window, NSView* view) {
         });
 }
 
-bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
+bool mosaic::imgui_impl_init(Application& app) {
     ImGuiIO& io = ImGui::GetIO();
     IMGUI_CHECKVERSION();
     IM_ASSERT(io.BackendPlatformUserData == nullptr &&
@@ -611,7 +611,7 @@ bool ImGui_Impl_Mosaic_MacOS_Init(mosaic::Application& app) {
     return true;
 }
 
-void ImGui_Impl_Mosaic_MacOS_Shutdown() {
+void mosaic::imgui_impl_shutdown() {
     ImGui_Impl_Mosaic_MacOS_Data* bd = ImGui_Impl_Mosaic_MacOS_GetBackendData();
     IM_ASSERT(bd != nullptr &&
               "No platform backend to shutdown, or already shutdown?");
@@ -875,7 +875,7 @@ static void ImGui_Impl_Mosaic_MacOS_UpdateWindowMovement() {
     }
 }
 
-void ImGui_Impl_Mosaic_MacOS_NewFrame(mosaic::Window& main_window) {
+void mosaic::imgui_impl_new_frame(Window& main_window) {
     NSWindow* ns_window = (__bridge NSWindow*)main_window.native_handle();
     NSView* view = ns_window.contentView;
 
@@ -1264,27 +1264,33 @@ struct ImGui_Impl_Mosaic_OSX_WindowDelegate : mosaic::WindowDelegate {
 
 } // namespace
 
-static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
+mosaic::WindowStyle mosaic::make_window_style(ImGuiViewport const* viewport) {
     int flags = viewport->Flags;
     bool have_deco = (flags & ImGuiViewportFlags_NoDecoration) != 0;
-    auto decoration = have_deco ? mosaic::WindowDecoration::none
-                                : mosaic::WindowDecoration::normal;
+    auto decoration =
+        have_deco ? WindowDecoration::normal : WindowDecoration::none;
     auto capabilities = [&] {
-        using enum mosaic::WindowCapability;
+        using enum WindowCapability;
         if (!have_deco) return none;
         return resizable | closable | minimizable | zoomable;
     }();
-    auto* parent_window = [&] -> mosaic::Window* {
-        ImGuiViewport* parent_viewport = viewport->ParentViewport;
-        if (!parent_viewport) return nullptr;
-        return (mosaic::Window*)parent_viewport->PlatformHandle;
-    }();
-    mosaic::WindowStyle style = {
+    WindowStyle style = {
         .decoration = decoration,
         .capabilities = capabilities,
         .full_size_content = true,
         .large_titlebar = false,
     };
+    return style;
+}
+
+static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
+    int flags = viewport->Flags;
+    auto* parent_window = [&] -> mosaic::Window* {
+        ImGuiViewport* parent_viewport = viewport->ParentViewport;
+        if (!parent_viewport) return nullptr;
+        return (mosaic::Window*)parent_viewport->PlatformHandle;
+    }();
+    mosaic::WindowStyle style = mosaic::make_window_style(viewport);
     return {.geometry = {.position = (vml::int2)viewport->Pos,
                          .size = (vml::int2)viewport->Size},
             .title = "Untitled",
@@ -1337,16 +1343,8 @@ static void ImGui_Impl_Mosaic_MacOS_ShowWindow(ImGuiViewport* viewport) {
 static ImVec2 ImGui_Impl_Mosaic_MacOS_GetWindowPos(ImGuiViewport* viewport) {
     ImGui_Impl_Mosaic_MacOS_ViewportData* vd = get_data(viewport);
     if (!vd) return {0.0f, 0.0f};
-    IM_ASSERT(vd->NativeWindow);
-    NSWindow* window = vd->NativeWindow;
-    NSRect frame = window.frame;
-    NSRect contentRect = window.contentLayoutRect;
-    // No title bar windows should be considered.
-    if (window.styleMask & NSWindowStyleMaskFullSizeContentView)
-        contentRect = frame;
-    NSRect firstScreenFrame = NSScreen.screens[0].frame;
-    return ImVec2(frame.origin.x, firstScreenFrame.size.height -
-                                      frame.origin.y - contentRect.size.height);
+    assert(vd->window);
+    return (vml::float2)vd->window->position();
 }
 
 static void ImGui_Impl_Mosaic_MacOS_SetWindowPos(ImGuiViewport* viewport,

@@ -16,6 +16,7 @@
 #include "gui/panel.h"
 #include "gui/toolbar.h"
 #include "gui/view.h"
+#include "imgui/imgui_impl_mosaic_macos.h"
 #include "support/geometry.h"
 
 using namespace mosaic;
@@ -228,19 +229,18 @@ RuntimePanelState& PanelRenderer::update_and_get_runtime_state(Panel& panel) {
     return state;
 }
 
-static WindowStyle make_window_style(bool wants_toolbar) {
-    if (wants_toolbar)
-        return {
-            .decoration = WindowDecoration::normal,
-            .full_size_content = true,
-            .large_titlebar = true,
-        };
-    else
-        return {
-            .decoration = WindowDecoration::none,
-            .full_size_content = true,
-            .large_titlebar = false,
-        };
+static WindowStyle make_window_style(ImGuiViewport const* viewport,
+                                     bool wants_toolbar) {
+    WindowStyle style = mosaic::make_window_style(viewport);
+    if (wants_toolbar) {
+        style.capabilities =
+            WindowCapability::closable | WindowCapability::minimizable |
+            WindowCapability::zoomable | WindowCapability::resizable;
+        style.decoration = WindowDecoration::normal;
+        style.full_size_content = true;
+        style.large_titlebar = true;
+    }
+    return style;
 }
 
 void PanelRenderer::end_frame() {
@@ -250,7 +250,7 @@ void PanelRenderer::end_frame() {
         auto* window = (Window*)viewport->PlatformHandle;
         if (!window) continue;
         bool wants_toolbar = m_viewports_with_native_toolbar.contains(viewport);
-        window->set_style(make_window_style(wants_toolbar));
+        window->set_style(make_window_style(viewport, wants_toolbar));
     }
 }
 
