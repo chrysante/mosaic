@@ -1291,7 +1291,7 @@ static mosaic::WindowDesc make_window_desc(ImGuiViewport const* viewport) {
     mosaic::WindowStyle style = mosaic::make_window_style(viewport);
     return {.geometry = {.position = (vml::int2)viewport->Pos,
                          .size = (vml::int2)viewport->Size},
-            .title = "Untitled",
+            .title = {},
             .visible = true,
             .focusable = (flags & ImGuiViewportFlags_NoFocusOnClick) == 0,
             .focused = (flags & ImGuiViewportFlags_NoFocusOnAppearing) == 0,

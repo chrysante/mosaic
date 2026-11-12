@@ -456,35 +456,42 @@ void* Window::native_handle() {
     return (__bridge void*)WINDOW_IMPL.native_window;
 }
 
+static void set_window_buttons_state(NSWindow* window,
+                                     WindowCapability capabilities) {
+    auto impl = [&](NSWindowButton button_id, WindowCapability flag) {
+        NSButton* button = [window standardWindowButton:button_id];
+        if (button) button.enabled = test(capabilities & flag);
+    };
+    using enum WindowCapability;
+    impl(NSWindowCloseButton, closable);
+    impl(NSWindowZoomButton, zoomable);
+    impl(NSWindowMiniaturizeButton, minimizable);
+}
+
 void Window::apply_style() {
-    @autoreleasepool {
-        NSWindow* window = WINDOW_IMPL.native_window;
-        window.styleMask = to_ns_style_mask(m_impl->style);
-        NSButton* zoom_button =
-            [window standardWindowButton:NSWindowZoomButton];
-        zoom_button.enabled =
-            test(m_impl->style.capabilities & WindowCapability::zoomable);
-        // In case of full size content view we implement moving differently
-        // because we first must check if the mouse is over imgui controls
-        window.movable = !m_impl->style.full_size_content;
-        if (m_impl->style.full_size_content) {
-            window.titlebarAppearsTransparent = YES;
-            window.titleVisibility = NSWindowTitleHidden;
-        }
-        switch (m_impl->style.titlebar_size) {
-        case WindowTitlebarSize::small:
-            window.toolbarStyle = NSWindowToolbarStyleAutomatic;
-            window.toolbar = nil;
-            break;
-        case WindowTitlebarSize::medium:
-            window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
-            window.toolbar = [[NSToolbar alloc] init];
-            break;
-        case WindowTitlebarSize::large:
-            window.toolbarStyle = NSWindowToolbarStyleUnified;
-            window.toolbar = [[NSToolbar alloc] init];
-            break;
-        }
-        window.hasShadow = m_impl->style.has_shadow;
+    NSWindow* window = WINDOW_IMPL.native_window;
+    window.styleMask = to_ns_style_mask(m_impl->style);
+    window.hasShadow = m_impl->style.has_shadow;
+    set_window_buttons_state(window, m_impl->style.capabilities);
+    // In case of full size content view we implement moving differently
+    // because we first must check if the mouse is over imgui controls
+    window.movable = !m_impl->style.full_size_content;
+    if (m_impl->style.full_size_content) {
+        window.titlebarAppearsTransparent = YES;
+        window.titleVisibility = NSWindowTitleHidden;
+    }
+    switch (m_impl->style.titlebar_size) {
+    case WindowTitlebarSize::small:
+        window.toolbarStyle = NSWindowToolbarStyleAutomatic;
+        window.toolbar = nil;
+        break;
+    case WindowTitlebarSize::medium:
+        window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
+        window.toolbar = [[NSToolbar alloc] init];
+        break;
+    case WindowTitlebarSize::large:
+        window.toolbarStyle = NSWindowToolbarStyleUnified;
+        window.toolbar = [[NSToolbar alloc] init];
+        break;
     }
 }
