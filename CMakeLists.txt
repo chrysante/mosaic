@@ -249,6 +249,7 @@ target_sources(mosaic PRIVATE
     source/support/geometry.cpp
     source/support/json_support.cpp
     source/support/logger.cpp
+    source/support/thread_support.cpp
     source/tool/demo_tool.cpp
     source/tool/tool.cpp
     source/tool/tool_manager.cpp

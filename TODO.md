@@ -15,6 +15,7 @@
 - [ ] Add transparent view wrappers for tooltips and decoration
 - [ ] Rewrite properties UI using the new `View` API
 - [ ] Make `View` tree less static/more dynamic
+- [x] Name worker threads 
 
 ## Technical debt
 - [ ] Clean up `Panel`, `PanelRenderer` and `PanelManager` classes

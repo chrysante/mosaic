@@ -1,6 +1,9 @@
 #include "service/thread_pool.h"
 
+#include <cstdio>
 #include <new>
+
+#include "support/thread_support.h"
 
 using namespace mosaic;
 using namespace mosaic::thread_pool_impl;
@@ -301,7 +304,14 @@ static void drain_inbox(Worker& worker, std::vector<Task*>& batch) {
     batch.clear();
 }
 
+static void set_thread_name(std::size_t index) {
+    char buf[16];
+    std::snprintf(buf, sizeof buf, "Worker [%zu]", index);
+    set_current_thread_name(buf);
+}
+
 void ThreadPool::worker_loop(std::size_t worker_index) {
+    set_thread_name(worker_index);
     current_pool = this;
     current_worker = worker_index;
     std::vector<Task*> inbox_batch;
