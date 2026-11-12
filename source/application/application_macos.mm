@@ -49,8 +49,8 @@ int ApplicationImplMacOS::run_platform() {
 }
 
 void ApplicationImplMacOS::shutdown_platform() {
-    ImGui_Impl_Mosaic_Metal_Shutdown();
     imgui_impl_shutdown();
+    ImGui_Impl_Mosaic_Metal_Shutdown();
 }
 
 void ApplicationImplMacOS::create_main_window_platform(Window& window) {
