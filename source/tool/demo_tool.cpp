@@ -1,8 +1,10 @@
 #include "tool/demo_tool.h"
 
+#include <imgui.h>
 #include <magic_enum/magic_enum.hpp>
 #include <utl/common.hpp>
 
+#include "editor/node_editor.h"
 #include "gui/containers.h"
 #include "gui/icon.h"
 #include "gui/panel.h"
@@ -24,6 +26,8 @@ namespace {
 struct DemoTool : Tool {
     static ToolClass const tool_class;
 
+    DemoTool();
+
     void on_create() override;
 
     Owner<ui::View> make_toolbar();
@@ -37,6 +41,8 @@ struct DemoTool : Tool {
     Handle<Panel> panel;
     std::string message;
     bool allow_close = true;
+    NodeEditorGraph node_graph;
+    NodeEditor node_editor;
 };
 
 struct DemoToolPanelDelegate : PanelDelegate {
@@ -59,14 +65,45 @@ UTL_STATIC_INIT {
         [] { return allocate<DemoTool>(); });
 };
 
+DemoTool::DemoTool()
+    : node_editor(command_palette_write()) {}
+
 void DemoTool::on_create() {
     panel = service_context().panel_manager().create_panel(
         {.title = "Demo Tool"}, std::make_unique<DemoToolPanelDelegate>(this));
     panel->set_view(make_view());
+    node_editor.set_model(&node_graph);
 }
 
 Owner<ui::View> DemoTool::make_toolbar() {
     return ui::toolbar({ui::button(ui::lucide_icon("play"))});
+}
+
+namespace {
+
+struct NodeEditorView : ui::View {
+    explicit NodeEditorView(NodeEditor* node_editor)
+        : View({ui::SizeSpec::fill(), ui::SizeSpec::fill()})
+        , node_editor(node_editor) {}
+
+    virtual void do_display(Rect frame) {
+        ImGui::SetNextWindowPos(frame.origin);
+        bool visible = ImGui::BeginChild("NodeEditorChild", frame.size);
+        if (visible) node_editor->display();
+        ImGui::EndChild();
+    }
+
+    virtual vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const {
+        return max_size;
+    }
+
+    NodeEditor* node_editor;
+};
+
+} // namespace
+
+static Owner<ui::View> make_node_editor_view(NodeEditor* node_editor) {
+    return allocate<NodeEditorView>(node_editor);
 }
 
 Owner<ui::View> DemoTool::make_view() {
@@ -88,7 +125,7 @@ Owner<ui::View> DemoTool::make_view() {
     auto height_items =
         ui::own(std::vector<std::string>{"Small", "Medium", "Large"});
     // clang-format off
-    return ui::vscroll({
+    auto settings = ui::vscroll({
         ui::section("Misc", {
             ui::property("", ui::button("Kill", [this] { request_kill(); }) |
                              ui::tooltip("Immediately kill the tool")),
@@ -100,6 +137,9 @@ Owner<ui::View> DemoTool::make_view() {
         })
     });
     // clang-format on
+    auto node_editor_view = make_node_editor_view(&node_editor);
+    return ui::tab_view({ui::tab("Settings", std::move(settings)),
+                         ui::tab("Nodes", std::move(node_editor_view))});
 }
 
 void DemoTool::update() {}

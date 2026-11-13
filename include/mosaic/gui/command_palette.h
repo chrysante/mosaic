@@ -69,15 +69,10 @@ public:
     /// Apple systems the control modifier is mapped to cmd
     ///
     /// \returns a pointer to the added command
-    Command const* add(std::string name, KeyCombination key_comb,
-                       std::function<void()> action,
-                       std::function<bool()> enabled = {});
+    Command const* add(CommandDesc command_desc);
 
     /// \overload
     Command const* add(Command command);
-
-    /// \overload
-    Command const* add(CommandDesc command_desc);
 
     /// Executes the command \p name if a matching command exists
     void do_command(std::string_view name) const;

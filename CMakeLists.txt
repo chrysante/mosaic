@@ -213,6 +213,7 @@ target_sources(mosaic PRIVATE
     source/application/input_event.cpp
     source/application/window.cpp
     source/application/window_system.cpp
+    source/editor/node_editor.cpp
     source/editor/selection_manager.cpp
     source/gui/appearance.cpp
     source/gui/command_palette.cpp

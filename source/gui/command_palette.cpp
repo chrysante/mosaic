@@ -23,6 +23,10 @@ static ModFlags canonicalize(ModFlags mods) {
     return mods;
 }
 
+Command const* CommandPalette::add(CommandDesc desc) {
+    return add(Command(std::move(desc)));
+}
+
 Command const* CommandPalette::add(Command cmd) {
     cmd.m_key_comb.mod_flags = canonicalize(cmd.m_key_comb.mod_flags);
     auto* result = &m_name_map.insert({cmd.name(), cmd}).first->second;
@@ -32,10 +36,6 @@ Command const* CommandPalette::add(Command cmd) {
         list.push_back({canonicalize(key_comb.mod_flags), cmd});
     }
     return result;
-}
-
-Command const* CommandPalette::add(CommandDesc desc) {
-    return add(Command(std::move(desc)));
 }
 
 void CommandPalette::do_command(std::string_view name) const {
