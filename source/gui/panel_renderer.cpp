@@ -276,7 +276,8 @@ RuntimePanelState& PanelRenderer::update_and_get_runtime_state(Panel& panel) {
         !in_main_viewport && imgui_window == imgui_window->Viewport->Window;
     WindowTitlebarSize titlebar_size = to_titlebar_size(
         panel.style().toolbar_height, panel.toolbar() != nullptr);
-    m_native_titlebar_size_map.emplace(viewport, titlebar_size);
+    if (transient.wants_native_titlebar)
+        m_native_titlebar_size_map.emplace(viewport, titlebar_size);
     return state;
 }
 
@@ -288,9 +289,15 @@ static WindowStyle make_window_style(ImGuiViewport const* viewport,
 }
 
 void PanelRenderer::end_frame() {
-    for (auto [viewport, titlebar_size] : m_native_titlebar_size_map) {
+    auto& g = *GImGui;
+    for (int i = 1; i < g.Viewports.size(); ++i) {
+        auto* viewport = g.Viewports[i];
         auto* window = (Window*)viewport->PlatformHandle;
         if (!window) continue;
+        auto itr = m_native_titlebar_size_map.find(viewport);
+        WindowTitlebarSize titlebar_size =
+            itr != m_native_titlebar_size_map.end() ? itr->second
+                                                    : WindowTitlebarSize::small;
         window->set_style(make_window_style(viewport, titlebar_size));
     }
 }
