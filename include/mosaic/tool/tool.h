@@ -18,7 +18,7 @@ class Tool {
 public:
     virtual ~Tool();
 
-    ToolId tool_id() const { return m_tool_id; }
+    ToolId id() const { return m_tool_id; }
 
     ServiceContext& service_context() const {
         assert(m_service_context);
@@ -56,6 +56,8 @@ private:
     bool m_kill_requested = false;
     CommandPalette m_command_palette;
 };
+
+int to_panel_id(ToolId const& id);
 
 namespace internal {
 Tool* create_tool(Application& app, ToolClass const* tool_class,

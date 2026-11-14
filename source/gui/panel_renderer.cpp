@@ -92,8 +92,10 @@ void PanelRenderer::begin_frame() {
     m_native_titlebar_size_map.clear();
 }
 
-static std::string make_imgui_id(Panel const& view) {
-    return utl::strcat(view.title(), "##", (void const*)&view);
+static std::array<char, 128> make_imgui_window_name(char const* title, int id) {
+    std::array<char, 128> data;
+    std::snprintf(data.data(), data.size(), "%s###%u", title, (unsigned)id);
+    return data;
 }
 
 static WindowTitlebarSize to_titlebar_size(PanelToolbarHeight toolbar_height,
@@ -221,9 +223,10 @@ PanelRenderer::Result PanelRenderer::render_panel(Panel& panel) {
     ImGui::SetNextWindowPos(geometry.frame.origin, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(geometry.frame.size, ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
-    std::string imgui_id = make_imgui_id(panel);
+    auto imgui_window_name =
+        make_imgui_window_name(panel.title().c_str(), panel.m_id);
     bool open_state = true;
-    bool visible = ImGui::Begin(imgui_id.c_str(), &open_state, flags);
+    bool visible = ImGui::Begin(imgui_window_name.data(), &open_state, flags);
     utl::scope_guard guard = [] { ImGui::End(); };
     ImGui::PopStyleVar();
     if (!open_state) panel.request_close();

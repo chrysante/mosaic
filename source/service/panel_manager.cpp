@@ -78,9 +78,9 @@ bool PanelManager::on_input(InputEvent& event) {
 }
 
 Handle<Panel>
-PanelManager::create_panel(PanelDesc const& desc,
+PanelManager::create_panel(int id, PanelDesc const& desc,
                            std::unique_ptr<PanelDelegate> delegate) {
-    m_panels.push_back(Panel::create_panel(desc, std::move(delegate)));
+    m_panels.push_back(Panel::create_panel(id, desc, std::move(delegate)));
     auto* panel = m_panels.back().get();
     auto control_block =
         std::make_shared<Handle<Panel>::ControlBlock>(panel, [](Panel* panel) {

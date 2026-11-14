@@ -136,7 +136,8 @@ DemoTool::DemoTool()
 
 void DemoTool::on_create() {
     panel = service_context().panel_manager().create_panel(
-        {.title = "Demo Tool"}, std::make_unique<DemoToolPanelDelegate>(this));
+        to_panel_id(id()), {.title = "Demo Tool"},
+        std::make_unique<DemoToolPanelDelegate>(this));
     panel->set_view(make_view());
     node_editor.set_model(&node_graph);
     event_receiver = service_context().make_event_receiver();

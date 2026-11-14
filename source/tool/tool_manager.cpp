@@ -111,7 +111,7 @@ Tool* ToolManager::Impl::find_by_id(ToolId tool_id) {
 Tool* ToolManager::Impl::create_tool(ToolRegistryEntry const& entry,
                                      std::uint64_t instance_id) {
     auto tool = entry.create(instance_id, service_context);
-    auto tool_id = tool->tool_id();
+    auto tool_id = tool->id();
     return insert_tool(tool_id, std::move(tool));
 }
 
@@ -199,7 +199,7 @@ nlohmann::json ToolManager::save_config() const {
     auto root = nlohmann::json::array();
     m_impl->for_each_tool([&](Tool& tool) {
         auto object = nlohmann::json::object();
-        object[config_key::tool_id] = serialize(tool.tool_id());
+        object[config_key::tool_id] = serialize(tool.id());
         object[config_key::state] = tool.save_config();
         root.push_back(std::move(object));
     });

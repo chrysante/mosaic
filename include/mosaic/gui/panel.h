@@ -101,12 +101,13 @@ private:
     friend class PanelManager;
     friend class PanelRenderer;
 
-    explicit Panel(PanelDesc const& desc,
+    explicit Panel(int id, PanelDesc const& desc,
                    std::unique_ptr<PanelDelegate> delegate);
     static std::unique_ptr<Panel>
-    create_panel(PanelDesc const& desc,
+    create_panel(int id, PanelDesc const& desc,
                  std::unique_ptr<PanelDelegate> delegate);
 
+    int m_id;
     PanelGeometry m_geometry;
     std::string m_title;
     PanelStyle m_style;

@@ -28,7 +28,7 @@ public:
     Panel* focused_panel() { return m_focused_panel; }
     Panel const* focused_panel() const { return m_focused_panel; }
 
-    Handle<Panel> create_panel(PanelDesc const& desc,
+    Handle<Panel> create_panel(int id, PanelDesc const& desc,
                                std::unique_ptr<PanelDelegate> delegate);
 
 #ifndef NDEBUG

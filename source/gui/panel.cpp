@@ -34,16 +34,18 @@ void Panel::request_close() {
 
 void Panel::command_close() { m_close_requested = true; }
 
-Panel::Panel(PanelDesc const& desc, std::unique_ptr<PanelDelegate> delegate)
-    : m_geometry(desc.geometry)
+Panel::Panel(int id, PanelDesc const& desc,
+             std::unique_ptr<PanelDelegate> delegate)
+    : m_id(id)
+    , m_geometry(desc.geometry)
     , m_title(desc.title)
     , m_style(desc.style)
     , m_delegate(std::move(delegate)) {}
 
 std::unique_ptr<Panel>
-Panel::create_panel(PanelDesc const& desc,
+Panel::create_panel(int id, PanelDesc const& desc,
                     std::unique_ptr<PanelDelegate> delegate) {
-    return std::unique_ptr<Panel>(new Panel(desc, std::move(delegate)));
+    return std::unique_ptr<Panel>(new Panel(id, desc, std::move(delegate)));
 }
 
 Panel::~Panel() {
