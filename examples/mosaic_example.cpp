@@ -212,7 +212,7 @@ public:
         });
         command_palette().add({
             .name = "Spawn Window", 
-            .key_comb = {.key = Key::W},
+            .key_comb = {.key = Key::W, .mod_flags = ModFlags::alt},
             .command = [this]{ 
                 create_window({
                     .geometry = {

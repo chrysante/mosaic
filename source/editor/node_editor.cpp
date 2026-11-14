@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include <csp.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <utl/stack.hpp>
@@ -14,7 +15,6 @@
 #include <utl/utility.hpp>
 
 #include "application/input_event.h"
-#include "csp.hpp"
 #include "editor/selection_manager.h"
 #include "gui/command_palette.h"
 #include "gui/font.h"
@@ -131,7 +131,7 @@ struct NodeEditorStyle {
 /// This is not const so we can edit the values with the style editor window
 static NodeEditorStyle style;
 
-static NodeEditorStyleColors const& style_colors() { return style.colors[0]; }
+static NodeEditorStyleColors const& style_colors() { return style.colors[1]; }
 
 static NodeEditorStyleVars const& style_vars() { return style.vars; }
 
@@ -149,7 +149,7 @@ static float PaddedTitleHeight() {
 }
 
 static void style_editor(bool* open) {
-    auto& col = style.colors[0];
+    auto& col = style.colors[1];
     auto& var = style.vars;
     ImGui::Begin("Node Editor Style Viewer", open);
     // clang-format off
@@ -563,7 +563,7 @@ deserialize_nodes(NodeEditorGraph& dest, nlohmann::json source,
     utl::small_vector<Node*> all_nodes;
     utl::hashmap<utl::uuid, Node*> map;
     nlohmann::json const* node_list = try_find(source, "Nodes");
-    if (node_list || !node_list->is_array()) {
+    if (!node_list || !node_list->is_array()) {
         Logger::error("No nodes in yaml node");
         return {};
     }
@@ -896,7 +896,7 @@ void Node::set_name(std::string name) {
 struct NodeEditor::Impl {
     explicit Impl(CommandPalette& commandPalette);
 
-    void on_input(InputEvent& event);
+    void on_input(InputEvent const& event);
 
     bool do_on_input(InputEvent const&) { return false; }
     bool do_on_input(MouseDragEvent const& event);
@@ -1186,7 +1186,7 @@ void Impl::background_popup() {
     show_debugger |= ImGui::MenuItem("Show Debugger");
     show_style_editor |= ImGui::MenuItem("Show Style Editor");
     ImGui::Separator();
-    delegate->background_context_menu();
+    if (delegate) delegate->background_context_menu();
     show_node_create_popup(delegate.get(), view_data);
     ImGui::EndPopup();
 }
@@ -1243,10 +1243,10 @@ Impl::Impl(CommandPalette& cmd) {
              }});
 }
 
-void NodeEditor::on_input(InputEvent& event) { impl->on_input(event); }
+void NodeEditor::on_input(InputEvent const& event) { impl->on_input(event); }
 
-void Impl::on_input(InputEvent& event) {
-    csp::visit(event, [this](auto& event) { do_on_input(event); });
+void Impl::on_input(InputEvent const& event) {
+    csp::visit(event, [this](auto const& event) { do_on_input(event); });
 }
 
 bool Impl::do_on_input(MouseDragEvent const& event) {
@@ -1814,16 +1814,24 @@ ImRect Impl::draw_node_body(Node& node, bool selected) {
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, 0);
         ImGui::PushStyleColor(ImGuiCol_Border, 0);
         ImGui::PushStyleColor(ImGuiCol_BorderShadow, 0);
+        ImGui::PushStyleColor(ImGuiCol_NavCursor, 0);
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
                               IM_COL32(255, 255, 255, 127));
+        float2 rename_label_size = compute_label_size(
+            rename_buffer.data(), nullptr, scaled_size, zoom);
+        float2 rename_label_pos =
+            pos +
+            float2((scaled_size.x - rename_label_size.x) / 2, body_padding.y) -
+            (float2)style.FramePadding;
+        float rename_widget_width =
+            rename_label_size.x + 2 * style.FramePadding.x + 100.0f * zoom;
         g.FontSize *= zoom;
-        ImGui::SetCursorScreenPos(pos + body_padding -
-                                  float2(0, style.FramePadding.y));
-        ImGui::SetNextItemWidth(scaled_size.x - body_padding.x -
-                                2 * style.FramePadding.x);
-        ImGui::InputText("###", rename_buffer.data(), rename_buffer.size());
-        ImGui::PopStyleColor(7);
+        ImGui::SetCursorScreenPos(rename_label_pos);
+        ImGui::SetNextItemWidth(rename_widget_width);
+        ImGui::InputText("##rename-label", rename_buffer.data(),
+                         rename_buffer.size());
+        ImGui::PopStyleColor(8);
         ImGui::PopStyleVar();
         g.FontSize = font_size;
         if (view_data.start_renaming_node != &node &&
@@ -2077,7 +2085,8 @@ void Impl::display() {
     view_data.window_hovered =
         is_mouse_over_window_rect && !have_popup &&
         ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow |
-                               ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+                               ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
+                               ImGuiHoveredFlags_ChildWindows);
     view_data.window_or_child_hovered =
         is_mouse_over_window_rect && !have_popup &&
         ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow |

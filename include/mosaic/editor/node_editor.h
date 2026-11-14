@@ -486,7 +486,7 @@ public:
 
     void display();
 
-    void on_input(InputEvent& event);
+    void on_input(InputEvent const& event);
 
     /// \returns the underlying graph
     NodeEditorGraph* model() const;

@@ -311,8 +311,9 @@ static InputEventUnion make_scroll_event(NSEvent* event) {
     vml::double2 location_on_screen = get_mouse_location_on_screen();
     bool is_trackpad = event.momentumPhase != NSEventPhaseNone ||
                        event.phase != NSEventPhaseNone;
-    return ScrollEvent(mod_flags, location_in_window, location_on_screen,
-                       {event.deltaX, event.deltaY}, is_trackpad);
+    vml::double2 delta = {event.scrollingDeltaX, event.scrollingDeltaY};
+    return ScrollEvent(mod_flags, location_in_window, location_on_screen, delta,
+                       is_trackpad);
 }
 
 static InputEventUnion make_mouse_move_event(NSEvent* event) {
