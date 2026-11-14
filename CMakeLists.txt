@@ -106,7 +106,7 @@ FetchContent_MakeAvailable(vml)
 FetchContent_Declare(
     utility
     GIT_REPOSITORY https://github.com/chrysante/utility.git
-    GIT_TAG 2d1fb8b82ac87cdd726f6dc35c734c0f1d659cfa
+    GIT_TAG cb0ba213678a4f1b3cbb1d891d87b9d28f00f162
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(utility)

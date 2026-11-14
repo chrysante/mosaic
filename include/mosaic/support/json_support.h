@@ -133,6 +133,9 @@ template <> struct nlohmann::adl_serializer<utl::uuid> {
     }
 
     static void from_json(json const& j, utl::uuid& id) {
-        id = utl::uuid::from_string(j.get<std::string>());
+        auto parsed = utl::uuid::parse(j.get<std::string>());
+        if (!parsed)
+            throw json::other_error::create(501, "invalid UUID string", &j);
+        id = *parsed;
     }
 };
