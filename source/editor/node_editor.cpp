@@ -131,7 +131,7 @@ struct NodeEditorStyle {
 /// This is not const so we can edit the values with the style editor window
 static NodeEditorStyle style;
 
-static NodeEditorStyleColors const& style_colors() { return style.colors[1]; }
+static NodeEditorStyleColors const& style_colors() { return style.colors[0]; }
 
 static NodeEditorStyleVars const& style_vars() { return style.vars; }
 
@@ -149,7 +149,7 @@ static float PaddedTitleHeight() {
 }
 
 static void style_editor(bool* open) {
-    auto& col = style.colors[1];
+    auto& col = style.colors[0];
     auto& var = style.vars;
     ImGui::Begin("Node Editor Style Viewer", open);
     // clang-format off
@@ -671,10 +671,6 @@ void from_json(nlohmann::json const& j, PersistentViewData& v) {
     j.at("Zoom").get_to(v.zoom);
 }
 
-} // namespace
-
-namespace {
-
 /// Data that persists between frames when performing some actions.
 /// This is reset whenever a mouse button is released
 struct ActiveViewData {
@@ -1038,6 +1034,7 @@ static void draw_background(ViewData const& view_data, float zoom) {
     }
 }
 
+/// \p rect is expected in screen space coordinates
 static bool node_overlaps_rect(ViewData const& view_data, Node const& node,
                                ImRect rect) {
     auto node_rect = to_rect(node);
@@ -1198,8 +1195,10 @@ void Impl::display_popups() {
 }
 
 void Impl::background_behaviour() {
-    bool haveNodeInteraction = view_data.active_node || view_data.active_pin;
-    if (!view_data.window_hovered || haveNodeInteraction) return;
+    bool have_node_interaction = view_data.active_node ||
+                                 view_data.active_pin ||
+                                 view_data.active_resize;
+    if (!view_data.window_hovered || have_node_interaction) return;
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         !view_data.is_selection_dragging) {
         view_data.is_selection_dragging = true;
@@ -1373,14 +1372,13 @@ static std::string_view select_pin_label(Pin const& pin) {
     return tmp_buffer;
 }
 
-static void display_pin_label_overlay(Pin const& pin,
+static void display_pin_label_overlay(ImDrawList* DL, Pin const& pin,
                                       ViewData const& view_data) {
     std::string_view label = select_pin_label(pin);
     if (label.empty()) return;
     auto* text_begin = label.data();
     auto* text_end = text_begin + label.size();
     float2 pin_position = compute_screen_pin_position(view_data, pin);
-    auto* DL = ImGui::GetWindowDrawList();
     float2 text_size =
         (float2)ImGui::CalcTextSize(text_begin, text_end) * view_data.zoom;
     float ypos =
@@ -1868,32 +1866,20 @@ ImRect Impl::draw_node_body(Node& node, bool selected) {
 
 /// \returns true if the background has been clicked with the left or right
 /// mouse button
-static bool display_node_content(ViewData& view_data, ImRect content_rect,
-                                 Node const& node) {
-    if (!begin_invisible_window("Content", content_rect.Min,
-                                content_rect.GetSize())) {
-        ImGui::EndChild();
-        return false;
-    }
+static bool display_node_content(Node const& node, ViewData&,
+                                 ImRect content_rect) {
+    ImGui::SetCursorScreenPos(content_rect.Min);
     ImGui::SetNextItemAllowOverlap();
     int button_flags = (int)ImGuiButtonFlags_PressedOnClick |
                        (int)ImGuiButtonFlags_MouseButtonLeft |
                        (int)ImGuiButtonFlags_MouseButtonRight;
-    bool bg_pressed =
-        ImGui::InvisibleButton("Content_View_Background_Button",
-                               ImGui::GetContentRegionAvail(), button_flags);
-    ImGui::SetCursorPos({});
-    if (node.controller()) {
-        node.controller()->body_content();
-        auto* window = ImGui::GetCurrentWindowRead();
-        if (ImGui::IsWindowHovered() && (float2)window->ScrollMax != float2{})
-            view_data.disable_background_scrolling = true;
-    }
-    ImGui::EndChild();
+    bool bg_pressed = ImGui::InvisibleButton(
+        "Content_View_Background_Button", content_rect.GetSize(), button_flags);
+    if (node.controller()) node.controller()->body_content();
     return bg_pressed;
 }
 
-static void display_nodeResize_grip(ViewData& view_data, Node& node) {
+static void display_node_resize_grip(ViewData& view_data, Node& node) {
     float2 area_size = {10, 10};
     float2 pos = (float2)ImGui::GetWindowPos() +
                  NodeOuterPadding() * view_data.zoom +
@@ -1964,8 +1950,8 @@ void Impl::display_node_body(Node& node) {
                  node.position() * view_data.zoom;
     float2 window_pos = pos - padding;
     float2 scaled_node_size = node.size() * view_data.zoom;
-    float2 windowSize = scaled_node_size + 2 * padding;
-    bool open = begin_invisible_window("Body", window_pos, windowSize);
+    float2 window_size = scaled_node_size + 2 * padding;
+    bool open = begin_invisible_window("Body", window_pos, window_size);
     if (!open && view_data.active_node != &node) {
         ImGui::EndChild();
         return;
@@ -1976,6 +1962,7 @@ void Impl::display_node_body(Node& node) {
     ImRect content_rect = draw_node_body(node, is_selected);
     ImGuiID id = ImGui::GetID("Node_Body");
     ImRect bb(pos, pos + scaled_node_size);
+    ImGui::SetNextItemAllowOverlap();
     ImGui::ItemSize(scaled_node_size);
     ImGui::ItemAdd(bb, id);
     vml::rectangle<float> node_rect(node.position(),
@@ -1984,19 +1971,20 @@ void Impl::display_node_body(Node& node) {
         vml::area(view_data.node_rect_union) == 0
             ? node_rect
             : union_(view_data.node_rect_union, node_rect);
-    if (ImGui::IsMouseHoveringRect(window_pos + 2,
-                                   window_pos + windowSize - 4)) {
+    if (ImGui::IsMouseHoveringRect(window_pos + vml::float2(2.0f, 2.0f),
+                                   window_pos + window_size -
+                                       vml::float2(4.0f, 4.0f))) {
         view_data.hovered_link.set({});
         view_data.hovered_node.set(&node);
     }
     bool bg_clicked_left = ImGui::IsItemClicked(ImGuiMouseButton_Left);
     bool bg_clicked_right = ImGui::IsItemClicked(ImGuiMouseButton_Right);
     display_pins(node);
-    if (display_node_content(view_data, content_rect, node)) {
+    if (display_node_content(node, view_data, content_rect)) {
         bg_clicked_left |= ImGui::IsMouseDown(ImGuiMouseButton_Left);
         bg_clicked_right |= ImGui::IsMouseDown(ImGuiMouseButton_Right);
     }
-    if (node.desc().resizable) display_nodeResize_grip(view_data, node);
+    if (node.desc().resizable) display_node_resize_grip(view_data, node);
     if (bg_clicked_left || bg_clicked_right) {
         defer([this, node = &node] { order_front(node); });
         view_data.active_node = &node;
@@ -2072,7 +2060,8 @@ void Impl::handle_dragging_link_mouse_released() {
 }
 
 void Impl::display() {
-    auto flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs;
+    auto flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs |
+                 ImGuiWindowFlags_NoScrollWithMouse;
     if (!ImGui::BeginChild("Node_Editor", {}, ImGuiChildFlags_None, flags)) {
         ImGui::EndChild();
         return;
@@ -2127,10 +2116,9 @@ static bool need_draw_label_overlay(ViewData const& view_data,
     return is_io_compatible(hovered_pin, *view_data.active_pin);
 }
 
-static void draw_selection_rect(ImRect rect) {
+static void draw_selection_rect(ImDrawList* DL, ImRect rect) {
     auto size = rect.GetSize();
     if (size.x <= 1 || size.y <= 1) return;
-    auto* DL = ImGui::GetWindowDrawList();
     DL->AddRectFilled(
         rect.Min, rect.Max,
         ImGui::ColorConvertFloat4ToU32(style_colors().selection_rect));
@@ -2140,19 +2128,12 @@ static void draw_selection_rect(ImRect rect) {
 }
 
 void Impl::draw_overlays() {
-    if (!begin_invisible_window("Overlays", ImGui::GetWindowPos(),
-                                ImGui::GetWindowSize(),
-                                ImGuiWindowFlags_NoInputs)) {
-        ImGui::EndChild();
-        return;
-    }
+    auto* DL = ImGui::GetForegroundDrawList();
     if (auto* pin = view_data.hovered_pin.get();
-        pin && need_draw_label_overlay(view_data, *pin)) {
-        display_pin_label_overlay(*pin, view_data);
-    }
+        pin && need_draw_label_overlay(view_data, *pin))
+        display_pin_label_overlay(DL, *pin, view_data);
     if (view_data.is_selection_dragging)
-        draw_selection_rect(view_data.get_selection_rect());
-    ImGui::EndChild();
+        draw_selection_rect(DL, view_data.get_selection_rect());
 }
 
 void Impl::order_front(Node* node) {

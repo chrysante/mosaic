@@ -117,6 +117,7 @@ struct DemoNodeEditorDelegate : NodeEditorDelegate {
         if (ImGui::MenuItem("Create Node"))
             return graph.add_node(node_editor::NodeDesc{
                 .name = "My Node",
+                .resizable = true,
                 .controller = std::make_unique<DemoNodeController>()});
         return nullptr;
     }
