@@ -2,7 +2,86 @@
 
 #include <imgui.h>
 
+#include "ext/stb_rect_pack.h"
+#include "gui/ui_context.h"
+#include "support/draw_utils_internal.h"
+
 using namespace mosaic;
+
+ShadowTextureHandle mosaic::get_shadow_texture(ShadowDesc const& desc) {
+    auto* shadow_manager = get_current_ui_context().shadow_manager;
+    if (!shadow_manager) return {};
+    return shadow_manager->get_shadow_texture(desc);
+}
+
+ShadowTextureHandle ShadowManager::get_shadow_texture(ShadowDesc const& desc) {
+    if (!valid()) return {};
+    if (!std::isfinite(desc.corner_radius) ||
+        !std::isfinite(desc.shadow_spread) ||
+        !std::isfinite(desc.shadow_softness) || desc.corner_radius < 0.0f ||
+        desc.shadow_softness <= 0.0f)
+        return {};
+    // Return an existing allocation.
+    if (auto it = cache.find(desc); it != cache.end()) return it->second;
+    // Compile the shader lazily, on the first actual request.
+    return create_shadow(desc);
+}
+
+void ShadowManager::end_frame() {
+    if (pending_jobs.empty()) return;
+    submit_jobs(pending_jobs);
+    pending_jobs.clear();
+}
+
+ShadowTextureHandle ShadowManager::create_shadow(ShadowDesc const& desc) {
+    if (!ensure_pipeline()) return {};
+    int const corner = static_cast<int>(std::ceil(desc.corner_radius));
+    int const padding = static_cast<int>(std::ceil(
+        std::max(0.0f, desc.shadow_spread + desc.shadow_softness) + 1.0f));
+    int const shape_width = corner * 2 + patch_center_size;
+    int const shape_height = corner * 2 + patch_center_size;
+    int const texture_width = shape_width + padding * 2;
+    int const texture_height = shape_height + padding * 2;
+    int const allocation_width = texture_width + atlas_gutter * 2;
+    int const allocation_height = texture_height + atlas_gutter * 2;
+    if (allocation_width > atlas_width || allocation_height > atlas_height)
+        return {};
+    auto [page, rect] = allocate_rect(allocation_width, allocation_height);
+    if (!page) return {};
+    // The actual shadow texture starts after the gutter.
+    int const texture_x = rect.x + atlas_gutter;
+    int const texture_y = rect.y + atlas_gutter;
+
+    ShadowBakeJob job{};
+    job.page = page;
+    job.params = {desc.corner_radius,
+                  desc.shadow_spread,
+                  desc.shadow_softness,
+                  (uint32_t)texture_width,
+                  (uint32_t)texture_height,
+                  (uint32_t)allocation_width,
+                  (uint32_t)allocation_height,
+                  (uint32_t)rect.x,
+                  (uint32_t)rect.y,
+                  (uint32_t)atlas_gutter,
+                  (uint32_t)padding};
+    pending_jobs.emplace_back(job);
+
+    ShadowTextureHandle handle{};
+    handle.texture_id = get_atlas_texture_id(page);
+    handle.uv_min = {(float)texture_x / (float)atlas_width,
+                     (float)texture_y / (float)atlas_height};
+    handle.uv_max = {(float)(texture_x + texture_width) / (float)atlas_width,
+                     (float)(texture_y + texture_height) / (float)atlas_height};
+
+    // Nine-patch boundaries, relative to the inner allocation.
+    handle.patch_min = {(float)(padding + corner), (float)(padding + corner)};
+    handle.patch_max = {(float)(padding + corner + patch_center_size),
+                        (float)(padding + corner + patch_center_size)};
+    handle.atlas_size = {(float)atlas_width, (float)atlas_height};
+    cache.emplace(desc, handle);
+    return handle;
+}
 
 void mosaic::draw_shadow(ImDrawList* draw_list,
                          ShadowTextureHandle const& shadow,

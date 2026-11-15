@@ -14,7 +14,7 @@
 #include "application/window_impl_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
 #include "imgui/imgui_impl_mosaic_metal.h"
-#include "support/draw_utils.h"
+#include "support/draw_utils_internal.h"
 #include "support/logger.h"
 
 using namespace mosaic;

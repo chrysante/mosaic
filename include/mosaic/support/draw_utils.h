@@ -36,14 +36,7 @@ struct ShadowTextureHandle {
     vml::float2 atlas_size = {};
 };
 
-class ShadowManager {
-public:
-    virtual ~ShadowManager() = default;
-
-    virtual ShadowTextureHandle get_shadow_texture(ShadowDesc const& desc) = 0;
-
-    virtual void end_frame() = 0;
-};
+ShadowTextureHandle get_shadow_texture(ShadowDesc const& desc);
 
 /// Draws a shadow around a rectangle.
 ///

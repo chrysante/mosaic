@@ -27,6 +27,7 @@
 #include "service/event_system.h" // IWYU pragma: keep
 #include "service/icon_manager.h"
 #include "service/service_context.h"
+#include "support/draw_utils_internal.h" // IWYU pragma: keep
 #include "support/json_support.h"
 #include "support/logger.h"
 

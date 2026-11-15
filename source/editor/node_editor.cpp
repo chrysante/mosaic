@@ -18,7 +18,6 @@
 #include "editor/selection_manager.h"
 #include "gui/command_palette.h"
 #include "gui/font.h"
-#include "gui/ui_context.h"
 #include "nlohmann/json_fwd.hpp"
 #include "support/draw_utils.h"
 #include "support/json_support.h"
@@ -1755,12 +1754,10 @@ ImRect Impl::draw_node_body(Node& node, bool selected) {
         pos + float2((scaled_size.x - label_size.x) / 2, body_padding.y);
     float rounding = style_vars().node_body_rounding * zoom;
     // Shadow
-    if (auto* shadow_manager = get_current_ui_context().shadow_manager) {
-        auto shadow_handle = shadow_manager->get_shadow_texture({
-            .corner_radius = style_vars().node_body_rounding,
-        });
-        draw_shadow(DL, shadow_handle, pos, scaled_size);
-    }
+    auto shadow_handle = get_shadow_texture({
+        .corner_radius = style_vars().node_body_rounding,
+    });
+    draw_shadow(DL, shadow_handle, pos, scaled_size);
     // Selection outline
     if (selected) {
         float inset = style_vars().node_body_selection_outline_inset * zoom;
