@@ -26,6 +26,8 @@
 
 namespace mosaic {
 
+class ShadowManager;
+
 #ifndef NDEBUG
 class ApplicationDebugger;
 #endif
@@ -87,6 +89,7 @@ struct internal::ApplicationImpl {
     int input_callback_id = 0;
     CommandPalette command_palette;
     ToolManager tool_manager;
+    std::unique_ptr<ShadowManager> shadow_manager;
 #ifndef NDEBUG
     std::unique_ptr<ApplicationDebugger> debugger;
 #endif

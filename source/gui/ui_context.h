@@ -14,6 +14,7 @@ class FontManager;
 class IconManager;
 class StyleSystem;
 class RunModeController;
+class ShadowManager;
 
 struct UIContext {
     utl::stack<FontContext> font_stack;
@@ -22,6 +23,7 @@ struct UIContext {
     IconManager& icon_manager;
     StyleSystem& style_system;
     RunModeController& run_mode_controller;
+    ShadowManager* shadow_manager = nullptr;
 };
 
 UIContext& get_current_ui_context();

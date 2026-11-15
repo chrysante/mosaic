@@ -215,6 +215,7 @@ target_sources(mosaic PRIVATE
     source/application/window_system.cpp
     source/editor/node_editor.cpp
     source/editor/selection_manager.cpp
+    source/ext/stb_rect_pack.cpp
     source/gui/appearance.cpp
     source/gui/command_palette.cpp
     source/gui/containers.cpp
@@ -248,6 +249,7 @@ target_sources(mosaic PRIVATE
     source/service/service_context.cpp
     source/service/style_system.cpp
     source/service/thread_pool.cpp
+    source/support/draw_utils.cpp
     source/support/geometry.cpp
     source/support/json_support.cpp
     source/support/logger.cpp
@@ -277,6 +279,7 @@ target_sources(mosaic PRIVATE
     source/gui/appearance_macos.mm
     source/imgui/imgui_impl_mosaic_macos.mm
     source/imgui/imgui_impl_mosaic_metal.mm
+    source/support/draw_utils_macos.mm
     source/support/file_dialog_macos.mm
 )
 target_compile_options(mosaic PRIVATE

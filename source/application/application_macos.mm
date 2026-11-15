@@ -14,6 +14,7 @@
 #include "application/window_impl_macos.h"
 #include "imgui/imgui_impl_mosaic_macos.h"
 #include "imgui/imgui_impl_mosaic_metal.h"
+#include "support/draw_utils.h"
 #include "support/logger.h"
 
 using namespace mosaic;
@@ -28,6 +29,14 @@ ApplicationImpl::create_impl(Application& app) {
 
 void Application::quit() { [APP_IMPL.native_app stop:nil]; }
 
+namespace mosaic {
+
+std::unique_ptr<ShadowManager>
+create_metal_shadow_manager(id<MTLDevice> device,
+                            id<MTLCommandQueue> command_queue);
+
+} // namespace mosaic
+
 void ApplicationImplMacOS::init_platform() {
     @autoreleasepool {
         native_app = [NSApplication sharedApplication];
@@ -40,6 +49,8 @@ void ApplicationImplMacOS::init_platform() {
             std::exit(EXIT_FAILURE);
         }
         command_queue = [device newCommandQueue];
+        shadow_manager = create_metal_shadow_manager(device, command_queue);
+        ui_context.shadow_manager = shadow_manager.get();
     }
 }
 
@@ -81,6 +92,7 @@ void ApplicationImplMacOS::imgui_begin_frame_platform() {
 }
 
 void ApplicationImplMacOS::imgui_end_frame_platform() {
+    if (shadow_manager) shadow_manager->end_frame();
     ImGui_Impl_Mosaic_Metal_RenderDrawData(ImGui::GetDrawData(), command_buffer,
                                            encoder);
     [encoder endEncoding];
