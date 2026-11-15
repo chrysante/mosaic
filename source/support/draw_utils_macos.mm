@@ -94,8 +94,8 @@ struct MetalShadowManager final : ShadowManager {
                                                                                \
     struct ShadowParams {                                                      \
         float corner_radius;                                                   \
-        float shadow_spread;                                                   \
-        float shadow_softness;                                                 \
+        float distance;                                                        \
+        float spread;                                                          \
                                                                                \
         uint texture_width;                                                    \
         uint texture_height;                                                   \
@@ -103,11 +103,11 @@ struct MetalShadowManager final : ShadowManager {
         uint allocation_width;                                                 \
         uint allocation_height;                                                \
                                                                                \
-        uint atlas_x;                                                          \
-        uint atlas_y;                                                          \
+        uint position_in_atlas_x;                                              \
+        uint position_in_atlas_y;                                              \
                                                                                \
         uint gutter;                                                           \
-        uint padding;                                                          \
+        uint falloff_distance;                                                 \
     };                                                                         \
                                                                                \
     float rounded_rect_sdf(float2 p, float2 half_size, float radius) {         \
@@ -122,25 +122,42 @@ struct MetalShadowManager final : ShadowManager {
         if (gid.x >= params.allocation_width ||                                \
             gid.y >= params.allocation_height)                                 \
             return;                                                            \
-        uint2 atlas_position = uint2(params.atlas_x, params.atlas_y) + gid;    \
-        /* Initialize the gutter to transparent white */                       \
+                                                                               \
+        uint2 atlas_position =                                                 \
+            uint2(params.position_in_atlas_x, params.position_in_atlas_y) +    \
+            gid;                                                               \
+                                                                               \
+        /* Initialize the gutter to transparent white. */                      \
         if (gid.x < params.gutter || gid.y < params.gutter ||                  \
             gid.x >= params.gutter + params.texture_width ||                   \
             gid.y >= params.gutter + params.texture_height) {                  \
             atlas.write(float4(1.0, 1.0, 1.0, 0.0), atlas_position);           \
             return;                                                            \
         }                                                                      \
+                                                                               \
         uint2 local_position = gid - params.gutter;                            \
+                                                                               \
         float2 half_size =                                                     \
             float2(params.texture_width, params.texture_height) * 0.5 -        \
-            float2(params.padding);                                            \
-        float2 p =                                                             \
-            float2(local_position) + 0.5 - float2(params.padding) - half_size; \
-        float distance = rounded_rect_sdf(p, half_size, params.corner_radius); \
-        float alpha =                                                          \
-            1.0 - smoothstep(params.shadow_spread,                             \
-                             params.shadow_spread + params.shadow_softness,    \
-                             distance);                                        \
+            float2(params.falloff_distance);                                   \
+                                                                               \
+        float2 p = float2(local_position) + 0.5 -                              \
+                   float2(params.falloff_distance) - half_size;                \
+                                                                               \
+        /* Evaluate the signed distance to the expanded rounded rectangle. */  \
+        float sdf =                                                            \
+            rounded_rect_sdf(p, half_size + params.spread,                     \
+                             max(0.0, params.corner_radius + params.spread));  \
+                                                                               \
+        /* Gaussian falloff. */                                                \
+        float sigma = max(params.distance / 3.3, 0.001);                       \
+        float x = max(0.0, sdf) / sigma;                                       \
+        float alpha = exp(-0.5 * x * x);                                       \
+                                                                               \
+        /* The shadow has no contribution beyond its specified distance. */    \
+        alpha *= 1.0 - smoothstep(params.distance * 0.85, params.distance,     \
+                                  max(0.0, sdf));                              \
+                                                                               \
         atlas.write(float4(1.0, 1.0, 1.0, alpha), atlas_position);             \
     }
 

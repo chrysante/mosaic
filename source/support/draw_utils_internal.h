@@ -18,16 +18,15 @@ namespace mosaic {
 
 struct ShadowDescHash {
     size_t operator()(ShadowDesc const& desc) const noexcept {
-        return utl::hash_combine(desc.corner_radius, desc.shadow_spread,
-                                 desc.shadow_softness);
+        return utl::hash_combine(desc.corner_radius, desc.distance,
+                                 desc.spread);
     }
 };
 
 struct ShadowDescEqual {
     bool operator()(ShadowDesc const& a, ShadowDesc const& b) const noexcept {
-        return a.corner_radius == b.corner_radius &&
-               a.shadow_spread == b.shadow_spread &&
-               a.shadow_softness == b.shadow_softness;
+        return a.corner_radius == b.corner_radius && a.distance == b.distance &&
+               a.spread == b.spread;
     }
 };
 
@@ -35,8 +34,8 @@ struct ShadowDescEqual {
 // This layout must be kept in sync with `ShadowParams` in the shader.
 struct ShadowParams {
     float corner_radius;
-    float shadow_spread;
-    float shadow_softness;
+    float distance;
+    float spread;
 
     uint32_t texture_width;
     uint32_t texture_height;
@@ -44,11 +43,11 @@ struct ShadowParams {
     uint32_t allocation_width;
     uint32_t allocation_height;
 
-    uint32_t atlas_x;
-    uint32_t atlas_y;
+    uint32_t position_in_atlas_x;
+    uint32_t position_in_atlas_y;
 
     uint32_t gutter;
-    uint32_t padding;
+    uint32_t falloff_distance;
 };
 
 struct AtlasPage;

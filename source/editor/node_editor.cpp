@@ -86,7 +86,11 @@ struct NodeEditorStyleVars {
     float link_bezier_control_point_y_falloff = 150;
     float min_zoom = .25;
     float max_zoom = 1;
-    ShadowDesc shadow_desc;
+    float shadow_corner_radius_offset = 0.0f;
+    float shadow_distance = 60.0f;
+    float shadow_spread = -20.0f;
+    float shadow_alpha = 0.5f;
+    float2 shadow_offset = {0.0f, 5.0f};
 };
 
 struct NodeEditorStyle {
@@ -133,7 +137,7 @@ struct NodeEditorStyle {
 /// This is not const so we can edit the values with the style editor window
 static NodeEditorStyle style;
 
-static NodeEditorStyleColors const& style_colors() { return style.colors[1]; }
+static NodeEditorStyleColors const& style_colors() { return style.colors[0]; }
 
 static NodeEditorStyleVars const& style_vars() { return style.vars; }
 
@@ -192,9 +196,11 @@ static void style_editor(bool* open) {
     ImGui::SliderFloat("link_bezier_control_point_y_falloff", &var.link_bezier_control_point_y_falloff, 0, 1000, "%.0f");
     ImGui::SliderFloat("min_zoom", &var.min_zoom, 0.01, var.max_zoom);
     ImGui::SliderFloat("max_zoom", &var.max_zoom, var.min_zoom, 1000);
-    ImGui::SliderFloat("shadow.corner_radius", &var.shadow_desc.corner_radius, 0.0f, 100.0f, "%.0f");
-    ImGui::SliderFloat("shadow.shadow_spread", &var.shadow_desc.shadow_spread, 0.0f, 100.0f, "%.0f");
-    ImGui::SliderFloat("shadow.shadow_softness", &var.shadow_desc.shadow_softness, 0.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow_corner_radius_offset", &var.shadow_corner_radius_offset, 0.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow_distance", &var.shadow_distance, 0.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow_spread", &var.shadow_spread, -100.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow_alpha", &var.shadow_alpha, 0.0f, 1.0f);
+    ImGui::SliderFloat2("shadow_offset", var.shadow_offset.data(), -100.0f, 100.0f, "%.0f");
     // clang-format on
     ImGui::End();
 }
@@ -1758,8 +1764,14 @@ ImRect Impl::draw_node_body(Node& node, bool selected) {
         pos + float2((scaled_size.x - label_size.x) / 2, body_padding.y);
     float rounding = style_vars().node_body_rounding * zoom;
     // Shadow
-    auto shadow_handle = get_shadow_texture(style_vars().shadow_desc);
-    draw_shadow(DL, shadow_handle, pos, scaled_size);
+    auto shadow_handle = get_shadow_texture(
+        {.corner_radius = (int)(style_vars().node_body_rounding +
+                                style_vars().shadow_corner_radius_offset),
+         .distance = (int)style_vars().shadow_distance,
+         .spread = (int)style_vars().shadow_spread});
+    draw_shadow(DL, shadow_handle, pos + zoom * style_vars().shadow_offset,
+                scaled_size, zoom,
+                IM_COL32(0, 0, 0, (int)(255 * style_vars().shadow_alpha)));
     // Selection outline
     if (selected) {
         float inset = style_vars().node_body_selection_outline_inset * zoom;
