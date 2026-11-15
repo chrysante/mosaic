@@ -35,9 +35,9 @@ void ShadowManager::end_frame() {
 
 ShadowTextureHandle ShadowManager::create_shadow(ShadowDesc const& desc) {
     if (!ensure_pipeline()) return {};
-    int const corner = static_cast<int>(std::ceil(desc.corner_radius));
-    int const padding = static_cast<int>(std::ceil(
-        std::max(0.0f, desc.shadow_spread + desc.shadow_softness) + 1.0f));
+    int const corner = (int)std::ceil(desc.corner_radius);
+    int const padding = (int)std::ceil(
+        std::max(0.0f, desc.shadow_spread + desc.shadow_softness) + 1.0f);
     int const shape_width = corner * 2 + patch_center_size;
     int const shape_height = corner * 2 + patch_center_size;
     int const texture_width = shape_width + padding * 2;
@@ -81,6 +81,25 @@ ShadowTextureHandle ShadowManager::create_shadow(ShadowDesc const& desc) {
     handle.atlas_size = {(float)atlas_width, (float)atlas_height};
     cache.emplace(desc, handle);
     return handle;
+}
+
+void ShadowManager::draw_debugger() {
+    ImGui::PushID(this);
+    auto atlas_pages = get_atlas_pages();
+    static int page_index = 0;
+    ImGui::SliderInt(
+        "Page", &page_index, 0, (int)atlas_pages.size() - 1, nullptr,
+        ImGuiSliderFlags_ClampOnInput | ImGuiSliderFlags_ClampZeroRange);
+    if (page_index >= 0 && page_index < (int)atlas_pages.size()) {
+        AtlasPage* page = atlas_pages[(std::size_t)page_index];
+        float size_avail = ImGui::GetContentRegionAvail().x;
+        ImTextureID texture_id = get_atlas_texture_id(page);
+        ImGui::Image(texture_id, {size_avail, size_avail});
+        for (auto& [desc, handle] : cache) {
+            if (handle.texture_id != texture_id) continue;
+        }
+    }
+    ImGui::PopID();
 }
 
 void mosaic::draw_shadow(ImDrawList* draw_list,

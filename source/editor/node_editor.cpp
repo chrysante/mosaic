@@ -86,6 +86,7 @@ struct NodeEditorStyleVars {
     float link_bezier_control_point_y_falloff = 150;
     float min_zoom = .25;
     float max_zoom = 1;
+    ShadowDesc shadow_desc;
 };
 
 struct NodeEditorStyle {
@@ -172,25 +173,28 @@ static void style_editor(bool* open) {
     ImGui::SliderFloat("Disabled Pin Alpha", &col.disabled_pin_alpha, 0, 1);
     ImGui::SliderFloat("Disabled Link Alpha", &col.disabled_link_alpha, 0, 1);
     ImGui::SeparatorText("Style Vars");
-    ImGui::SliderFloat("LinkWidth", &var.link_width, 0, 10);
-    ImGui::SliderFloat("LinkWidthHovered", &var.link_width_hovered, 0, 10);
-    ImGui::SliderFloat("link_hover_dist", &var.link_hover_dist, 0, 20);
-    ImGui::SliderFloat("pin_area_size", &var.pin_area_size, 0, 100);
-    ImGui::SliderFloat("PinRadius", &var.pin_radius, 0, 100);
-    ImGui::SliderFloat("PinConnectIndicatorRadius", &var.pin_connect_indicator_radius, 0, var.pin_radius);
-    ImGui::SliderFloat("PinConnectIndicatorRadiusHovered", &var.pin_connect_indicator_radius_hovered, 0, var.pin_radius);
-    ImGui::SliderFloat("NodeBodyTitleHeight", &var.node_body_title_height, 0, 100);
-    ImGui::SliderFloat("NodeBodyBottomPadding", &var.node_body_bottom_padding, 0, 100);
-    ImGui::SliderFloat("NodeBodyRounding", &var.node_body_rounding, 0, 100);
-    ImGui::SliderFloat("NodeBodySelectionOutlineInset", &var.node_body_selection_outline_inset, 0, 100);
-    ImGui::SliderFloat("PinInset", &var.pin_inset, -100, 100);
-    ImGui::SliderFloat2("MinNodeBodyPadding", var.min_node_body_padding.data(), 0, 50);
-    ImGui::SliderFloat2("BackgroundLineDist", var.background_line_dist.data(), 0, 200);
-    ImGui::SliderFloat("LinkBezierControlPointXMin", &var.link_bezier_control_point_x_min, 0, var.link_bezier_control_point_x_max);
-    ImGui::SliderFloat("LinkBezierControlPointXMax", &var.link_bezier_control_point_x_max, var.link_bezier_control_point_x_min, 1000);
-    ImGui::SliderFloat("link_bezier_control_point_y_falloff", &var.link_bezier_control_point_y_falloff, 0, 1000);
+    ImGui::SliderFloat("LinkWidth", &var.link_width, 0, 10, "%.0f");
+    ImGui::SliderFloat("LinkWidthHovered", &var.link_width_hovered, 0, 10, "%.0f");
+    ImGui::SliderFloat("link_hover_dist", &var.link_hover_dist, 0, 20, "%.0f");
+    ImGui::SliderFloat("pin_area_size", &var.pin_area_size, 0, 100, "%.0f");
+    ImGui::SliderFloat("PinRadius", &var.pin_radius, 0, 100, "%.0f");
+    ImGui::SliderFloat("PinConnectIndicatorRadius", &var.pin_connect_indicator_radius, 0, var.pin_radius, "%.0f");
+    ImGui::SliderFloat("PinConnectIndicatorRadiusHovered", &var.pin_connect_indicator_radius_hovered, 0, var.pin_radius, "%.0f");
+    ImGui::SliderFloat("NodeBodyTitleHeight", &var.node_body_title_height, 0, 100, "%.0f");
+    ImGui::SliderFloat("NodeBodyBottomPadding", &var.node_body_bottom_padding, 0, 100, "%.0f");
+    ImGui::SliderFloat("NodeBodyRounding", &var.node_body_rounding, 0, 100, "%.0f");
+    ImGui::SliderFloat("NodeBodySelectionOutlineInset", &var.node_body_selection_outline_inset, 0, 100, "%.0f");
+    ImGui::SliderFloat("PinInset", &var.pin_inset, -100, 100, "%.0f");
+    ImGui::SliderFloat2("MinNodeBodyPadding", var.min_node_body_padding.data(), 0, 50, "%.0f");
+    ImGui::SliderFloat2("BackgroundLineDist", var.background_line_dist.data(), 0, 200, "%.0f");
+    ImGui::SliderFloat("LinkBezierControlPointXMin", &var.link_bezier_control_point_x_min, 0, var.link_bezier_control_point_x_max, "%.0f");
+    ImGui::SliderFloat("LinkBezierControlPointXMax", &var.link_bezier_control_point_x_max, var.link_bezier_control_point_x_min, 1000, "%.0f");
+    ImGui::SliderFloat("link_bezier_control_point_y_falloff", &var.link_bezier_control_point_y_falloff, 0, 1000, "%.0f");
     ImGui::SliderFloat("min_zoom", &var.min_zoom, 0.01, var.max_zoom);
     ImGui::SliderFloat("max_zoom", &var.max_zoom, var.min_zoom, 1000);
+    ImGui::SliderFloat("shadow.corner_radius", &var.shadow_desc.corner_radius, 0.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow.shadow_spread", &var.shadow_desc.shadow_spread, 0.0f, 100.0f, "%.0f");
+    ImGui::SliderFloat("shadow.shadow_softness", &var.shadow_desc.shadow_softness, 0.0f, 100.0f, "%.0f");
     // clang-format on
     ImGui::End();
 }
@@ -1754,9 +1758,7 @@ ImRect Impl::draw_node_body(Node& node, bool selected) {
         pos + float2((scaled_size.x - label_size.x) / 2, body_padding.y);
     float rounding = style_vars().node_body_rounding * zoom;
     // Shadow
-    auto shadow_handle = get_shadow_texture({
-        .corner_radius = style_vars().node_body_rounding,
-    });
+    auto shadow_handle = get_shadow_texture(style_vars().shadow_desc);
     draw_shadow(DL, shadow_handle, pos, scaled_size);
     // Selection outline
     if (selected) {

@@ -72,6 +72,13 @@ struct MetalShadowManager final : ShadowManager {
         return (ImTextureID)(intptr_t)(__bridge void*)page->texture;
     }
 
+    utl::small_vector<AtlasPage*> get_atlas_pages() override {
+        utl::small_vector<AtlasPage*> result(atlas_pages.size());
+        std::ranges::transform(atlas_pages, result.begin(),
+                               [](auto& p) { return p.get(); });
+        return result;
+    }
+
     void submit_jobs(std::span<ShadowBakeJob const> jobs) override;
 
     id<MTLDevice> device = nil;
@@ -82,65 +89,70 @@ struct MetalShadowManager final : ShadowManager {
 
 } // namespace
 
+#define SHADOW_BAKE_SHADER_SOURCE                                              \
+    using namespace metal;                                                     \
+                                                                               \
+    struct ShadowParams {                                                      \
+        float corner_radius;                                                   \
+        float shadow_spread;                                                   \
+        float shadow_softness;                                                 \
+                                                                               \
+        uint texture_width;                                                    \
+        uint texture_height;                                                   \
+                                                                               \
+        uint allocation_width;                                                 \
+        uint allocation_height;                                                \
+                                                                               \
+        uint atlas_x;                                                          \
+        uint atlas_y;                                                          \
+                                                                               \
+        uint gutter;                                                           \
+        uint padding;                                                          \
+    };                                                                         \
+                                                                               \
+    float rounded_rect_sdf(float2 p, float2 half_size, float radius) {         \
+        float2 q = abs(p) - (half_size - radius);                              \
+        return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;         \
+    }                                                                          \
+                                                                               \
+    kernel void generate_shadow(texture2d<float, access::write> atlas          \
+                                [[texture(0)]],                                \
+                                constant ShadowParams& params [[buffer(0)]],   \
+                                uint2 gid [[thread_position_in_grid]]) {       \
+        if (gid.x >= params.allocation_width ||                                \
+            gid.y >= params.allocation_height)                                 \
+            return;                                                            \
+        uint2 atlas_position = uint2(params.atlas_x, params.atlas_y) + gid;    \
+        /* Initialize the gutter to transparent white */                       \
+        if (gid.x < params.gutter || gid.y < params.gutter ||                  \
+            gid.x >= params.gutter + params.texture_width ||                   \
+            gid.y >= params.gutter + params.texture_height) {                  \
+            atlas.write(float4(1.0, 1.0, 1.0, 0.0), atlas_position);           \
+            return;                                                            \
+        }                                                                      \
+        uint2 local_position = gid - params.gutter;                            \
+        float2 half_size =                                                     \
+            float2(params.texture_width, params.texture_height) * 0.5 -        \
+            float2(params.padding);                                            \
+        float2 p =                                                             \
+            float2(local_position) + 0.5 - float2(params.padding) - half_size; \
+        float distance = rounded_rect_sdf(p, half_size, params.corner_radius); \
+        float alpha =                                                          \
+            1.0 - smoothstep(params.shadow_spread,                             \
+                             params.shadow_spread + params.shadow_softness,    \
+                             distance);                                        \
+        atlas.write(float4(1.0, 1.0, 1.0, alpha), atlas_position);             \
+    }
+
+#define TO_STRING(X) TO_STRING_IMPL(X)
+#define TO_STRING_IMPL(X) #X
+
 bool MetalShadowManager::ensure_pipeline() {
     if (pipeline) return true;
 
-    static constexpr char shader_source[] = R"METAL(
+    static constexpr char shader_source[] = R"(
 #include <metal_stdlib>
-using namespace metal;
-
-struct ShadowParams {
-    float corner_radius;
-    float shadow_spread;
-    float shadow_softness;
-
-    uint texture_width;
-    uint texture_height;
-
-    uint allocation_width;
-    uint allocation_height;
-
-    uint atlas_x;
-    uint atlas_y;
-
-    uint gutter;
-    uint padding;
-};
-
-float rounded_rect_sdf(float2 p, float2 half_size, float radius) {
-    float2 q = abs(p) - (half_size - radius);
-    return length(max(q, 0.0))
-         + min(max(q.x, q.y), 0.0)
-         - radius;
-}
-
-kernel void generate_shadow(
-    texture2d<float, access::write> atlas [[texture(0)]],
-    constant ShadowParams& params [[buffer(0)]],
-    uint2 gid [[thread_position_in_grid]]) 
-{
-    if (gid.x >= params.allocation_width || gid.y >= params.allocation_height)
-        return;
-    uint2 atlas_position = uint2(params.atlas_x, params.atlas_y) + gid;
-    // Initialize the gutter to transparent white.
-    if (gid.x < params.gutter || gid.y < params.gutter ||
-        gid.x >= params.gutter + params.texture_width ||
-        gid.y >= params.gutter + params.texture_height) {
-        atlas.write(float4(1.0, 1.0, 1.0, 0.0), atlas_position);
-        return;
-    }
-    uint2 local_position = gid - params.gutter;
-    float2 half_size = float2(params.texture_width, params.texture_height) * 
-                       0.5 - float2(params.padding);
-    float2 p = float2(local_position) + 0.5 - float2(params.padding) - 
-               half_size;
-    float distance = rounded_rect_sdf(p, half_size, params.corner_radius);
-    float alpha = 1.0 - smoothstep(params.shadow_spread, 
-                                   params.shadow_spread + params.shadow_softness, 
-                                   distance);
-    atlas.write(float4(1.0, 1.0, 1.0, alpha), atlas_position);
-}
-)METAL";
+)" TO_STRING(SHADOW_BAKE_SHADER_SOURCE);
 
     NSString* source = [NSString stringWithUTF8String:shader_source];
     NSError* error = nil;

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <utl/hash.hpp>
+#include <utl/vector.hpp>
 
 #include "ext/stb_rect_pack.h"
 #include "imgui.h"
@@ -70,6 +71,10 @@ public:
 
     void end_frame();
 
+#ifndef NDEBUG
+    void draw_debugger();
+#endif
+
 protected:
     struct RectAllocationResult {
         AtlasPage* page;
@@ -82,6 +87,7 @@ private:
     // result.page will be NULL ob failure
     virtual RectAllocationResult allocate_rect(int width, int height) = 0;
     virtual ImTextureID get_atlas_texture_id(AtlasPage* page) = 0;
+    virtual utl::small_vector<AtlasPage*> get_atlas_pages() = 0;
     virtual void submit_jobs(std::span<ShadowBakeJob const> jobs) = 0;
 
     ShadowTextureHandle create_shadow(ShadowDesc const& desc);

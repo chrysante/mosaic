@@ -18,6 +18,7 @@
 #include "gui/layout.h"
 #include "gui/view_debugger.h"
 #include "service/panel_manager.h"
+#include "support/draw_utils_internal.h"
 #include "support/enum.h"
 #include "tool/tool_manager.h"
 
@@ -88,6 +89,11 @@ void ApplicationDebugger::display_debuggers() {
         if (ImGui::CollapsingHeader("Frame Scheduler"))
             GET_APP_IMPL(app).frame_scheduler->draw_debugger();
         if (ImGui::CollapsingHeader("View Debugger")) ui::draw_view_debugger();
+        if (ImGui::CollapsingHeader("Shadow Manager Debugger")) {
+            if (auto* shadow_manager = GET_APP_IMPL(app).shadow_manager.get())
+                shadow_manager->draw_debugger();
+            else ImGui::TextDisabled("Shadow Manager is NULL");
+        }
         if (ImGui::CollapsingHeader("Properties Layout"))
             ui::draw_properties_debugger();
     }
