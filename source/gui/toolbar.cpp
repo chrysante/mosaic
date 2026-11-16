@@ -22,7 +22,7 @@ struct ToolbarView : View {
         ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, 12.0f);
         push_style_control_color(
             StyleColorControl::Default,
-            get_global_style2().control_color[StyleColorControl::toolbar]);
+            get_global_style().control_color[StyleColorControl::toolbar]);
 
         frame.size.x -= padding.left + padding.right;
         frame.size.y -= padding.top + padding.bottom;

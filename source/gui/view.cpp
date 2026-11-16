@@ -134,7 +134,7 @@ ViewPipeAdapter<ui::internal::ControlColorAction>
 ui::control_color(StyleColorControl color) {
     // FIXME: Clarify the semantics. Should we take the color from the current
     // style or the reference/base style?
-    return control_color(&get_global_style2().control_color[color]);
+    return control_color(&get_global_style().control_color[color]);
 }
 
 Owner<View> ui::internal::TooltipAction::operator()(Owner<View> in) && {

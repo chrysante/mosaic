@@ -41,14 +41,14 @@ struct ControlColor {
 
 enum struct StyleType { light, dark };
 
-struct Style_ {
+struct Style {
     StyleType style_type;
 
     EnumArray<StyleColor, Color> color;
     EnumArray<StyleColorControl, ControlColor> control_color;
 };
 
-Style_ const& get_global_style2();
+Style const& get_global_style();
 
 void push_style_color(StyleColor index, Color value);
 void pop_style_color();
@@ -57,7 +57,7 @@ void pop_style_control_color();
 
 // TODO: Move this helper class somewhere more private
 struct StyleContext {
-    Style_ const& style() const { return m_style; }
+    Style const& style() const { return m_style; }
 
     void push_color(StyleColor index, Color value) {
         m_color_stack.push(index, value);
@@ -107,15 +107,15 @@ private:
         utl::stack<StackItem> stack;
     };
 
-    Style_ m_style;
+    Style m_style;
     Stack<StyleColor, Color> m_color_stack{m_style.color.data()};
     Stack<StyleColorControl, ControlColor> m_control_color_stack{
         m_style.control_color.data()};
 };
 
 // TODO: Move these helper functions somewhere more private
-Style_ compute_from_desc(StyleDesc const& style_desc, StyleType style_type);
-void apply_to_imgui(Style_ const& style);
+Style compute_from_desc(StyleDesc const& style_desc, StyleType style_type);
+void apply_to_imgui(Style const& style);
 StyleType get_current_system_style_type();
 
 } // namespace mosaic

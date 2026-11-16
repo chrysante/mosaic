@@ -36,7 +36,7 @@ public:
     StyleType active_style_type() const { return m_active_style_type; }
 
     /// The active style, not modified by stack pushes
-    Style_ const& active_style_ref() const { return m_active_style_ref; }
+    Style const& active_style_ref() const { return m_active_style_ref; }
 
     /// The active style including current modifications
     StyleContext& active_style_contex() { return m_active_style_context; }
@@ -47,7 +47,7 @@ private:
     std::filesystem::path m_active_style_path;
     StyleDesc m_active_style_desc;
     StyleType m_active_style_type;
-    Style_ m_active_style_ref;
+    Style m_active_style_ref;
     StyleContext m_active_style_context;
 };
 

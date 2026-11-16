@@ -31,9 +31,9 @@ static ControlColor convert(ControlColorDesc const& desc) {
             .text = convert(desc.text)};
 }
 
-Style_ mosaic::compute_from_desc(StyleDesc const& desc, StyleType style_type) {
+Style mosaic::compute_from_desc(StyleDesc const& desc, StyleType style_type) {
     unsigned i = (unsigned)style_type;
-    Style_ result;
+    Style result;
     result.style_type = style_type;
     for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
         StyleColor index = (StyleColor)j;
@@ -50,7 +50,7 @@ static ImVec4 to_v4(Color color) {
     return ImGui::ColorConvertU32ToFloat4(color.value);
 }
 
-void mosaic::apply_to_imgui(Style_ const& style) {
+void mosaic::apply_to_imgui(Style const& style) {
     auto& imgui_style = ImGui::GetStyle();
     auto& colors = imgui_style.Colors;
     auto clear = [&](ImGuiCol_ dest) { colors[dest] = {}; };
@@ -169,9 +169,7 @@ static StyleContext& get_style_context() {
     return get_current_ui_context().style_system.active_style_contex();
 }
 
-Style_ const& mosaic::get_global_style2() {
-    return get_style_context().style();
-}
+Style const& mosaic::get_global_style() { return get_style_context().style(); }
 
 void mosaic::push_style_color(StyleColor index, Color value) {
     get_style_context().push_color(index, value);
