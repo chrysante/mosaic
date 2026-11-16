@@ -80,17 +80,16 @@ public:
     ///
     Command const* find(std::string_view name) const;
 
+    ///
+    void on_input(InputEvent const& event) const;
+
 private:
     friend struct internal::ApplicationImpl;
-    friend class Panel;
 
     struct ModCommandPair {
         ModFlags mod_flags;
         Command command;
     };
-
-    ///
-    void on_input(InputEvent const& event) const;
 
     /// This is a node hashmap because we give out pointers to elements
     utl::node_hashmap<std::string, Command> m_name_map;

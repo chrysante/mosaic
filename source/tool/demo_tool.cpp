@@ -143,6 +143,7 @@ void DemoTool::on_create() {
     node_editor.set_model(&node_graph);
     event_receiver = service_context().make_event_receiver();
     event_receiver.listen([this](InputEventUnion const& event) {
+        command_palette_write().on_input(event.base());
         node_editor.on_input(event.base());
     });
     node_editor.set_delegate(

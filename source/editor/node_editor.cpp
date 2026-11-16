@@ -943,7 +943,7 @@ struct NodeEditor::Impl {
     void paste_nodes_from_clipboard();
 
     void open_popup(char const* name);
-    void defer(auto f) { defer_list.push_back(f); }
+    void defer(std::function<void()> f) { defer_list.push_back(std::move(f)); }
 
     NodeEditorGraph* model = nullptr;
     SelectionManager selection;
@@ -1454,7 +1454,7 @@ static LinkDrawData compute_link_draw_data(float2 begin, float2 end,
 
 static bool test_path_overlap(std::span<ImVec2 const> path, float2 point,
                               float dist) {
-    for (size_t i = 0; i < path.size() - 1; ++i) {
+    for (size_t i = 0; i + 1 < path.size(); ++i) {
         float2 p1 = path[i];
         float2 p2 = path[i + 1];
         if (vml::distance(vml::line_segment_2D<>(p1, p2), point) <= dist)
@@ -1985,12 +1985,11 @@ void Impl::display_node_body(Node& node) {
     ImGui::SetNextItemAllowOverlap();
     ImGui::ItemSize(scaled_node_size);
     ImGui::ItemAdd(bb, id);
-    vml::rectangle<float> node_rect(node.position(),
-                                    node.position() + node.size());
-    view_data.node_rect_union =
-        vml::area(view_data.node_rect_union) == 0
-            ? node_rect
-            : union_(view_data.node_rect_union, node_rect);
+    if (draw_debug_helpers) {
+        DL->AddRect(bb.Min, bb.Max, IM_COL32(255, 0, 255, 255));
+        DL->AddRect(window_pos, window_pos + window_size,
+                    IM_COL32(255, 255, 0, 255));
+    }
     if (ImGui::IsMouseHoveringRect(window_pos + vml::float2(2.0f, 2.0f),
                                    window_pos + window_size -
                                        vml::float2(4.0f, 4.0f))) {
@@ -2079,6 +2078,14 @@ void Impl::handle_dragging_link_mouse_released() {
         view_data.active_pin = nullptr;
 }
 
+void update_node_rect_union(vml::rectangle<float>& rect_union,
+                            Node const& node) {
+    vml::rectangle<float> node_rect(node.position(),
+                                    node.position() + node.size());
+    if (vml::area(rect_union) == 0.0f) rect_union = node_rect;
+    else rect_union = union_(rect_union, node_rect);
+}
+
 void Impl::display() {
     auto flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs |
                  ImGuiWindowFlags_NoScrollWithMouse;
@@ -2106,8 +2113,10 @@ void Impl::display() {
             display_links(*node);
         display_dragging_link();
         view_data.node_rect_union = {};
-        for (auto* node : model->nodes())
+        for (auto* node : model->nodes()) {
             display_node(*node);
+            update_node_rect_union(view_data.node_rect_union, *node);
+        }
     }
     background_behaviour();
     draw_overlays();
