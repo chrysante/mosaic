@@ -93,24 +93,22 @@ void ShadowManager::draw_debugger() {
 
 using namespace vml::short_types;
 
-void draw_shadow_impl(ImDrawList* draw_list, ShadowTextureHandle const& shadow,
+void draw_shadow_impl(ImDrawList* draw_list, ShadowTextureHandle const& handle,
                       float2 position, float2 size,
                       ShadowDrawOptions const& options) {
-    if (!shadow.texture_id) return;
-
     position += options.scale * vml::float2(-options.spread) + options.offset;
     size += vml::float2(2 * options.scale * options.spread);
 
-    float2 uv0 = shadow.uv_min;
-    float2 uv3 = shadow.uv_max;
+    float2 uv0 = handle.uv_min;
+    float2 uv3 = handle.uv_max;
 
     // Reconstruct the nine-patch boundaries.
-    float const border_size = shadow.falloff_distance + shadow.corner_radius;
-    float2 uv1 = uv0 + float2(border_size) / shadow.atlas_size;
-    float2 uv2 = uv3 - float2(border_size) / shadow.atlas_size;
+    float const border_size = handle.falloff_distance + handle.corner_radius;
+    float2 uv1 = uv0 + float2(border_size) / handle.atlas_size;
+    float2 uv2 = uv3 - float2(border_size) / handle.atlas_size;
 
     // Shadow bounds in screen space.
-    float scaled_falloff = options.scale * shadow.falloff_distance;
+    float scaled_falloff = options.scale * handle.falloff_distance;
     float2 min = position - float2(scaled_falloff);
     float2 max = position + size + float2(scaled_falloff);
 
@@ -143,7 +141,7 @@ void draw_shadow_impl(ImDrawList* draw_list, ShadowTextureHandle const& shadow,
             float2 p_max(x[col + 1].x, y[row + 1].y);
             if (p_max.x <= p_min.x || p_max.y <= p_min.y) continue;
             draw_list->AddImage(
-                shadow.texture_id, p_min, p_max, float2(u[col].x, v[row].y),
+                handle.texture_id, p_min, p_max, float2(u[col].x, v[row].y),
                 float2(u[col + 1].x, v[row + 1].y), options.tint);
         }
     }
@@ -156,5 +154,6 @@ void mosaic::draw_shadow(ImDrawList* draw_list, vml::float2 position,
     auto handle = shadow_manager->get_shadow_texture(
         {.corner_radius = (int)std::ceil(options.corner_radius),
          .distance = (int)std::ceil(options.distance)});
+    if (!handle.texture_id) return;
     draw_shadow_impl(draw_list, handle, position, size, options);
 }
