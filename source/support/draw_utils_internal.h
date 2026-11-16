@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
-#include <stdint.h>
+#include <vector>
 
 #include <utl/hash.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "ext/stb_rect_pack.h"
@@ -13,48 +15,71 @@
 namespace mosaic {
 
 // =============================================================================
-// Descriptor cache
+// Shadow Rendering
 // =============================================================================
 
-struct ShadowDescHash {
-    size_t operator()(ShadowDesc const& desc) const noexcept {
-        return utl::hash_combine(desc.corner_radius, desc.distance,
-                                 desc.spread);
+/// Descriptor key for a shadow texture
+struct ShadowDesc {
+    int corner_radius;
+    int distance;
+
+    bool operator==(ShadowDesc const&) const = default;
+};
+
+} // namespace mosaic
+
+template <> struct std::hash<mosaic::ShadowDesc> {
+    std::size_t operator()(mosaic::ShadowDesc const& desc) const {
+        return utl::hash_combine(desc.corner_radius, desc.distance);
     }
 };
 
-struct ShadowDescEqual {
-    bool operator()(ShadowDesc const& a, ShadowDesc const& b) const noexcept {
-        return a.corner_radius == b.corner_radius && a.distance == b.distance &&
-               a.spread == b.spread;
-    }
+namespace mosaic {
+
+struct ShadowTextureHandle {
+    /// Atlas texture
+    ImTextureID texture_id = {};
+
+    /// Top-left UV coordinate of the allocation
+    vml::float2 uv_min = {};
+
+    /// Bottom-right UV coordinate of the allocation
+    vml::float2 uv_max = {};
+
+    /// Distance the shadow extends beyond the casting rectangle
+    int falloff_distance = 0.0f;
+
+    /// Corner radius of the shadow-casting rectangle
+    int corner_radius = 0.0f;
+
+    /// Size of the atlas containing the shadow texture
+    vml::int2 atlas_size = {};
 };
 
 // Compute shader parameters
 // This layout must be kept in sync with `ShadowParams` in the shader.
-struct ShadowParams {
+struct ShadowBakeParams {
     float corner_radius;
     float distance;
-    float spread;
 
-    uint32_t texture_width;
-    uint32_t texture_height;
+    std::uint32_t texture_width;
+    std::uint32_t texture_height;
 
-    uint32_t allocation_width;
-    uint32_t allocation_height;
+    std::uint32_t allocation_width;
+    std::uint32_t allocation_height;
 
-    uint32_t position_in_atlas_x;
-    uint32_t position_in_atlas_y;
+    std::uint32_t position_in_atlas_x;
+    std::uint32_t position_in_atlas_y;
 
-    uint32_t gutter;
-    uint32_t falloff_distance;
+    std::uint32_t gutter;
+    std::uint32_t falloff_distance;
 };
 
 struct AtlasPage;
 
 struct ShadowBakeJob {
     AtlasPage* page = nullptr;
-    ShadowParams params{};
+    ShadowBakeParams params{};
 };
 
 class ShadowManager {
@@ -92,9 +117,7 @@ private:
     ShadowTextureHandle create_shadow(ShadowDesc const& desc);
 
     std::vector<ShadowBakeJob> pending_jobs;
-    std::unordered_map<ShadowDesc, ShadowTextureHandle, ShadowDescHash,
-                       ShadowDescEqual>
-        cache;
+    utl::hashmap<ShadowDesc, ShadowTextureHandle> cache;
 };
 
 } // namespace mosaic

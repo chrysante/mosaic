@@ -8,12 +8,6 @@
 
 using namespace mosaic;
 
-ShadowTextureHandle mosaic::get_shadow_texture(ShadowDesc const& desc) {
-    auto* shadow_manager = get_current_ui_context().shadow_manager;
-    if (!shadow_manager) return {};
-    return shadow_manager->get_shadow_texture(desc);
-}
-
 ShadowTextureHandle ShadowManager::get_shadow_texture(ShadowDesc const& desc) {
     if (!valid()) return {};
     if (desc.corner_radius < 0 || desc.distance <= 0) return {};
@@ -30,7 +24,7 @@ void ShadowManager::end_frame() {
 ShadowTextureHandle ShadowManager::create_shadow(ShadowDesc const& desc) {
     if (!ensure_pipeline()) return {};
     int const corner_radius = desc.corner_radius;
-    int const falloff_distance = std::max(0, desc.distance + desc.spread) + 1;
+    int const falloff_distance = std::max(0, desc.distance) + 1;
     int const shape_width = corner_radius * 2 + patch_center_size;
     int const shape_height = corner_radius * 2 + patch_center_size;
     int const texture_width = shape_width + falloff_distance * 2;
@@ -50,7 +44,6 @@ ShadowTextureHandle ShadowManager::create_shadow(ShadowDesc const& desc) {
         .params = {
             .corner_radius = (float)desc.corner_radius,
             .distance = (float)desc.distance,
-            .spread = (float)desc.spread,
             .texture_width = (uint32_t)texture_width,
             .texture_height = (uint32_t)texture_height,
             .allocation_width = (uint32_t)allocation_width,
@@ -100,10 +93,13 @@ void ShadowManager::draw_debugger() {
 
 using namespace vml::short_types;
 
-void mosaic::draw_shadow(ImDrawList* draw_list,
-                         ShadowTextureHandle const& shadow, float2 position,
-                         float2 size, float scale, ImU32 tint) {
+void draw_shadow_impl(ImDrawList* draw_list, ShadowTextureHandle const& shadow,
+                      float2 position, float2 size,
+                      ShadowDrawOptions const& options) {
     if (!shadow.texture_id) return;
+
+    position += options.scale * vml::float2(-options.spread) + options.offset;
+    size += vml::float2(2 * options.scale * options.spread);
 
     float2 uv0 = shadow.uv_min;
     float2 uv3 = shadow.uv_max;
@@ -114,15 +110,15 @@ void mosaic::draw_shadow(ImDrawList* draw_list,
     float2 uv2 = uv3 - float2(border_size) / shadow.atlas_size;
 
     // Shadow bounds in screen space.
-    float scaled_falloff = scale * shadow.falloff_distance;
+    float scaled_falloff = options.scale * shadow.falloff_distance;
     float2 min = position - float2(scaled_falloff);
     float2 max = position + size + float2(scaled_falloff);
 
     // Original corner region dimensions.
-    float const left = scale * border_size;
-    float const right = scale * border_size;
-    float const top = scale * border_size;
-    float const bottom = scale * border_size;
+    float const left = options.scale * border_size;
+    float const right = options.scale * border_size;
+    float const top = options.scale * border_size;
+    float const bottom = options.scale * border_size;
 
     // Available destination dimensions.
     float const width = max.x - min.x;
@@ -146,9 +142,19 @@ void mosaic::draw_shadow(ImDrawList* draw_list,
             float2 p_min(x[col].x, y[row].y);
             float2 p_max(x[col + 1].x, y[row + 1].y);
             if (p_max.x <= p_min.x || p_max.y <= p_min.y) continue;
-            draw_list->AddImage(shadow.texture_id, p_min, p_max,
-                                float2(u[col].x, v[row].y),
-                                float2(u[col + 1].x, v[row + 1].y), tint);
+            draw_list->AddImage(
+                shadow.texture_id, p_min, p_max, float2(u[col].x, v[row].y),
+                float2(u[col + 1].x, v[row + 1].y), options.tint);
         }
     }
+}
+
+void mosaic::draw_shadow(ImDrawList* draw_list, vml::float2 position,
+                         vml::float2 size, ShadowDrawOptions const& options) {
+    auto* shadow_manager = get_current_ui_context().shadow_manager;
+    if (!shadow_manager) return;
+    auto handle = shadow_manager->get_shadow_texture(
+        {.corner_radius = (int)std::ceil(options.corner_radius),
+         .distance = (int)std::ceil(options.distance)});
+    draw_shadow_impl(draw_list, handle, position, size, options);
 }

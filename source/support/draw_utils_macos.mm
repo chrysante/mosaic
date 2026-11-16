@@ -4,7 +4,6 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <unordered_map>
 #include <vector>
 
 #import <Metal/Metal.h>
@@ -95,7 +94,6 @@ struct MetalShadowManager final : ShadowManager {
     struct ShadowParams {                                                      \
         float corner_radius;                                                   \
         float distance;                                                        \
-        float spread;                                                          \
                                                                                \
         uint texture_width;                                                    \
         uint texture_height;                                                   \
@@ -146,8 +144,7 @@ struct MetalShadowManager final : ShadowManager {
                                                                                \
         /* Evaluate the signed distance to the expanded rounded rectangle. */  \
         float sdf =                                                            \
-            rounded_rect_sdf(p, half_size + params.spread,                     \
-                             max(0.0, params.corner_radius + params.spread));  \
+            rounded_rect_sdf(p, half_size, max(0.0, params.corner_radius));    \
                                                                                \
         /* Gaussian falloff. */                                                \
         float sigma = max(params.distance / 3.3, 0.001);                       \
