@@ -216,7 +216,6 @@ target_sources(mosaic PRIVATE
     source/editor/node_editor.cpp
     source/editor/selection_manager.cpp
     source/ext/stb_rect_pack.cpp
-    source/gui/appearance.cpp
     source/gui/command_palette.cpp
     source/gui/containers.cpp
     source/gui/dockspace.cpp
@@ -276,7 +275,7 @@ target_sources(mosaic PRIVATE
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
-    source/gui/appearance_macos.mm
+    source/gui/style_macos.mm
     source/imgui/imgui_impl_mosaic_macos.mm
     source/imgui/imgui_impl_mosaic_metal.mm
     source/support/draw_utils_macos.mm

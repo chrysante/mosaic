@@ -21,7 +21,6 @@
 #include "application/window_desc.h"
 #include "application/window_impl.h"
 #include "application/window_system.h"
-#include "gui/appearance_internal.h"
 #include "gui/font.h"
 #include "service/command_system.h"
 #include "service/event_system.h" // IWYU pragma: keep
@@ -304,7 +303,6 @@ void ApplicationImpl::imgui_init() {
     fm.set_font_atlas(io.Fonts);
     init_font(17);
     load_default_icons(service_context.icon_manager());
-    update_style(/* force: */ true);
 
     imgui_init_platform();
 }
@@ -320,7 +318,6 @@ void ApplicationImpl::init_font(float base_size_absolute) {
 }
 
 void ApplicationImpl::imgui_begin_frame() {
-    update_style();
     imgui_begin_frame_platform();
     ImGui::NewFrame();
 }
@@ -352,6 +349,7 @@ void ApplicationImpl::on_input(InputEventUnion const& event) {
 
 void ApplicationImpl::do_frame() {
     service_context.m_dispatcher.process_main_thread_tasks();
+    service_context.style_system().update();
     window_system.update();
     app.frame();
     tool_manager.update();

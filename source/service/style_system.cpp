@@ -24,7 +24,14 @@ void StyleSystem::apply_style(StyleType type, StyleDesc const& style_desc) {
 void StyleSystem::init() {
     if (m_active_style_path.empty())
         m_active_style_path = "style/default_style.json";
+    m_active_style_type = get_current_system_style_type();
     load_style(std::move(m_active_style_path));
+}
+
+void StyleSystem::update() {
+    StyleType const active_system_style_type = get_current_system_style_type();
+    if (m_active_style_type == active_system_style_type) return;
+    set_style_type(active_system_style_type);
 }
 
 void StyleSystem::load_style(std::filesystem::path path) {

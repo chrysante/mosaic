@@ -116,5 +116,6 @@ private:
 // TODO: Move these helper functions somewhere more private
 Style_ compute_from_desc(StyleDesc const& style_desc, StyleType style_type);
 void apply_to_imgui(Style_ const& style);
+StyleType get_current_system_style_type();
 
 } // namespace mosaic

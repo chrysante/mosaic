@@ -13,6 +13,8 @@ class StyleSystem {
 public:
     void init();
 
+    void update();
+
     void load_style(std::filesystem::path path);
 
     void set_style(StyleDesc style_desc);

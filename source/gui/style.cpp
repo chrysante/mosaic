@@ -54,7 +54,7 @@ void mosaic::apply_to_imgui(Style_ const& style) {
     auto& imgui_style = ImGui::GetStyle();
     auto& colors = imgui_style.Colors;
     auto clear = [&](ImGuiCol_ dest) { colors[dest] = {}; };
-    {
+    /* base colors */ {
         auto map = csp::overload{
             [&](ImGuiCol_ dest, StyleColor source) {
                 colors[dest] = to_v4(style.color[source]);
@@ -121,7 +121,7 @@ void mosaic::apply_to_imgui(Style_ const& style) {
         // map(ImGuiCol_NavWindowingDimBg, );
         // map(ImGuiCol_ModalWindowDimBg, );
     }
-    {
+    /* control colors */ {
         auto map = [&](ImGuiCol_ dest_base, ImGuiCol_ dest_hovered,
                        ImGuiCol_ dest_active, StyleColorControl source) {
             auto source_col = style.control_color[source];
@@ -141,6 +141,27 @@ void mosaic::apply_to_imgui(Style_ const& style) {
             StyleColorControl::tab);
         clear(ImGuiCol_TabSelectedOverline);
         clear(ImGuiCol_TabDimmedSelectedOverline);
+    }
+    /* style vars */ {
+        imgui_style.WindowBorderSize = 0.0f;
+        imgui_style.ChildBorderSize = 0.0f;
+        imgui_style.PopupBorderSize = 0.0f;
+        imgui_style.FrameBorderSize = 0.0f;
+        imgui_style.TabBorderSize = 0.0f;
+        imgui_style.TabBarBorderSize = 0.0f;
+        imgui_style.WindowRounding = 0.0f;
+        imgui_style.ChildRounding = 0.0f;
+        imgui_style.PopupRounding = 0.0f;
+        imgui_style.TabRounding = 0.0f;
+
+        imgui_style.FrameRounding = 6.0f;
+        imgui_style.SelectableRounding = 5.0f;
+        imgui_style.GrabMinSize = 12.0f;
+        imgui_style.GrabRounding = 6.0f;
+        imgui_style.ScrollbarSize = 10.0f;
+        imgui_style.ScrollbarRounding = 10.0f;
+        imgui_style.WindowTitleAlign = {0.5f, 0.5f};
+        imgui_style.CircleTessellationMaxError = 0.1;
     }
 }
 
