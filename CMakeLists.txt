@@ -228,9 +228,6 @@ target_sources(mosaic PRIVATE
     source/gui/property_editor.cpp
     source/gui/ui_context.cpp
     source/gui/run_mode_controller.cpp
-    source/gui/style.cpp
-    source/gui/style_editor.cpp
-    source/gui/style_desc.cpp
     source/gui/toolbar.cpp
     source/gui/view.cpp
     source/gui/view_debugger.cpp
@@ -248,6 +245,9 @@ target_sources(mosaic PRIVATE
     source/service/service_context.cpp
     source/service/style_system.cpp
     source/service/thread_pool.cpp
+    source/style/style.cpp
+    source/style/style_editor.cpp
+    source/style/style_desc.cpp
     source/support/draw_utils.cpp
     source/support/geometry.cpp
     source/support/json_support.cpp
@@ -275,9 +275,9 @@ target_sources(mosaic PRIVATE
     source/application/input_macos.mm
     source/application/resource_util_macos.mm
     source/application/window_macos.mm
-    source/gui/style_macos.mm
     source/imgui/imgui_impl_mosaic_macos.mm
     source/imgui/imgui_impl_mosaic_metal.mm
+    source/style/style_macos.mm
     source/support/draw_utils_macos.mm
     source/support/file_dialog_macos.mm
 )

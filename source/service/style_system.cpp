@@ -5,8 +5,8 @@
 #include <nlohmann/json.hpp>
 
 #include "application/directories.h"
-#include "gui/style.h"
-#include "gui/style_desc.h"
+#include "style/style.h"
+#include "style/style_desc.h"
 #include "support/json_support.h"
 #include "support/logger.h"
 

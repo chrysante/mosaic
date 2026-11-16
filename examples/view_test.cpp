@@ -8,10 +8,10 @@
 #include <mosaic/gui/font.h>
 #include <mosaic/gui/icon.h>
 #include <mosaic/gui/property_editor.h>
-#include <mosaic/gui/style.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
 #include <mosaic/gui/widgets.h>
+#include <mosaic/style/style.h>
 
 using namespace mosaic;
 using namespace ui;

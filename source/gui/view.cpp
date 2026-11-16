@@ -6,10 +6,10 @@
 #include "application/debug_settings.h"
 #include "gui/font.h"
 #include "gui/run_mode_controller.h"
-#include "gui/style.h"
 #include "gui/view_debugger.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
+#include "style/style.h"
 #include "support/memory.h"
 
 using namespace mosaic;

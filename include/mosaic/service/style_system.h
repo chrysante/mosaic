@@ -4,8 +4,8 @@
 
 #include <nlohmann/json_fwd.hpp>
 
-#include <mosaic/gui/style.h>
-#include <mosaic/gui/style_desc.h>
+#include <mosaic/style/style.h>
+#include <mosaic/style/style_desc.h>
 
 namespace mosaic {
 

@@ -3,8 +3,8 @@
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/font.h>
-#include <mosaic/gui/style.h>
 #include <mosaic/gui/view_support.h>
+#include <mosaic/style/style.h>
 #include <mosaic/support/export.h>
 
 namespace mosaic::ui {

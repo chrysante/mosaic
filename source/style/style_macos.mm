@@ -1,6 +1,6 @@
 #import <AppKit/AppKit.h>
 
-#include "gui/style.h"
+#include "style/style.h"
 
 using namespace mosaic;
 

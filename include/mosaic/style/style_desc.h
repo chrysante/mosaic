@@ -4,7 +4,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
-#include <mosaic/gui/style.h>
+#include <mosaic/style/style.h>
 #include <mosaic/support/enum.h>
 
 namespace mosaic {

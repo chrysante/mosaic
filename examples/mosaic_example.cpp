@@ -18,13 +18,13 @@
 #include <mosaic/gui/icon.h>
 #include <mosaic/gui/layout.h>
 #include <mosaic/gui/run_mode_controller.h>
-#include <mosaic/gui/style_editor.h>
 #include <mosaic/gui/toolbar.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/widgets.h>
 #include <mosaic/service/event_receiver.h>
 #include <mosaic/service/font_manager.h>
 #include <mosaic/service/service_context.h>
+#include <mosaic/style/style_editor.h>
 #include <mosaic/tool/demo_tool.h>
 
 #include "view_test.h"

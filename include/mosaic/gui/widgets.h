@@ -8,9 +8,9 @@
 #include <vml/vml.hpp>
 
 #include <mosaic/gui/icon.h>
-#include <mosaic/gui/style.h>
 #include <mosaic/gui/view.h>
 #include <mosaic/gui/view_support.h>
+#include <mosaic/style/style.h>
 #include <mosaic/support/memory.h>
 
 namespace mosaic::ui {

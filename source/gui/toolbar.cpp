@@ -4,8 +4,8 @@
 #include <vml/vml.hpp>
 
 #include "gui/containers.h"
-#include "gui/style.h"
 #include "gui/view_support.h"
+#include "style/style.h"
 
 using namespace mosaic;
 using namespace ui;

@@ -1,12 +1,12 @@
-#include "gui/style.h"
+#include "style/style.h"
 
 #include <csp.hpp>
 #include <imgui.h>
 #include <vml/vml.hpp>
 
-#include "gui/style_desc.h"
 #include "gui/ui_context.h"
 #include "service/style_system.h"
+#include "style/style_desc.h"
 
 using namespace mosaic;
 

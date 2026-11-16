@@ -1,4 +1,4 @@
-#include "gui/style_editor.h"
+#include "style/style_editor.h"
 
 #include <filesystem>
 #include <fstream>
@@ -11,12 +11,12 @@
 #include "application/resource_util.h"
 #include "gui/containers.h"
 #include "gui/property_editor.h"
-#include "gui/style.h"
-#include "gui/style_desc.h"
 #include "gui/toolbar.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
 #include "service/style_system.h"
+#include "style/style.h"
+#include "style/style_desc.h"
 #include "support/logger.h"
 #include "support/memory.h"
 

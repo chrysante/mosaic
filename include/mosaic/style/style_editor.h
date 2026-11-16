@@ -1,5 +1,5 @@
-#include <mosaic/gui/style_desc.h>
 #include <mosaic/gui/view.h>
+#include <mosaic/style/style_desc.h>
 #include <mosaic/support/export.h>
 
 namespace mosaic {

@@ -1,4 +1,4 @@
-#include "gui/style_desc.h"
+#include "style/style_desc.h"
 
 #include <sstream>
 
