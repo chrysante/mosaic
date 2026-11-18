@@ -29,7 +29,7 @@ static bool non_negative(vml::float2 size) {
 }
 
 static void push_control_colors() {
-    auto& color = get_global_style().control_color[StyleColorControl::Default];
+    auto color = get_global_style().get_color(style_color::control);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, color.background.value);
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
                           color.background_hovered.value);

@@ -38,6 +38,16 @@ T json_find(nlohmann::json const& json, std::string_view key,
     return json_find<T>(json, key).value_or(default_value);
 }
 
+template <typename T>
+std::optional<T> json_try_get(nlohmann::json const& node) {
+    try {
+        return node.get<T>();
+    } catch (nlohmann::json::exception const& e) {
+        Logger::error("Failed to deserialize JSON node: {}", e.what());
+        return std::nullopt;
+    }
+}
+
 } // namespace mosaic
 
 // =============================================================================

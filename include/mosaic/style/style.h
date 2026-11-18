@@ -1,33 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <utl/stack.hpp>
 #include <vml/vml.hpp>
 
+#include <mosaic/style/style_class.h>
 #include <mosaic/support/enum.h>
 
 namespace mosaic {
-
-enum class StyleColor {
-    text,
-    text_disabled,
-    text_link,
-
-    border,
-    separator,
-    scrollbar,
-
-    docking_preview,
-
-    window_background,
-};
-
-enum class StyleColorControl { Default, accent, toolbar, tab, tab_inactive };
-
-struct StyleDesc;
-
-// Concrete style colors and sizes
 
 struct Color { std::uint32_t value; };
 
@@ -39,83 +21,49 @@ struct ControlColor {
     Color text;
 };
 
-enum struct StyleType { light, dark };
+enum class StyleType { light, dark };
 
-struct Style {
-    StyleType style_type;
+class Style {
+public:
+    Style();
 
-    EnumArray<StyleColor, Color> color;
-    EnumArray<StyleColorControl, ControlColor> control_color;
+    Color get_color(StyleColorId id) const { return m_colors[id.index]; }
+
+    ControlColor get_color(StyleControlColorId id) const {
+        return m_control_colors[id.index];
+    }
+
+private:
+    friend class StyleContext;
+
+    std::vector<Color> m_colors;
+    std::vector<ControlColor> m_control_colors;
 };
 
 Style const& get_global_style();
 
-void push_style_color(StyleColor index, Color value);
+void push_style_color(StyleColorId index, Color value);
 void pop_style_color();
-void push_style_control_color(StyleColorControl index, ControlColor value);
+void push_style_control_color(StyleControlColorId index, ControlColor value);
 void pop_style_control_color();
 
-// TODO: Move this helper class somewhere more private
-struct StyleContext {
-    Style const& style() const { return m_style; }
+namespace style_color {
 
-    void push_color(StyleColor index, Color value) {
-        m_color_stack.push(index, value);
-    }
+extern StyleColorId const text;
+extern StyleColorId const text_disabled;
+extern StyleColorId const text_link;
+extern StyleColorId const border;
+extern StyleColorId const separator;
+extern StyleColorId const scrollbar;
+extern StyleColorId const docking_preview;
+extern StyleColorId const window_background;
 
-    void pop_color(int count = 1) { m_color_stack.pop(count); }
+extern StyleControlColorId const control;
+extern StyleControlColorId const control_accent;
+extern StyleControlColorId const control_toolbar;
+extern StyleControlColorId const control_tab;
+extern StyleControlColorId const control_tab_inactive;
 
-    void push_control_color(StyleColorControl index, ControlColor value) {
-        m_control_color_stack.push(index, value);
-    }
-
-    void pop_control_color(int count = 1) { m_control_color_stack.pop(count); }
-
-    bool stacks_empty() const {
-        return m_color_stack.empty() && m_control_color_stack.empty();
-    }
-
-private:
-    friend class StyleSystem;
-
-    template <typename Index, typename T> struct Stack {
-        struct StackItem {
-            Index index;
-            T value;
-        };
-
-        explicit Stack(T* array)
-            : array(array) {}
-
-        void push(Index index, T value) {
-            stack.push({index, array[(std::size_t)index]});
-            array[(std::size_t)index] = value;
-        }
-
-        void pop(int count) {
-            assert(count >= 0 && (unsigned)count >= stack.size() &&
-                   "Pop too many times");
-            while (count-- > 0) {
-                auto item = stack.pop();
-                array[(std::size_t)item.index] = item.value;
-            }
-        }
-
-        bool empty() const { return stack.empty(); }
-
-        T* array;
-        utl::stack<StackItem> stack;
-    };
-
-    Style m_style;
-    Stack<StyleColor, Color> m_color_stack{m_style.color.data()};
-    Stack<StyleColorControl, ControlColor> m_control_color_stack{
-        m_style.control_color.data()};
-};
-
-// TODO: Move these helper functions somewhere more private
-Style compute_from_desc(StyleDesc const& style_desc, StyleType style_type);
-void apply_to_imgui(Style const& style);
-StyleType get_current_system_style_type();
+} // namespace style_color
 
 } // namespace mosaic

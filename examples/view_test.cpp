@@ -192,7 +192,7 @@ Owner<View> make_basic_widgets(TestState& state) {
                         .style_override = FontStyle::monospaced,
                         .size_scale = 2.0f,
                     }) |
-                    control_color(StyleColorControl::accent),
+                    control_color(style_color::control_accent),
                 make_counter_text(state) | vcenter,
                 icon(lucide_icon("hospital")) | font({.size_scale = 3.0f}),
                 icon(lucide_icon("this icon does not exist")),

@@ -16,6 +16,7 @@
 #include "gui/widgets.h"
 #include "service/style_system.h"
 #include "style/style.h"
+#include "style/style_class.h"
 #include "style/style_desc.h"
 #include "support/logger.h"
 #include "support/memory.h"
@@ -44,8 +45,8 @@ struct DeferQueue {
 struct mosaic::internal::StyleEditorImpl {
     StyleEditorImpl(StyleSystem& style_system)
         : style_system(style_system)
-        , style_desc(style_system.active_style_desc())
-        , style_type(style_system.active_style_type()) {
+        , style_desc(style_system.style_desc())
+        , style_type(style_system.style_type()) {
         init();
     }
 
@@ -129,23 +130,22 @@ struct mosaic::internal::StyleEditorImpl {
     }
 
     Owner<View> editor_view() {
+        auto& style_class = StyleClass::get();
         ViewContainer<> base_colors, control_colors;
-
-        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
-            StyleColor index = (StyleColor)j;
-            std::string name(magic_enum::enum_name(index));
-            base_colors.push_back(field(name, style_desc.color[0][index],
-                                        style_desc.color[1][index]));
+        for (unsigned index = 0; index < style_desc.colors.size(); ++index) {
+            std::string name =
+                style_class.get_metadata(StyleColorId{index}).name;
+            base_colors.push_back(field(name, style_desc.colors[index][0],
+                                        style_desc.colors[index][1]));
         }
-
-        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
-            StyleColorControl index = (StyleColorControl)j;
-            std::string name(magic_enum::enum_name(index));
-            control_colors.push_back(field(name,
-                                           style_desc.control_color[0][index],
-                                           style_desc.control_color[1][index]));
+        for (unsigned index = 0; index < style_desc.control_colors.size();
+             ++index) {
+            std::string name =
+                style_class.get_metadata(StyleControlColorId{index}).name;
+            control_colors.push_back(
+                field(name, style_desc.control_colors[index][0],
+                      style_desc.control_colors[index][1]));
         }
-
         return vscroll({section("Base Colors", std::move(base_colors)),
                         section("Control Colors", std::move(control_colors))});
     }
@@ -174,20 +174,19 @@ void StyleEditorImpl::init() {
               }),
               std::vector<std::string>{"Light", "Dark"}) |
         hfill_intrin;
-    auto toolbar =
-        ui::toolbar({button("Save", [this] { save(); }),
-                     button("Save As...", [&] { save_as(); }), spacer(),
-                     label(computed([&] {
-                         return style_system.active_style_path().string();
-                     })),
-                     spacer(), std::move(style_type_combo)}) |
-        fixed_height(38);
+    auto toolbar = ui::toolbar({button("Save", [this] { save(); }),
+                                button("Save As...", [&] { save_as(); }),
+                                spacer(), label(computed([&] {
+                                    return style_system.style_path().string();
+                                })),
+                                spacer(), std::move(style_type_combo)}) |
+                   fixed_height(38);
     ui::internal::set_toolbar_padding(toolbar.get(), {6.0f, 6.0f, 6.0f, 6.0f});
     view = vstack({std::move(toolbar), editor_view()}) | hfill | vfill;
 }
 
 void StyleEditorImpl::save() {
-    save_style(style_system.active_style_path(), style_desc);
+    save_style(style_system.style_path(), style_desc);
 }
 
 void StyleEditorImpl::save_as() {
@@ -203,7 +202,7 @@ void StyleEditorImpl::save_style(std::filesystem::path path, StyleDesc style) {
         return;
     }
     nlohmann::json j = style;
-    file << j;
+    file << j.dump(4);
     Logger::info("Successfully saved style file");
 }
 

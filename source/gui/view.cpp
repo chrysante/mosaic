@@ -1,5 +1,7 @@
 #include "gui/view.h"
 
+#include <optional>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -59,7 +61,7 @@ struct DecoratorView : View {
         if (disabled) ImGui::BeginDisabled();
         if (font_mod) push_font(*font_mod);
         if (control_color_override)
-            push_style_control_color(StyleColorControl::Default,
+            push_style_control_color(style_color::control,
                                      *control_color_override);
 
         wrapped->display(frame);
@@ -99,7 +101,7 @@ struct DecoratorView : View {
     std::optional<FontModifier> font_mod;
     Owner<View> tooltip_content;
     float frame_thickness = 0.0f;
-    ControlColor const* control_color_override = nullptr;
+    std::optional<ControlColor> control_color_override;
 
     Owner<View> wrapped;
 };
@@ -126,15 +128,17 @@ Owner<View> ui::internal::FrameAction::operator()(Owner<View> in) const {
 
 Owner<View> ui::internal::ControlColorAction::operator()(Owner<View> in) const {
     auto wrapper = make_wrapper<DecoratorView>(std::move(in));
+    // FIXME: make this more general so we can override multiple colors together
+    assert(!wrapper->control_color_override && "not yet supported");
     wrapper->control_color_override = color_override;
     return wrapper;
 }
 
 ViewPipeAdapter<ui::internal::ControlColorAction>
-ui::control_color(StyleColorControl color) {
+ui::control_color(StyleControlColorId id) {
     // FIXME: Clarify the semantics. Should we take the color from the current
     // style or the reference/base style?
-    return control_color(&get_global_style().control_color[color]);
+    return control_color(get_global_style().get_color(id));
 }
 
 Owner<View> ui::internal::TooltipAction::operator()(Owner<View> in) && {

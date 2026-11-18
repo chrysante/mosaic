@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -9,8 +10,13 @@
 
 namespace mosaic {
 
+class StyleContext;
+
 class StyleSystem {
 public:
+    StyleSystem();
+    ~StyleSystem();
+
     void init();
 
     void update();
@@ -27,28 +33,23 @@ public:
 
     void load_config(nlohmann::json const& root);
 
-    std::filesystem::path const& active_style_path() const {
-        return m_active_style_path;
-    }
+    std::filesystem::path const& style_path() const;
 
-    StyleDesc const& active_style_desc() const { return m_active_style_desc; }
+    /// The descriptor of the currently active style
+    StyleDesc const& style_desc() const;
 
-    StyleType active_style_type() const { return m_active_style_type; }
+    /// The active style type
+    StyleType style_type() const;
 
     /// The active style, not modified by stack pushes
-    Style const& active_style_ref() const { return m_active_style_ref; }
+    Style const& style_ref() const;
 
-    /// The active style including current modifications
-    StyleContext& active_style_contex() { return m_active_style_context; }
+    StyleContext& get_context();
 
 private:
-    void apply_style(StyleType type, StyleDesc const& style_desc);
+    struct Impl;
 
-    std::filesystem::path m_active_style_path;
-    StyleDesc m_active_style_desc;
-    StyleType m_active_style_type;
-    Style m_active_style_ref;
-    StyleContext m_active_style_context;
+    std::unique_ptr<Impl> m_impl;
 };
 
 } // namespace mosaic

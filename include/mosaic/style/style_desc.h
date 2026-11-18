@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <vector>
 
 #include <nlohmann/json_fwd.hpp>
 
-#include <mosaic/style/style.h>
+#include <mosaic/style/style_class.h>
 #include <mosaic/support/enum.h>
 
 namespace mosaic {
@@ -20,7 +22,7 @@ void to_json(nlohmann::json&, ColorModifier const&);
 
 struct ColorDesc {
     // For now, later this may become a variant that supports deriving from
-    // system colors
+    // system colors etc.
     std::uint32_t value;
 };
 
@@ -40,8 +42,10 @@ void to_json(nlohmann::json&, ControlColorDesc const&);
 
 // Style description that is user editable and stored to disk
 struct StyleDesc {
-    EnumArray<StyleColor, ColorDesc> color[2];
-    EnumArray<StyleColorControl, ControlColorDesc> control_color[2];
+    StyleDesc();
+
+    std::vector<std::array<ColorDesc, 2>> colors;
+    std::vector<std::array<ControlColorDesc, 2>> control_colors;
 };
 
 void from_json(nlohmann::json const&, StyleDesc&);

@@ -1,10 +1,14 @@
 #include "style/style_desc.h"
 
+#include <exception>
+#include <span>
 #include <sstream>
 
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 
+#include "nlohmann/adl_serializer.hpp"
+#include "style/style_class.h"
 #include "support/json_support.h"
 
 using namespace mosaic;
@@ -54,42 +58,80 @@ void mosaic::to_json(nlohmann::json& j, ControlColorDesc const& v) {
                        {"text", v.text}};
 }
 
+StyleDesc::StyleDesc() {
+    auto& style_class = StyleClass::get();
+    colors.resize(style_class.num_style_vars(StyleVarType::color));
+    control_colors.resize(
+        style_class.num_style_vars(StyleVarType::control_color));
+}
+
 void mosaic::from_json(nlohmann::json const& j, StyleDesc& v) {
-    auto const& colors = j.at("color");
-    if (!colors.is_array() || colors.size() != 2)
-        throw nlohmann::json::type_error::create(
-            302, "color must be an array of exactly 2 elements", &j);
-    for (std::size_t i = 0; i < 2; ++i) {
-        auto const& c = colors[i];
-        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
-            StyleColor index = (StyleColor)j;
-            std::string name(magic_enum::enum_name(index));
-            v.color[i][index] = json_find(c, name, ColorDesc{});
+    auto& style_class = StyleClass::get();
+    if (!j.is_object())
+        throw nlohmann::json::type_error::create(503, "Invalid style var set",
+                                                 &j);
+    for (auto& [name, value] : j.items()) {
+        auto var_key = style_class.find_style_var(name);
+        if (!var_key) {
+            Logger::error(
+                "Failed to deserialize style var \"{}\": does not exist", name);
+            continue;
         }
-        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
-            StyleColorControl index = (StyleColorControl)j;
-            std::string name(magic_enum::enum_name(index));
-            v.control_color[i][index] = json_find(c, name, ControlColorDesc{});
+        switch (var_key->type) {
+        case StyleVarType::color:
+            if (!value.is_array() || value.size() != 2) {
+                Logger::error(
+                    "Failed to deserialize style var \"{}\": must be array with 2 elements",
+                    name);
+                continue;
+            }
+            if (auto color = json_try_get<ColorDesc>(value[0]))
+                v.colors[var_key->index][0] = *color;
+            if (auto color = json_try_get<ColorDesc>(value[1]))
+                v.colors[var_key->index][1] = *color;
+            break;
+        case StyleVarType::control_color:
+            if (!value.is_array() || value.size() != 2) {
+                Logger::error(
+                    "Failed to deserialize style var \"{}\": must be array with 2 elements",
+                    name);
+                continue;
+            }
+            if (auto color = json_try_get<ControlColorDesc>(value[0]))
+                v.control_colors[var_key->index][0] = *color;
+            if (auto color = json_try_get<ControlColorDesc>(value[1]))
+                v.control_colors[var_key->index][1] = *color;
+            break;
+        case StyleVarType::size:
+        case StyleVarType::size2:
+            assert(false);
+            std::terminate();
         }
     }
 }
 
-void mosaic::to_json(nlohmann::json& j, StyleDesc const& v) {
-    auto color_array = nlohmann::json::array();
-    for (std::size_t i = 0; i < 2; ++i) {
-        auto colors = nlohmann::json::object();
-        for (std::size_t j = 0; j < enum_count<StyleColor>; ++j) {
-            StyleColor index = (StyleColor)j;
-            std::string name(magic_enum::enum_name(index));
-            colors[name] = v.color[i][index];
-        }
-        for (std::size_t j = 0; j < enum_count<StyleColorControl>; ++j) {
-            StyleColorControl index = (StyleColorControl)j;
-            std::string name(magic_enum::enum_name(index));
-            colors[name] = v.control_color[i][index];
-        }
-        color_array.push_back(std::move(colors));
+template <typename T, std::size_t N>
+struct nlohmann::adl_serializer<std::array<T, N>> {
+    static void to_json(nlohmann::json& j, std::array<T, N> const& v) {
+        j = nlohmann::json::array();
+        for (std::size_t i = 0; i < v.size(); ++i)
+            j[i] = v[i];
     }
+};
+
+template <StyleVarType Type, typename T>
+static void write_style_var_set(nlohmann::json& j,
+                                std::span<std::array<T, 2> const> set) {
+    auto& style_class = StyleClass::get();
+    for (unsigned i = 0; i < set.size(); ++i) {
+        auto const& name = style_class.get_metadata(StyleVarId<Type>{i}).name;
+        j[name] = set[i];
+    }
+}
+
+void mosaic::to_json(nlohmann::json& j, StyleDesc const& v) {
     j = nlohmann::json::object();
-    j["color"] = std::move(color_array);
+    write_style_var_set<StyleVarType::color, ColorDesc>(j, v.colors);
+    write_style_var_set<StyleVarType::control_color, ControlColorDesc>(
+        j, v.control_colors);
 }

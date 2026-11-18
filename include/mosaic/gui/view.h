@@ -75,7 +75,7 @@ struct FrameAction {
     Owner<View> operator()(Owner<View>) const;
 };
 struct ControlColorAction {
-    ControlColor const* color_override;
+    ControlColor color_override;
     Owner<View> operator()(Owner<View>) const;
 };
 struct TooltipAction {
@@ -100,12 +100,12 @@ framed(float thickness = 1.0f) {
 }
 
 inline ViewPipeAdapter<ui::internal::ControlColorAction>
-control_color(ControlColor const* color) {
+control_color(ControlColor color) {
     return ViewPipeAdapter{ui::internal::ControlColorAction{color}};
 }
 
 ViewPipeAdapter<ui::internal::ControlColorAction>
-control_color(StyleColorControl color);
+control_color(StyleControlColorId id);
 
 ViewPipeAdapter<ui::internal::TooltipAction>
 tooltip(Property<std::string const> text);

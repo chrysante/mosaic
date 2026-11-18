@@ -226,6 +226,11 @@ public:
                 }); 
             }
         });
+        command_palette().add({
+            .name = "Reset Style",
+            .key_comb = {.key = Key::F1}, 
+            .command = [] { ImGui::StyleColorsDark(); }
+        });
         dockspace.set_left_toolbar(ui::toolbar({
             ui::button(ui::lucide_icon("square-plus"), [this] { 
                 text = "Clicked toolbar button"; 
