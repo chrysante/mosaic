@@ -195,21 +195,20 @@ StyleContext& mosaic::get_global_style_context() {
 }
 
 // clang-format off
-StyleColorId const style_color::text = register_style_color({.name = "Text"});
-StyleColorId const style_color::text_disabled = register_style_color({.name = "TextDisabled"});
-StyleColorId const style_color::text_link = register_style_color({.name = "TextLink"});
-StyleColorId const style_color::border = register_style_color({.name = "Border"});
-StyleColorId const style_color::separator = register_style_color({.name = "Separator"});
-StyleColorId const style_color::scrollbar = register_style_color({.name = "Scrollbar"});
-StyleColorId const style_color::docking_preview = register_style_color({.name = "DockingPreview"});
-StyleColorId const style_color::window_background = register_style_color({.name = "WindowBackground"});
+StyleColorId const style_color::text              = register_style_color({.group = "Core", .name = "Text"});
+StyleColorId const style_color::text_disabled     = register_style_color({.group = "Core", .name = "TextDisabled"});
+StyleColorId const style_color::text_link         = register_style_color({.group = "Core", .name = "TextLink"});
+StyleColorId const style_color::border            = register_style_color({.group = "Core", .name = "Border"});
+StyleColorId const style_color::separator         = register_style_color({.group = "Core", .name = "Separator"});
+StyleColorId const style_color::scrollbar         = register_style_color({.group = "Core", .name = "Scrollbar"});
+StyleColorId const style_color::docking_preview   = register_style_color({.group = "Core", .name = "DockingPreview"});
+StyleColorId const style_color::window_background = register_style_color({.group = "Core", .name = "WindowBackground"});
 
-StyleControlColorId const style_color::control = register_style_control_color({.name = "Control"});
-StyleControlColorId const style_color::control_accent = register_style_control_color({.name = "ControlAccent"});
-StyleControlColorId const style_color::control_toolbar = register_style_control_color({.name = "ControlToolbar"});
-StyleControlColorId const style_color::control_tab = register_style_control_color({.name = "ControlTab"});
-StyleControlColorId const style_color::control_tab_inactive = register_style_control_color({.name = "ControlTabInactive"});
-
+StyleControlColorId const style_color::control              = register_style_control_color({.group = "Core", .name = "Control"});
+StyleControlColorId const style_color::control_accent       = register_style_control_color({.group = "Core", .name = "ControlAccent"});
+StyleControlColorId const style_color::control_toolbar      = register_style_control_color({.group = "Core", .name = "ControlToolbar"});
+StyleControlColorId const style_color::control_tab          = register_style_control_color({.group = "Core", .name = "ControlTab"});
+StyleControlColorId const style_color::control_tab_inactive = register_style_control_color({.group = "Core", .name = "ControlTabInactive"});
 // clang-format on
 
 void mosaic::push_style_color(StyleColorId id, Color value) {

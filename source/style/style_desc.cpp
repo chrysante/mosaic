@@ -70,42 +70,52 @@ void mosaic::from_json(nlohmann::json const& j, StyleDesc& v) {
     if (!j.is_object())
         throw nlohmann::json::type_error::create(503, "Invalid style var set",
                                                  &j);
-    for (auto& [name, value] : j.items()) {
-        auto var_key = style_class.find_style_var(name);
-        if (!var_key) {
+    for (auto& [group_name, group_value] : j.items()) {
+        auto* group = style_class.find_group(group_name);
+        if (!group) {
             Logger::error(
-                "Failed to deserialize style var \"{}\": does not exist", name);
+                "Failed to deserialize style: Unknown style var group named {}",
+                group_name);
             continue;
         }
-        switch (var_key->type) {
-        case StyleVarType::color:
-            if (!value.is_array() || value.size() != 2) {
+        for (auto& [name, value] : group_value.items()) {
+            auto var_key = group->find_style_var(name);
+            if (!var_key) {
                 Logger::error(
-                    "Failed to deserialize style var \"{}\": must be array with 2 elements",
+                    "Failed to deserialize style var \"{}\": does not exist",
                     name);
                 continue;
             }
-            if (auto color = json_try_get<ColorDesc>(value[0]))
-                v.colors[var_key->index][0] = *color;
-            if (auto color = json_try_get<ColorDesc>(value[1]))
-                v.colors[var_key->index][1] = *color;
-            break;
-        case StyleVarType::control_color:
-            if (!value.is_array() || value.size() != 2) {
-                Logger::error(
-                    "Failed to deserialize style var \"{}\": must be array with 2 elements",
-                    name);
-                continue;
+            switch (var_key->type) {
+            case StyleVarType::color:
+                if (!value.is_array() || value.size() != 2) {
+                    Logger::error(
+                        "Failed to deserialize style var \"{}\": must be array with 2 elements",
+                        name);
+                    continue;
+                }
+                if (auto color = json_try_get<ColorDesc>(value[0]))
+                    v.colors[var_key->index][0] = *color;
+                if (auto color = json_try_get<ColorDesc>(value[1]))
+                    v.colors[var_key->index][1] = *color;
+                break;
+            case StyleVarType::control_color:
+                if (!value.is_array() || value.size() != 2) {
+                    Logger::error(
+                        "Failed to deserialize style var \"{}\": must be array with 2 elements",
+                        name);
+                    continue;
+                }
+                if (auto color = json_try_get<ControlColorDesc>(value[0]))
+                    v.control_colors[var_key->index][0] = *color;
+                if (auto color = json_try_get<ControlColorDesc>(value[1]))
+                    v.control_colors[var_key->index][1] = *color;
+                break;
+            case StyleVarType::size:
+            case StyleVarType::size2:
+                assert(false);
+                std::terminate();
             }
-            if (auto color = json_try_get<ControlColorDesc>(value[0]))
-                v.control_colors[var_key->index][0] = *color;
-            if (auto color = json_try_get<ControlColorDesc>(value[1]))
-                v.control_colors[var_key->index][1] = *color;
-            break;
-        case StyleVarType::size:
-        case StyleVarType::size2:
-            assert(false);
-            std::terminate();
         }
     }
 }
@@ -124,8 +134,8 @@ static void write_style_var_set(nlohmann::json& j,
                                 std::span<std::array<T, 2> const> set) {
     auto& style_class = StyleClass::get();
     for (unsigned i = 0; i < set.size(); ++i) {
-        auto const& name = style_class.get_metadata(StyleVarId<Type>{i}).name;
-        j[name] = set[i];
+        auto const& md = style_class.get_metadata(StyleVarId<Type>{i});
+        j[md.group][md.name] = set[i];
     }
 }
 

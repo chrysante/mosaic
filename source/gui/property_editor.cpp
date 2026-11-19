@@ -8,17 +8,25 @@
 #include "gui/view_layout_support.h"
 #include "gui/view_support.h"
 #include "gui/widgets.h"
+#include "style/style.h"
+#include "style/style_class.h"
 #include "support/memory.h"
 
 using namespace mosaic;
 using namespace ui;
+
+namespace style {
+
+static StyleColorId const section_background =
+    register_style_color({.group = "Properties", .name = "SectionBackground"});
+
+}
 
 namespace {
 
 struct PropertiesStyle {
     vml::float2 section_padding;
     float section_rounding = 15.0f;
-    ImU32 section_background = IM_COL32(255, 255, 255, 15);
 };
 
 static PropertiesStyle get_style() {
@@ -79,11 +87,15 @@ struct SectionView : View {
         auto style = get_style();
         vml::float2 total_padding = 2.0f * style.section_padding;
         auto* DL = ImGui::GetWindowDrawList();
-        DL->AddRectFilled(frame.min(), frame.max(), style.section_background,
-                          style.section_rounding);
+        DL->AddRectFilled(
+            frame.min(), frame.max(),
+            get_global_style().get_color(::style::section_background).value,
+            style.section_rounding);
         Rect stack_frame = {frame.origin + style.section_padding,
                             frame.size - total_padding};
         stack->display(stack_frame);
+        ImGui::SetCursorScreenPos(frame.max());
+        ImGui::Dummy({});
     }
 
     vml::float2 do_calc_intrinsic_size(vml::float2 max_size) const {

@@ -1,114 +1,122 @@
 {
-    "Border": [
-        "#00000000",
-        "#00000000"
-    ],
-    "Control": [
-        {
-            "background": "#1e000000",
-            "background_active": "#32000000",
-            "background_hovered": "#1e000000",
-            "border": "#00000000",
-            "text": "#ff000000"
-        },
-        {
-            "background": "#1effffff",
-            "background_active": "#32ffffff",
-            "background_hovered": "#1effffff",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        }
-    ],
-    "ControlAccent": [
-        {
-            "background": "#ffffa03c",
-            "background_active": "#ffdf9b52",
-            "background_hovered": "#ffffb260",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        },
-        {
-            "background": "#ffffa03c",
-            "background_active": "#ffdf9b52",
-            "background_hovered": "#ffffb260",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        }
-    ],
-    "ControlTab": [
-        {
-            "background": "#1e000000",
-            "background_active": "#32000000",
-            "background_hovered": "#28000000",
-            "border": "#00000000",
-            "text": "#ff000000"
-        },
-        {
-            "background": "#1effffff",
-            "background_active": "#32ffffff",
-            "background_hovered": "#28ffffff",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        }
-    ],
-    "ControlTabInactive": [
-        {
-            "background": "#1e000000",
-            "background_active": "#32000000",
-            "background_hovered": "#28000000",
-            "border": "#00000000",
-            "text": "#ff000000"
-        },
-        {
-            "background": "#1effffff",
-            "background_active": "#32ffffff",
-            "background_hovered": "#28ffffff",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        }
-    ],
-    "ControlToolbar": [
-        {
-            "background": "#14000000",
-            "background_active": "#28000000",
-            "background_hovered": "#1e000000",
-            "border": "#00000000",
-            "text": "#ff000000"
-        },
-        {
-            "background": "#1effffff",
-            "background_active": "#32ffffff",
-            "background_hovered": "#28ffffff",
-            "border": "#00000000",
-            "text": "#ffffffff"
-        }
-    ],
-    "DockingPreview": [
-        "#ffffa03c",
-        "#ffffa03c"
-    ],
-    "Scrollbar": [
-        "#1e000000",
-        "#1effffff"
-    ],
-    "Separator": [
-        "#1e000000",
-        "#1effffff"
-    ],
-    "Text": [
-        "#ff000000",
-        "#ffffffff"
-    ],
-    "TextDisabled": [
-        "#c8000000",
-        "#c8ffffff"
-    ],
-    "TextLink": [
-        "#ffffa03c",
-        "#ffffa03c"
-    ],
-    "WindowBackground": [
-        "#ffffffff",
-        "#ff0f0f0f"
-    ]
+    "Core": {
+        "Border": [
+            "#1e000000",
+            "#1effffff"
+        ],
+        "Control": [
+            {
+                "background": "#1e000000",
+                "background_active": "#32000000",
+                "background_hovered": "#1e000000",
+                "border": "#00000000",
+                "text": "#ff000000"
+            },
+            {
+                "background": "#1effffff",
+                "background_active": "#32ffffff",
+                "background_hovered": "#1effffff",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            }
+        ],
+        "ControlAccent": [
+            {
+                "background": "#ffffa03c",
+                "background_active": "#ffdf9b52",
+                "background_hovered": "#ffffb260",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            },
+            {
+                "background": "#ffffa03c",
+                "background_active": "#ffdf9b52",
+                "background_hovered": "#ffffb260",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            }
+        ],
+        "ControlTab": [
+            {
+                "background": "#1e000000",
+                "background_active": "#32000000",
+                "background_hovered": "#28000000",
+                "border": "#00000000",
+                "text": "#ff000000"
+            },
+            {
+                "background": "#1effffff",
+                "background_active": "#32ffffff",
+                "background_hovered": "#28ffffff",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            }
+        ],
+        "ControlTabInactive": [
+            {
+                "background": "#1e000000",
+                "background_active": "#32000000",
+                "background_hovered": "#28000000",
+                "border": "#00000000",
+                "text": "#ff000000"
+            },
+            {
+                "background": "#1effffff",
+                "background_active": "#32ffffff",
+                "background_hovered": "#28ffffff",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            }
+        ],
+        "ControlToolbar": [
+            {
+                "background": "#14000000",
+                "background_active": "#28000000",
+                "background_hovered": "#1e000000",
+                "border": "#00000000",
+                "text": "#ff000000"
+            },
+            {
+                "background": "#1effffff",
+                "background_active": "#32ffffff",
+                "background_hovered": "#28ffffff",
+                "border": "#00000000",
+                "text": "#ffffffff"
+            }
+        ],
+        "DockingPreview": [
+            "#ffffa03c",
+            "#ffffa03c"
+        ],
+        "Scrollbar": [
+            "#1e000000",
+            "#1effffff"
+        ],
+        "Separator": [
+            "#1e000000",
+            "#1effffff"
+        ],
+        "Text": [
+            "#ff000000",
+            "#ffffffff"
+        ],
+        "TextDisabled": [
+            "#c8000000",
+            "#c8ffffff"
+        ],
+        "TextLink": [
+            "#ffffa03c",
+            "#ffffa03c"
+        ],
+        "WindowBackground": [
+            "#ffffffff",
+            "#ff0f0f0f"
+        ]
+    },
+    "Properties": {
+        "SectionBackground": [
+            "#07000000",
+            "#0fffffff"
+        ]
+    }
 }

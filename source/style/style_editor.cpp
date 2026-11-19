@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <memory>
 
 #include <imgui.h>
@@ -131,23 +132,36 @@ struct mosaic::internal::StyleEditorImpl {
 
     Owner<View> editor_view() {
         auto& style_class = StyleClass::get();
-        ViewContainer<> base_colors, control_colors;
-        for (unsigned index = 0; index < style_desc.colors.size(); ++index) {
-            std::string name =
-                style_class.get_metadata(StyleColorId{index}).name;
-            base_colors.push_back(field(name, style_desc.colors[index][0],
-                                        style_desc.colors[index][1]));
+
+        ViewContainer<> sections;
+        for (auto& group : style_class.groups()) {
+            ViewContainer<> fields;
+            auto elems = group.elements();
+            std::ranges::sort(elems, std::greater{},
+                              [](auto& p) -> auto& { return p.first; });
+            for (auto& [name, key] : elems) {
+                switch (key.type) {
+                case StyleVarType::color:
+                    fields.push_back(field(name,
+                                           style_desc.colors[key.index][0],
+                                           style_desc.colors[key.index][1]));
+                    break;
+                case StyleVarType::control_color:
+                    fields.push_back(
+                        field(name, style_desc.control_colors[key.index][0],
+                              style_desc.control_colors[key.index][1]));
+                    break;
+                case StyleVarType::size:
+                    assert(false);
+                    break;
+                case StyleVarType::size2:
+                    assert(false);
+                    break;
+                }
+            }
+            sections.push_back(ui::section(group.name(), std::move(fields)));
         }
-        for (unsigned index = 0; index < style_desc.control_colors.size();
-             ++index) {
-            std::string name =
-                style_class.get_metadata(StyleControlColorId{index}).name;
-            control_colors.push_back(
-                field(name, style_desc.control_colors[index][0],
-                      style_desc.control_colors[index][1]));
-        }
-        return vscroll({section("Base Colors", std::move(base_colors)),
-                        section("Control Colors", std::move(control_colors))});
+        return vscroll(std::move(sections));
     }
 
     void update() { defer_queue.pump(); }
